@@ -1,7 +1,234 @@
 ﻿@page "/"
 
-<PageTitle>Home</PageTitle>
+<PageTitle>WheelyTrails - Discover Accessible Trails</PageTitle>
 
-<h1>Hello, world!</h1>
+<!-- Hero Section -->
+<section class="relative h-screen bg-cover bg-center bg-no-repeat mt-[70px]"
+         style="background-image: linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.4)), url(/img/assets/hero-bg.jpg);">
 
-Welcome to your new app.
+    <div class="container mx-auto px-4 h-full flex items-center">
+        <div class="max-w-3xl mx-auto">
+            <!-- Main Heading -->
+            <h1 class="text-5xl md:text-6xl lg:text-7xl font-bold font-playfair text-white mb-6 leading-tight">
+                Discover accessible trails for everyone
+            </h1>
+
+            <!-- Subheading -->
+            <p class="text-xl md:text-2xl text-white/90 mb-8 max-w-2xl">
+                Find, rate, and share wheelchair-accessible trails. Explore nature without barriers.
+            </p>
+
+            <!-- Search Card -->
+            <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-2xl">
+                <!-- Search Input Row -->
+                <div class="flex flex-col md:flex-row gap-3 mb-4">
+                    <!-- Location Search -->
+                    <div class="flex-1 relative">
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 12.414m0 0a6 6 0 10-8.485 0 6 6 0 008.485 0z"></path>
+                            </svg>
+                        </div>
+                        <input type="text"
+                               @bind="searchLocation"
+                               placeholder="City, park, or trail name"
+                               class="w-full pl-12 pr-4 py-4 text-gray-800 bg-gray-50 border-2 border-gray-200 rounded-xl
+                                   focus:outline-none focus:ring-2 focus:ring-harp-500 focus:border-transparent
+                                   text-base transition-all duration-200" />
+                    </div>
+
+                    <!-- Difficulty Dropdown -->
+                    <div class="relative md:w-64">
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                            </svg>
+                        </div>
+                        <select @bind="selectedDifficulty"
+                                class="w-full pl-12 pr-10 py-4 text-gray-800 bg-gray-50 border-2 border-gray-200 rounded-xl
+                                   focus:outline-none focus:ring-2 focus:ring-harp-500 focus:border-transparent
+                                   text-base appearance-none cursor-pointer transition-all duration-200">
+                            <option value="">All difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="hard">Hard</option>
+                            <option value="intense">Intense</option>
+                        </select>
+                        <div class="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Filters -->
+                <div class="flex flex-wrap gap-2 mb-6 pb-6 border-b border-gray-200">
+                    <button @onclick="() => ToggleFilter(nameof(showWheelchairAccessible))"
+                            class="@GetFilterButtonClass(showWheelchairAccessible)">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Wheelchair Accessible
+                    </button>
+                    <button @onclick="() => ToggleFilter(nameof(showAccessibleToliet))"
+                            class="@GetFilterButtonClass(showAccessibleToliet)">
+                        Accessible Toliet
+                    </button>
+                    <button @onclick="() => ToggleFilter(nameof(showPavedPath))"
+                            class="@GetFilterButtonClass(showPavedPath)">
+                        Paved Path
+                    </button>
+                    <button @onclick="() => ToggleFilter(nameof(showScenicViews))"
+                            class="@GetFilterButtonClass(showScenicViews)">
+                        Scenic Views
+                    </button>
+                    <button @onclick="() => ToggleFilter(nameof(showRestAreas))"
+                            class="@GetFilterButtonClass(showRestAreas)">
+                        Rest Areas
+                    </button>
+                </div>
+
+                <!-- Search Button -->
+                <button @onclick="HandleSearch"
+                        class="w-full bg-harp-600 hover:bg-harp-700 active:bg-harp-800 text-white font-semibold
+                           py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center
+                           shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Search Trails
+                </button>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="flex flex-wrap justify-center gap-6 mt-8 text-white">
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold">5,000+</div>
+                        <div class="text-sm text-white/80">Active Users</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold">1,200+</div>
+                        <div class="text-sm text-white/80">Accessible Trails</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-20 bg-harp-50 dark:bg-harp-950">
+    <div class="container mx-auto px-4">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-bold font-playfair text-gray-800 dark:text-harp-100 mb-4">
+                Trail accessibility for everyone
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-harp-200 max-w-3xl mx-auto">
+                We're making outdoor adventures accessible to wheelchair users with detailed trail information,
+                community reviews, and real accessibility ratings.
+            </p>
+        </div>
+
+        <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <!-- Feature 1 -->
+            <div class="bg-white dark:bg-harp-900 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div class="w-16 h-16 bg-gradient-to-br from-harp-500 to-harp-700 rounded-2xl flex items-center justify-center mb-6 transform rotate-3">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-harp-100">Detailed Accessibility Info</h3>
+                <p class="text-gray-600 dark:text-harp-200 leading-relaxed">
+                    Get comprehensive trail details including surface type, gradient, width, and obstacle information verified by the community.
+                </p>
+            </div>
+
+            <!-- Feature 2 -->
+            <div class="bg-white dark:bg-harp-900 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div class="w-16 h-16 bg-gradient-to-br from-harp-500 to-harp-700 rounded-2xl flex items-center justify-center mb-6 transform -rotate-3">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-harp-100">Photo Sharing</h3>
+                <p class="text-gray-600 dark:text-harp-200 leading-relaxed">
+                    Upload and view photos showing actual trail conditions, accessibility features, and scenic views from the community.
+                </p>
+            </div>
+
+            <!-- Feature 3 -->
+            <div class="bg-white dark:bg-harp-900 p-8 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300">
+                <div class="w-16 h-16 bg-gradient-to-br from-harp-500 to-harp-700 rounded-2xl flex items-center justify-center mb-6 transform rotate-3">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-2xl font-bold mb-4 text-gray-800 dark:text-harp-100">Community Reviews</h3>
+                <p class="text-gray-600 dark:text-harp-200 leading-relaxed">
+                    Read authentic reviews and ratings from wheelchair users who've experienced the trails firsthand.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+@code {
+    private string searchLocation = string.Empty;
+    private string selectedDifficulty = string.Empty;
+    private bool showWheelchairAccessible = true;
+    private bool showAccessibleToliet = false;
+    private bool showPavedPath = false;
+    private bool showScenicViews = false;
+    private bool showRestAreas = false;
+
+    private void ToggleFilter(string filterName)
+    {
+        switch (filterName)
+        {
+            case nameof(showWheelchairAccessible):
+                showWheelchairAccessible = !showWheelchairAccessible;
+                break;
+            case nameof(showPavedPath):
+                showPavedPath = !showPavedPath;
+                break;
+            case nameof(showScenicViews):
+                showScenicViews = !showScenicViews;
+                break;
+            case nameof(showRestAreas):
+                showRestAreas = !showRestAreas;
+                break;
+            case nameof(showAccessibleToliet):
+                showAccessibleToliet = !showAccessibleToliet;
+                break;
+        }
+    }
+
+    private string GetFilterButtonClass(bool isActive)
+    {
+        var baseClasses = "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 flex items-center";
+        var activeClasses = "bg-harp-600 text-white shadow-md";
+        var inactiveClasses = "bg-gray-100 text-gray-700 hover:bg-gray-200";
+
+        return $"{baseClasses} {(isActive ? activeClasses : inactiveClasses)}";
+    }
+
+    private void HandleSearch()
+    {
+        // TODO: Implement search navigation with parameters
+        // NavigationManager.NavigateTo($"/trails/discover?location={searchLocation}&difficulty={selectedDifficulty}");
+    }
+}
