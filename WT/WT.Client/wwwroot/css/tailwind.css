@@ -1,0 +1,42 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* Links */
+.wt-link {
+    @apply max-lg:py-3 px-3 text-blue-500 font-medium font-semibold hover:underline whitespace-nowrap tracking-normal;
+}
+.wt-navbar-lnk {
+    @apply max-lg:py-3 px-3 dark:text-harp-100 hover:text-blue-500 dark:hover:text-blue-700;
+}
+.wt-navbar-lnk-active {
+    @apply text-blue-500 dark:text-blue-700 max-lg:py-3 px-3;
+}
+
+/* forms */
+.wt-form-lbl {
+    @apply text-wt-black-900 dark:text-white text-sm font-medium block mb-2;
+}
+.wt-form-input {
+    @apply w-full text-sm text-wt-black-900 border-b border-harp-300 focus:border-harp-950 pr-8 px-2 py-3 outline-none;
+}
+.wt-form-input-error {
+    @apply w-full text-sm text-wt-black-900 dark:text-white border-b-2 border-red-500 focus:border-red-600 pr-8 px-2 py-3 outline-none bg-red-50 dark:bg-red-950/20;
+}
+.wt-form-error-msg {
+    @apply text-red-600 dark:text-red-400 text-xs font-medium mt-1 block;
+}
+
+
+/* Buttons */
+.wt-btn {
+    @apply px-4 py-2 text-sm rounded-full font-medium cursor-pointer tracking-wide text-wt-black-950 border border-harp-400 bg-transparent hover:bg-harp-700 transition-all dark:border-wt-black-500 dark:text-harp-100 dark:hover:bg-harp-200 dark:hover:text-wt-black-950;
+}
+.wt-btn-outline {
+    @apply px-4 py-2 text-sm rounded-full font-medium cursor-pointer tracking-wide text-harp-100 border border-harp-400 bg-harp-400 hover:bg-harp-700 transition-all dark:bg-harp-200/80 dark:border-wt-black-500 dark:text-harp-100 dark:hover:text-wt-black-950 dark:hover:bg-harp-200;
+}
+
+.wt-btn-outline-social {
+    @apply w-full mb-2 flex items-center justify-center gap-4 py-2 px-4 text-[15px] font-medium tracking-wide text-wt-black-900 dark:text-white border border-harp-400 rounded-md bg-transparent hover:bg-harp-300 focus:outline-none cursor-pointer;
+}

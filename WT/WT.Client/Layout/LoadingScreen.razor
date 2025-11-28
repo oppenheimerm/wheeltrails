@@ -1,0 +1,157 @@
+﻿@using Microsoft.AspNetCore.Components
+
+<div class="fixed inset-0 z-50 flex items-center justify-center @BackgroundGradient overflow-hidden">
+    <!-- Animated Background Elements -->
+    <div class="absolute inset-0 overflow-hidden">
+        <!-- Floating circles -->
+        <div class="absolute top-1/4 left-1/4 w-64 h-64 bg-harp-300/20 rounded-full blur-3xl animate-float-slow"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-harp-400/20 rounded-full blur-3xl animate-float-slower"></div>
+        <div class="absolute top-1/3 right-1/3 w-48 h-48 bg-harp-500/10 rounded-full blur-2xl animate-float"></div>
+    </div>
+
+    <!-- Main Loading Content -->
+    <div class="relative z-10 flex flex-col items-center justify-center space-y-8">
+        
+        @if (LoadingStyle == "wheelchair")
+        {
+            <!-- Wheelchair Animation -->
+            <div class="relative w-32 h-32">
+                <!-- Wheelchair icon with rotating wheel -->
+                <svg class="w-full h-full text-harp-600 dark:text-harp-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <!-- Seat -->
+                    <path d="M12 4h2a2 2 0 012 2v2h-4V4z" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Back -->
+                    <path d="M14 4v4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Armrest -->
+                    <path d="M12 8h4l1 4" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- Large wheel with spinning animation -->
+                    <g class="origin-center animate-spin-slow">
+                        <circle cx="12" cy="16" r="5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 11v10M7 16h10" stroke-linecap="round" stroke-linejoin="round"/>
+                    </g>
+                    <!-- Small front wheel -->
+                    <circle cx="17" cy="18" r="1.5" stroke-linecap="round" stroke-linejoin="round" class="animate-spin-fast origin-center"/>
+                </svg>
+                
+                <!-- Trail path effect -->
+                <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-2 h-16 bg-gradient-to-t from-harp-400/50 to-transparent animate-trail"></div>
+            </div>
+        }
+        else if (LoadingStyle == "trail")
+        {
+            <!-- Trail Path Animation -->
+            <div class="relative w-48 h-32">
+                <!-- Mountains -->
+                <div class="absolute bottom-0 w-full flex items-end justify-center space-x-2">
+                    <div class="w-0 h-0 border-l-[30px] border-r-[30px] border-b-[50px] border-l-transparent border-r-transparent border-b-harp-600 dark:border-b-harp-500 animate-mountain-1"></div>
+                    <div class="w-0 h-0 border-l-[40px] border-r-[40px] border-b-[70px] border-l-transparent border-r-transparent border-b-harp-700 dark:border-b-harp-600 animate-mountain-2"></div>
+                    <div class="w-0 h-0 border-l-[25px] border-r-[25px] border-b-[45px] border-l-transparent border-r-transparent border-b-harp-500 dark:border-b-harp-400 animate-mountain-3"></div>
+                </div>
+                
+                <!-- Animated path -->
+                <svg class="absolute bottom-0 w-full h-16" viewBox="0 0 200 50" preserveAspectRatio="none">
+                    <path d="M0,40 Q50,20 100,30 T200,25" 
+                          stroke="currentColor" 
+                          class="text-harp-400 dark:text-harp-500 animate-draw-path"
+                          stroke-width="3" 
+                          fill="none" 
+                          stroke-dasharray="400" 
+                          stroke-dashoffset="400"/>
+                </svg>
+            </div>
+        }
+        else if (LoadingStyle == "spinner")
+        {
+            <!-- Modern Spinner -->
+            <div class="relative w-24 h-24">
+                <!-- Outer ring -->
+                <div class="absolute inset-0 border-4 border-harp-200 dark:border-harp-800 rounded-full"></div>
+                <!-- Spinning segment -->
+                <div class="absolute inset-0 border-4 border-transparent border-t-harp-600 dark:border-t-harp-400 rounded-full animate-spin"></div>
+                <!-- Inner pulsing circle -->
+                <div class="absolute inset-3 bg-harp-500 dark:bg-harp-600 rounded-full animate-pulse"></div>
+            </div>
+        }
+        else if (LoadingStyle == "dots")
+        {
+            <!-- Bouncing Dots -->
+            <div class="flex space-x-3">
+                <div class="w-4 h-4 bg-harp-600 dark:bg-harp-400 rounded-full animate-bounce-1"></div>
+                <div class="w-4 h-4 bg-harp-600 dark:bg-harp-400 rounded-full animate-bounce-2"></div>
+                <div class="w-4 h-4 bg-harp-600 dark:bg-harp-400 rounded-full animate-bounce-3"></div>
+            </div>
+        }
+        else
+        {
+            <!-- Default: Pulse Circle -->
+            <div class="relative w-32 h-32">
+                <div class="absolute inset-0 bg-harp-600 dark:bg-harp-400 rounded-full animate-ping opacity-75"></div>
+                <div class="absolute inset-4 bg-harp-600 dark:bg-harp-400 rounded-full animate-pulse"></div>
+                <div class="absolute inset-8 bg-white dark:bg-harp-900 rounded-full flex items-center justify-center">
+                    <svg class="w-12 h-12 text-harp-600 dark:text-harp-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"/>
+                    </svg>
+                </div>
+            </div>
+        }
+
+        <!-- Loading Text -->
+        <div class="text-center space-y-2">
+            <h2 class="text-2xl md:text-3xl font-bold font-playfair @TextColor animate-fade-in">
+                @Text
+            </h2>
+            
+            @if (ShowSubtext)
+            {
+                <p class="text-sm md:text-base @SubtextColor animate-fade-in-delayed">
+                    @Subtext
+                </p>
+            }
+            
+            @if (ShowProgressBar)
+            {
+                <!-- Progress Bar -->
+                <div class="w-64 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-4">
+                    <div class="h-full bg-gradient-to-r from-harp-500 to-harp-700 rounded-full animate-progress"></div>
+                </div>
+            }
+        </div>
+
+        @if (ShowTips)
+        {
+            <!-- Random Tips -->
+            <div class="max-w-md px-6 py-4 bg-white/80 dark:bg-harp-900/80 backdrop-blur-sm rounded-xl shadow-lg animate-fade-in-slow">
+                <p class="text-sm text-gray-700 dark:text-harp-200 text-center">
+                    <span class="font-semibold text-harp-700 dark:text-harp-300">💡 Tip:</span>
+                    @CurrentTip
+                </p>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Text { get; set; } = "Loading your experience...";
+    [Parameter] public string Subtext { get; set; } = "Please wait while we prepare your trails";
+    [Parameter] public bool ShowSubtext { get; set; } = true;
+    [Parameter] public bool ShowProgressBar { get; set; } = false;
+    [Parameter] public bool ShowTips { get; set; } = true;
+    [Parameter] public string LoadingStyle { get; set; } = "wheelchair"; // wheelchair, trail, spinner, dots, pulse
+    [Parameter] public string BackgroundGradient { get; set; } = "bg-gradient-to-br from-harp-50 via-harp-100 to-harp-200 dark:from-harp-950 dark:via-harp-900 dark:to-harp-800";
+    [Parameter] public string TextColor { get; set; } = "text-gray-800 dark:text-harp-100";
+    [Parameter] public string SubtextColor { get; set; } = "text-gray-600 dark:text-harp-200";
+
+    private string CurrentTip => Tips[_random.Next(Tips.Length)];
+    private static readonly Random _random = new();
+
+    private static readonly string[] Tips = new[]
+    {
+        "Check trail surface types before your visit for the smoothest experience.",
+        "Upload photos of trails to help fellow wheelchair users plan their adventures.",
+        "Trail difficulty ratings are based on real user experiences.",
+        "Enable notifications to get updates about trail conditions near you.",
+        "Community reviews help everyone find the perfect accessible trail.",
+        "Save your favorite trails for quick access later.",
+        "Share your trail experiences to help grow our community."
+    };
+}

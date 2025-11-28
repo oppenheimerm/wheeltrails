@@ -2,6 +2,9 @@
 
 namespace WT.Application.DTO.Request.Account
 {
+    /// <summary>
+    /// Lightweight DTO for user login. 
+    /// </summary>
     public class LoginDTO
     {
         [Required]
