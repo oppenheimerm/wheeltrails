@@ -746,6 +746,10 @@ video {
   margin-bottom: 2rem;
 }
 
+.ml-3 {
+  margin-left: 0.75rem;
+}
+
 .mr-1 {
   margin-right: 0.25rem;
 }
@@ -776,10 +780,6 @@ video {
 
 .mt-\[96\.8px\] {
   margin-top: 96.8px;
-}
-
-.ml-3 {
-  margin-left: 0.75rem;
 }
 
 .block {
@@ -1174,6 +1174,10 @@ video {
   overflow: hidden;
 }
 
+.rounded {
+  border-radius: 0.25rem;
+}
+
 .rounded-2xl {
   border-radius: 1rem;
 }
@@ -1188,10 +1192,6 @@ video {
 
 .rounded-xl {
   border-radius: 0.75rem;
-}
-
-.rounded {
-  border-radius: 0.25rem;
 }
 
 .border {
@@ -1265,6 +1265,11 @@ video {
   border-color: rgb(207 227 207 / var(--tw-border-opacity, 1));
 }
 
+.border-harp-400 {
+  --tw-border-opacity: 1;
+  border-color: rgb(124 172 126 / var(--tw-border-opacity, 1));
+}
+
 .border-slate-300 {
   --tw-border-opacity: 1;
   border-color: rgb(203 213 225 / var(--tw-border-opacity, 1));
@@ -1272,11 +1277,6 @@ video {
 
 .border-transparent {
   border-color: transparent;
-}
-
-.border-harp-400 {
-  --tw-border-opacity: 1;
-  border-color: rgb(124 172 126 / var(--tw-border-opacity, 1));
 }
 
 .border-b-harp-500 {
@@ -1603,6 +1603,11 @@ video {
   letter-spacing: 0.025em;
 }
 
+.text-blue-500 {
+  --tw-text-opacity: 1;
+  color: rgb(59 130 246 / var(--tw-text-opacity, 1));
+}
+
 .text-blue-600 {
   --tw-text-opacity: 1;
   color: rgb(37 99 235 / var(--tw-text-opacity, 1));
@@ -1684,11 +1689,6 @@ video {
 .text-wt-black-950 {
   --tw-text-opacity: 1;
   color: rgb(1 1 1 / var(--tw-text-opacity, 1));
-}
-
-.text-blue-500 {
-  --tw-text-opacity: 1;
-  color: rgb(59 130 246 / var(--tw-text-opacity, 1));
 }
 
 .opacity-75 {
@@ -2103,14 +2103,14 @@ video {
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
-.focus\:ring-harp-500:focus {
-  --tw-ring-opacity: 1;
-  --tw-ring-color: rgb(90 141 91 / var(--tw-ring-opacity, 1));
-}
-
 .focus\:ring-harp-300:focus {
   --tw-ring-opacity: 1;
   --tw-ring-color: rgb(170 203 171 / var(--tw-ring-opacity, 1));
+}
+
+.focus\:ring-harp-500:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(90 141 91 / var(--tw-ring-opacity, 1));
 }
 
 .active\:bg-harp-800:active {
@@ -2314,6 +2314,11 @@ video {
     display: none;
   }
 
+  .dark\:border-harp-600 {
+    --tw-border-opacity: 1;
+    border-color: rgb(70 115 72 / var(--tw-border-opacity, 1));
+  }
+
   .dark\:border-harp-800 {
     --tw-border-opacity: 1;
     border-color: rgb(49 74 49 / var(--tw-border-opacity, 1));
@@ -2326,11 +2331,6 @@ video {
 
   .dark\:border-wt-black-400\/50 {
     border-color: rgb(136 136 136 / 0.5);
-  }
-
-  .dark\:border-harp-600 {
-    --tw-border-opacity: 1;
-    border-color: rgb(70 115 72 / var(--tw-border-opacity, 1));
   }
 
   .dark\:border-b-harp-400 {
