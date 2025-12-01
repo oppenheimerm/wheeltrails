@@ -14,6 +14,8 @@ namespace WT.Domain.Entity
         public DateTime? Verified { get; set; }
 
         public bool IsVerified => Verified.HasValue;
+
+        public string? VerificationToken { get; set; }
         public bool AcceptTerms { get; set; }
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]

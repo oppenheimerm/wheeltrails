@@ -21,7 +21,6 @@ namespace WT.Infrastructure.Data
             {
                 entity.Property(e => e.RoleCode).IsRequired(true);
                 entity.Property(e => e.Description).IsRequired(false);
-                entity.Property(e => e.CreatedDate).IsRequired(true);
             });
 
             // Additional model configurations can be added here
