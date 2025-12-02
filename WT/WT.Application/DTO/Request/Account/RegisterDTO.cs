@@ -1,6 +1,7 @@
 ﻿
 using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
+using WT.Application.DTO.Response;
 
 namespace WT.Application.DTO.Request.Account
 {
@@ -24,6 +25,10 @@ namespace WT.Application.DTO.Request.Account
         [Display(Name = "Email")]
         public string Email { get; set; } = "";
 
+
+        [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
+        public string? CountryCode { get; set; }
+
         [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]
         public string? Bio { get; set; }
 
@@ -37,5 +42,7 @@ namespace WT.Application.DTO.Request.Account
 
         [Range(typeof(bool), "true", "true")]
         public bool AcceptTerms { get; set; }
+
+        public List<RoleDTO>? Roles {get; set; }
     }
 }

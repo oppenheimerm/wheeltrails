@@ -1,20 +1,74 @@
-﻿# WheelyTrails.Com
+﻿![Alt text](logo.png "a title")
+# WheelyTrails.Com 🦽🌲
 
-<!-- ABOUT THE PROJECT -->
-## About
+[![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![Blazor](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor)](https://blazor.net/)
+[![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8?logo=pwa)](https://web.dev/explore/progressive-web-apps)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-💡 WheelyTrails is an application designed as a proof of concept / MVP application using 
-ASP.NET Core Blazor Web Assemply / ASP.NET Core Web API.  The aim of the app is to provide
-user contributed accessible trails, where users can add, rate, add photos and comment on 
-wheelchair accessible trails around the globe.
+> Empowering wheelchair users to explore the world, one accessible trail at a time.
 
-This application will initlaly be designed a [Progressive Web Applicaion](https://web.dev/explore/progressive-web-apps)
+## 📖 About
 
+**WheelyTrails** is a community-driven Progressive Web Application (PWA) built with ASP.NET Core Blazor WebAssembly and ASP.NET Core Web API. The platform enables users to discover, share, and rate wheelchair-accessible trails worldwide, fostering an inclusive outdoor experience for everyone.
 
-## Key Features
-- **Trail Database**: A comprehensive database of wheelchair-accessible trails, including details such as location, difficulty level, length, surface type, and amenities.
-- **User Reviews and Ratings**: Users can leave reviews and rate trails based on their experiences, helping others make informed decisions.
-- **Search and Filter**: Advanced search and filtering options to help users find trails based on specific criteria such as location, difficulty, length, and accessibility features.
-- **Trail Maps and Directions**: Interactive maps and directions to help users navigate to the trails easily.
-- **Upload Photos**: Users can upload photos of the trails to give others a visual idea of what to expect.
+This MVP/proof-of-concept demonstrates modern web technologies to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
+
+## ✨ Key Features
+
+### 🗺️ Trail Database
+- Comprehensive database of wheelchair-accessible trails worldwide
+- Detailed trail information including:
+  - 📍 Location with GPS coordinates
+  - 🎯 Difficulty level (Easy, Moderate, Challenging)
+  - 📏 Trail length and estimated duration
+  - 🛤️ Surface type (paved, gravel, boardwalk, etc.)
+  - ♿ Accessibility features (grade, width, rest areas)
+  - 🚻 Nearby amenities (parking, restrooms, facilities)
+
+### ⭐ User Reviews and Ratings
+- Community-driven reviews and ratings system
+- Share personal experiences and accessibility insights
+- Help others make informed trail decisions
+- Rate trails based on accessibility, scenery, and overall experience
+
+### 🔍 Search and Filter
+- Advanced search functionality with multiple criteria
+- Filter by:
+  - Geographic location and distance
+  - Difficulty level and trail length
+  - Surface type and accessibility features
+  - Amenities and facilities
+- Save favorite searches for quick access
+
+### 🗺️ Trail Maps and Directions
+- Interactive maps powered by mapping APIs
+- Turn-by-turn directions to trailheads
+- Visual trail route overlays
+- Parking location markers
+
+### 📸 Photo Upload
+- Community photo sharing for visual trail previews
+- Upload and view trail photos
+- Help others visualize accessibility features
+- Gallery view of community contributions
+
+## 🛠️ Technology Stack
+
+- **Frontend**: [Blazor WebAssembly (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
+- **Backend**: [ASP.NET Core Web API (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/apis)
+- **Architecture**: [Progressive Web Application (PWA)](https://web.dev/explore/progressive-web-apps)
+- **Logging**: [Serilog](https://serilog.net/)
+- **Deployment**: Azure/Cloud-ready
+- **UI Framework**: [Tailwind CSS](https://tailwindcss.com/)
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- Visual Studio 2022 or Visual Studio Code
+- Modern web browser (Chrome, Edge, Firefox, Safari)
+
+### Installation
 

@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>0d24f07a-9d8c-48c4-b09d-95d4a2600f8d</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,10 +16,13 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
+    </PackageReference>	
+	  
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="6.0.1" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\WT.Application\WT.Application.csproj" />
     <ProjectReference Include="..\WT.Domain\WT.Domain.csproj" />
   </ItemGroup>
 

@@ -5,8 +5,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using WT.Application.Contracts;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
+using WT.Infrastructure.Repositories;
 
 namespace WT.Infrastructure.DependencyInjection
 {
@@ -26,7 +28,7 @@ namespace WT.Infrastructure.DependencyInjection
             
             //  Register signin manager / Identity manager with custom WTRole
             services.AddIdentityCore<ApplicationUser>()
-                .AddRoles<WTRole>()
+                .AddRoles<IdentityRole<Guid>>()
                 .AddEntityFrameworkStores<AppDbContext>()
                 .AddSignInManager()
                 .AddDefaultTokenProviders();
@@ -64,7 +66,7 @@ namespace WT.Infrastructure.DependencyInjection
                     .AllowAnyHeader()
                     .AllowCredentials());
             });
-            
+            services.AddScoped<IWTAccount, WTAccount>();
             return services;
         }
     }
