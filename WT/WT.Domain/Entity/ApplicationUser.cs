@@ -5,10 +5,15 @@ namespace WT.Domain.Entity
 {
     public class ApplicationUser : IdentityUser<Guid>
     {
+        [Required, MaxLength(50, ErrorMessage = "First name has a maximum size 50 characters.")]
+        public string? FirstName { get; set; }
+
         public string? ProfilePicture { get; set; }
         [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]
         public string? Bio { get; set; }
-        public List<WTRole>? Roles { get; set; }
+
+        public List<IdentityRole<Guid>>? Roles { get; set; }
+
         [Range(typeof(bool), "true", "true")]
 
         public DateTime? Verified { get; set; }
@@ -20,6 +25,7 @@ namespace WT.Domain.Entity
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
         public string? CountryCode { get; set; }
+        public List<RefreshToken>? RefreshTokens { get; set; }
     }
 }
 
