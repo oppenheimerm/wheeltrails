@@ -5,7 +5,7 @@ namespace WT.Application.Contracts
 {
     public interface IWTAccount
     {
-        Task CreateAdmin();
+        Task<BaseAPIResponseDTO> CreateAdmin();
 
         Task<BaseAPIResponseDTO> RegisterAsync(RegisterDTO model);
 
@@ -16,5 +16,13 @@ namespace WT.Application.Contracts
         Task<IEnumerable<RoleDTO>> GetRolesAsync();
 
         Task<BaseAPIResponseDTO> AddUserToRoleAsync(Guid userId, CreateRoleDTO model);
+
+        /// <summary>
+        /// This method refreshes a JWT token using a valid refresh token.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        Task<APIResponseAuthentication> RefreshTokenAsync(string token, string ipAddress);
     }
 }

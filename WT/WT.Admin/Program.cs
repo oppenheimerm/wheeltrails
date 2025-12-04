@@ -18,6 +18,10 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+// in service container
+//app.UseAuthentication();
+//app.UseAuthorization();
+app.MapControllers();
 
 app.UseAntiforgery();
 

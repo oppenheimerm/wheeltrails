@@ -17,7 +17,7 @@
     private void HandleValidSubmit()
     {
         Console.WriteLine("Registration form submitted successfully!");
-        Console.WriteLine($"Name: {ModelDTO.FirstName} {ModelDTO.LasttName}");
+        Console.WriteLine($"Name: {ModelDTO.FirstName}");
         Console.WriteLine($"Email: {ModelDTO.Email}");
         // Add your actual registration logic here
     }
@@ -74,24 +74,6 @@
                         <ValidationMessage For="@(() => ModelDTO.FirstName)" class="wt-form-error-msg" />
                     </div>
 
-                    <!-- Last Name -->
-                    <div>
-                        <label class="wt-form-lbl" for="lastName">Last Name</label>
-                        <div class="relative flex items-center">
-                            <InputText @bind-Value="ModelDTO.LasttName" 
-                                       id="lastName"
-                                       class="@GetInputClass(() => ModelDTO.LasttName)" 
-                                       placeholder="Enter last name" />
-
-                            <!-- icon wrap -->
-                            <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    person
-                                </span>
-                            </div>
-                        </div>
-                        <ValidationMessage For="@(() => ModelDTO.LasttName)" class="wt-form-error-msg" />
-                    </div>
 
                     <!-- Email -->
                     <div>

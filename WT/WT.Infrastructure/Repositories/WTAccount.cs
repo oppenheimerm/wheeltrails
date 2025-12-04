@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -24,6 +25,8 @@ namespace WT.Infrastructure.Repositories
         IConfiguration config) : IWTAccount
     {
 
+        
+
         /// <summary>
         /// Adds a <see cref="ApplicationUser"/> to a role
         /// </summary>
@@ -45,14 +48,13 @@ namespace WT.Infrastructure.Repositories
             return await AddUserToRoleAsync(user, model.RoleName!);
         }
 
-        public async Task CreateAdmin()
+        public async Task<BaseAPIResponseDTO> CreateAdmin()
         {
             try {
-                if ((await FindRoleByNameAsync(Constants.Role.ADMIN_DEVELOPER)) != null) return;
+                //if ((await FindRoleByNameAsync(Constants.Role.ADMIN_DEVELOPER)) != null) return;
                 var admin = new RegisterDTO()
                 { 
                     FirstName = config["AdminUser:FirstName"]!,
-                    LasttName = config["AdminUser:LastName"]!,
                     Email = config["AdminUser:Email"]!,
                     Password = config["AdminUser:Password"]!,
                     AcceptTerms = true,
@@ -62,8 +64,13 @@ namespace WT.Infrastructure.Repositories
                 var adminRole = new List<RoleDTO>
                 {
                     new RoleDTO { RoleName = Constants.Role.ADMIN_DEVELOPER },
-                    new RoleDTO { RoleName = Constants.Role.ADMIN_EDITOR }
+                    new RoleDTO { RoleName = Constants.Role.ADMIN_EDITOR },
+                    new RoleDTO { RoleName = Constants.Role.USER},
+                    new RoleDTO { RoleName = Constants.Role.USER_EDITOR}
                 };
+
+                // make sure admin roles are created
+                await CreateAdminRoles(adminRole);
 
                 admin.Roles = adminRole;
 
@@ -78,17 +85,20 @@ namespace WT.Infrastructure.Repositories
                             await AddUserToRoleAsync(user, role.RoleName!);
                         }
                     }
-
+                    
                     LogException.LogToFile($"Admin user created: {admin.Email} at {DateTime.UtcNow}");
+                    return new BaseAPIResponseDTO() { Success = true, Message = "Sucessfully created Admin account" };
                 }
                 else
                 {
                     LogException.LogToConsole($"Failed to create admin user: {admin.Email} at {DateTime.UtcNow}. Reason: {status.Message}");
+                    return new BaseAPIResponseDTO() { Success = false, Message = status.Message };
                 }
             }
             catch(Exception err)
             {
                 LogException.LogExceptions(err);
+                return new BaseAPIResponseDTO() { Success = false, Message = "Failed to created Admin account" };
             }
         }
 
@@ -243,7 +253,7 @@ namespace WT.Infrastructure.Repositories
                 {
                     UserName = model.Email,
                     Email = model.Email,
-                    FirstName = model.FirstName,
+                    FirstName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(model.FirstName.Replace(" ", "").ToLower()),
                     Bio = model.Bio,
                     VerificationToken = GenerateVerificationToken(),
                     AcceptTerms = model.AcceptTerms,
@@ -302,6 +312,87 @@ namespace WT.Infrastructure.Repositories
                     Success = false,
                     Message = "An error occurred during registration. Please try again later."
                 };
+            }
+        }
+
+        /// <summary>
+        /// This method refreshes a JWT token using a valid refresh token.
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="ipAddress"></param>
+        /// <returns></returns>
+        public async Task<APIResponseAuthentication> RefreshTokenAsync(string token, string ipAddress)
+        {
+            // Get user account by refresh token
+            var user = await FindUserByRefreshTokenAsync(token);
+            if(user == null)
+            {
+                return new APIResponseAuthentication
+                {
+                    Success = false,
+                    Message = "Invalid refresh token."
+                };
+            }
+            else
+            {
+                var refreshToken = user.RefreshTokens!.Single(x => x.Token == token);
+                RefreshToken? newRefreshToken = null;
+
+                if (refreshToken is not null && refreshToken.IsRevoked)
+                {
+                    // revoke all descendant tokens in case this token has been compromised
+                    RevokeDescendantRefreshTokens(refreshToken, user, ipAddress, $"Attempted reuse of revoked ancestor token: {token}");
+                    // Log attempted reuse of revoked token
+                    LogException.LogToConsole($"Attempted reuse of revoked refresh token for user {user.Email} at {DateTime.UtcNow}");
+                    dbContext.Update(user);
+                    await dbContext.SaveChangesAsync();
+                }
+
+                if (refreshToken is not null && !refreshToken.IsActive)
+                { 
+                    // log invalid refresh token usage
+                    LogException.LogToFile($"Invalid refresh token usage for user {user.Email} at {DateTime.UtcNow}");
+                    return new APIResponseAuthentication(false, "Invalid token");
+                }
+                // replace old refresh token with a new one (rotate token)
+                if (refreshToken is not null && user.RefreshTokens is not null)
+                {
+                    newRefreshToken = await RotateRefreshTokenAsync(refreshToken, user.Id, ipAddress);
+                    if (newRefreshToken is not null)
+                        user.RefreshTokens.Add(newRefreshToken);
+                }
+
+                // remove old refresh tokens from account
+                RemoveOldRefreshTokens(user);
+
+                // save changes to db
+                dbContext.Update(user);
+                await dbContext.SaveChangesAsync();
+
+                // get roles for user
+                var roles = await GetRolesForUserAsync(user.Id);
+                if (roles is not null)
+                {
+                    // create a list RoleDTO from roles
+                    if(user.Roles is not null)
+                    {
+                        user.Roles.AddRange(roles);
+                    }
+                    else
+                    {
+                        user.Roles = roles;
+                    }
+                    
+                }
+
+                // generate new jwt
+                var jwtToken = await GenerateToken(user);
+
+                // convert user to dto
+                var userDto = user.ToDto();
+
+                var response = new APIResponseAuthentication(true, string.Empty, userDto, jwtToken, newRefreshToken!.Token);
+                return response;
             }
         }
 
@@ -427,6 +518,11 @@ namespace WT.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// Method to generate JWT token for <see cref="ApplicationUser"/>
+        /// </summary>
+        /// <param name="user"></param>
+        /// <returns></returns>
         public async Task<string?> GenerateToken(ApplicationUser user)
         {
             // Implementation for generating JWT token
@@ -464,6 +560,12 @@ namespace WT.Infrastructure.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        /// <summary>
+        /// Helpers method to generate a new <see cref="RefreshToken"/> for a given <see cref="ApplicationUser"/>
+        /// </summary>
+        /// <param name="ipAddress"></param>
+        /// <param name="userId"></param>
+        /// <returns></returns>
         private async Task<RefreshToken?> GenerateRefreshToken(string ipAddress, Guid userId)
         {
             // User exist?
@@ -519,6 +621,31 @@ namespace WT.Infrastructure.Repositories
             return user;
         }
 
+        /// <summary>
+        /// Helpers method to find <see cref="ApplicationUser"/> by <see cref="RefreshToken"/>
+        /// </summary>
+        /// <param name="token"></param>
+        /// <returns></returns>
+        private async Task<ApplicationUser?> FindUserByRefreshTokenAsync(string token)
+        {
+            var query = await dbContext.RefreshTokens
+                .Where(u => u.Token == token)
+                .Include(x => x.Account)
+                .FirstOrDefaultAsync();
+
+            // Defensive null checks
+            if (query?.Account != null)
+            {
+                return query.Account;
+            }
+            
+            return null;
+        }
+        /// <summary>
+        /// Helpers method to find <see cref="IdentityRole{Guid}"/> by role name
+        /// </summary>
+        /// <param name="roleName"></param>
+        /// <returns></returns>
         private async Task<IdentityRole<Guid>?> FindRoleByNameAsync(string roleName)
         {
             var role = await roleManager.FindByNameAsync(roleName);
@@ -543,9 +670,13 @@ namespace WT.Infrastructure.Repositories
         }
 
         /// <summary>
-        /// Helpers method to remove old <see cref="RefreshToken"/>(s) from <see cref="ApplicationUser"/> instance
+        /// Removes old, inactive refresh tokens from the specified user's collection based on the configured
+        /// time-to-live (TTL).
         /// </summary>
-        /// <param name="user"></param>
+        /// <remarks>This method removes refresh tokens that are no longer active and have exceeded the
+        /// time-to-live (TTL) duration specified in the application settings under
+        /// "ApplicationSettings:RefreshTokenTTL". Only inactive tokens are affected.</remarks>
+        /// <param name="user">The user whose refresh tokens will be evaluated and cleaned up. Cannot be null.</param>
         private void RemoveOldRefreshTokens(ApplicationUser user)
         {
             if (user.RefreshTokens is not null)
@@ -555,6 +686,80 @@ namespace WT.Infrastructure.Repositories
                     // remove old inactive refresh tokens from user based on TTL in app settings
                     user.RefreshTokens.RemoveAll(x =>
                         !x.IsActive && x.Created!.Value.AddDays(int.Parse(config["ApplicationSettings:RefreshTokenTTL"]!)) <= DateTime.UtcNow);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Helpers method to revoke a <see cref="RefreshToken"/> for a given <see cref="ApplicationUser"/>
+        /// </summary>
+        /// <param name="refreshToken"></param>
+        /// <param name="account"></param>
+        /// <param name="ipAddress"></param>
+        /// <param name="reason"></param>
+        private void RevokeDescendantRefreshTokens(RefreshToken? refreshToken, ApplicationUser account, string ipAddress, string reason)
+        {
+            if (refreshToken != null)
+            {
+                // recursively traverse the refresh token chain and ensure all descendants are revoked
+                if (!string.IsNullOrEmpty(refreshToken.ReplacedByToken))
+                {
+                    if (account.RefreshTokens is not null)
+                    {
+                        var childToken = account.RefreshTokens.SingleOrDefault(x => x.Token == refreshToken.ReplacedByToken);
+                        if (childToken is not null && childToken.IsActive)
+                            RevokeRefreshToken(childToken, ipAddress, reason);
+                        else
+                            RevokeDescendantRefreshTokens(childToken, account, ipAddress, reason);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Helpers method to revoke a <see cref="RefreshToken"/>
+        /// </summary>
+        /// <param name="token"></param>
+        /// <param name="ipAddress"></param>
+        /// <param name="reason"></param>
+        /// <param name="replacedByToken"></param>
+        private void RevokeRefreshToken(RefreshToken token, string ipAddress, string? reason = null, string? replacedByToken = null)
+        {
+            token.Revoked = DateTime.UtcNow;
+            token.RevokedByIp = ipAddress;
+            token.ReasonRevoked = reason;
+            token.ReplacedByToken = replacedByToken;
+        }
+
+        /// <summary>
+        /// Rotates a refresh token by generating a new one and revoking the old token.
+        /// This method is used to enhance security by replacing tokens periodically or on each use.
+        /// </summary>
+        /// <param name="refreshToken">The existing refresh token to be replaced and revoked.</param>
+        /// <param name="Id">The unique identifier of the user associated with the refresh token.</param>
+        /// <param name="ipAddress">The IP address of the client requesting the token rotation, used for audit tracking.</param>
+        /// <returns>
+        /// A new <see cref="RefreshToken"/> if successful, or null if token generation fails.
+        /// </returns>
+        private async Task<RefreshToken?> RotateRefreshTokenAsync(RefreshToken refreshToken, Guid Id, string ipAddress)
+        {
+            var newRefreshToken = await GenerateRefreshToken(ipAddress, Id);
+            RevokeRefreshToken(refreshToken, ipAddress, "Replaced by new token");
+            return newRefreshToken;
+        }
+
+        // Helper function to create the initial admin roles
+        private async Task CreateAdminRoles(List<RoleDTO> roles) { 
+            foreach (var roleDto in roles)
+            {
+                var roleExists = await roleManager.RoleExistsAsync(roleDto.RoleName!);
+                if (!roleExists)
+                {
+                    var role = new IdentityRole<Guid>
+                    {
+                        Name = roleDto.RoleName!
+                    };
+                    await roleManager.CreateAsync(role);
                 }
             }
         }

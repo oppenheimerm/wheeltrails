@@ -13,11 +13,6 @@ namespace WT.Application.DTO.Request.Account
         [PersonalData]
         public string FirstName { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(30)]
-        [MinLength(3, ErrorMessage = "Last name is reqired.")]
-        [PersonalData]
-        public string LasttName { get; set; } = string.Empty;
 
         // Ensure email address is valid
         [Required(ErrorMessage = "Email is required")]

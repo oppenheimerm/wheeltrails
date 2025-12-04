@@ -48,7 +48,7 @@ namespace WT.Infrastructure.DependencyInjection
                     ValidateLifetime = true,
                     ValidIssuer = config["JwtSettings:Issuer"],
                     ValidAudience = config["JwtSettings:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JWT:Key"]!))
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!))
                 };
             });
             
@@ -57,7 +57,7 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddAuthorization();
             
             // add CORS
-            services.AddCors(options =>
+            /*services.AddCors(options =>
             {
                 options.AddPolicy("WebClient",
                     builder => builder
@@ -65,7 +65,7 @@ namespace WT.Infrastructure.DependencyInjection
                     .AllowAnyMethod()
                     .AllowAnyHeader()
                     .AllowCredentials());
-            });
+            });*/
             services.AddScoped<IWTAccount, WTAccount>();
             return services;
         }
