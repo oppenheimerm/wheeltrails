@@ -61,6 +61,7 @@ This MVP/proof-of-concept demonstrates modern web technologies to create an acce
 - **Logging**: [Serilog](https://serilog.net/)
 - **Deployment**: Azure/Cloud-ready
 - **UI Framework**: [Tailwind CSS](https://tailwindcss.com/)
+- **Web API Documentation**: [Scalar](https://guides.scalar.com/scalar/scalar-api-references/integrations/net-aspnet-core/integration)
 
 ## 🚀 Getting Started
 
