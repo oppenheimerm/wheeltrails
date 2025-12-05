@@ -54,11 +54,12 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 - Gallery view of community contributions
 
 ### 🔐 Authentication & Security
-- JWT Bearer token authentication
-- Role-based authorization (Admin, Editor, User)
+- JWT Bearer token authentication with ASP.NET Core Identity
+- Role-based authorization (Admin Developer, Admin Editor, User Editor, User)
 - Secure user registration and login
-- Refresh token rotation for enhanced security
-- ASP.NET Core Identity integration
+- Refresh token rotation for enhanced security (7-day expiry)
+- Custom authentication state provider for Blazor applications
+- Local storage integration for client-side token management
 
 ## 🏗️ Architecture
 
@@ -114,6 +115,7 @@ WT.Client/WT.Admin → API → WT.Infrastructure → WT.Application → WT.Domai
 - **Admin Panel**: [Blazor Server (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
 - **UI Framework**: [Tailwind CSS](https://tailwindcss.com/)
 - **Architecture**: [Progressive Web Application (PWA)](https://web.dev/explore/progressive-web-apps)
+- **LocalStorage**: For client-side storage [Blazored LocalStorage](https://github.com/Blazored/LocalStorage)
 
 ### Development Tools
 - **IDE**: Visual Studio 2022 / Visual Studio Code
@@ -323,4 +325,4 @@ For questions or support, please:
 
 ---
 
-**Built with ❤️ for the mobility-impaired community**
+**Built with ❤️ for the wheely community**
