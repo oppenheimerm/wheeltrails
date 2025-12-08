@@ -1,26 +1,8 @@
-﻿@inject NavigationManager Navigation
-
-@code {
-    private bool isMenuOpen = false;
-
-    private void ToggleMenu()
-    {
-        isMenuOpen = !isMenuOpen;
-    }
-
-    private string MobileMenuClass => isMenuOpen ? "max-lg:block" : "max-lg:hidden";
-
-    private string GetNavLinkClass(string href)
-    {
-        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
-        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
-        
-        return isActive 
-            ? "wt-navbar-lnk-active" // Active state
-            : "wt-navbar-lnk"; // Default state
-    }
-}
-
+﻿@using Blazored.LocalStorage
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
 
 <!-- Fixed Header-->
 <div class="bg-harp-200 dark:bg-harp-950 fixed w-full z-20 top-0 start-0 border-b border-default dark:border-wt-black-400/50">
@@ -29,20 +11,20 @@
             <!-- lhs - logo -->
             <div class="flex items-center space-x-3 rtl:space-x-reverse">
                 <a href="/" class="">
-                    <!-- light logo -->
                     <img src="./img/assets/logo-light.png" alt="logo" class="w-[4rem] block dark:hidden" />
                     <img src="./img/assets/logo-dark.png" alt="logo" class="w-[4rem] hidden dark:block" />
                 </a>
-                <spam class="max-sm:hidden text-2xl font-semibold tracking-tight text-wt-black-900
-                    dark:text-harp-200">WheelyTrails</spam>
+                <span class="max-sm:hidden text-2xl font-semibold tracking-tight text-wt-black-900 dark:text-harp-200">
+                    WheelyTrails
+                </span>
             </div>
 
-
             <div id="collapseMenu"
-                 class="lg:block max-lg:before:fixed max-lg:before:bg-black max-lg:before:opacity-50 
+                 class="lg:block max-lg:before:fixed max-lg:before:bg-black max-lg:before:opacity-50
                         max-lg:before:inset-0 max-lg:before:z-50 @MobileMenuClass">
-                <button id="toggleClose" @onclick="ToggleMenu"  class="lg:hidden fixed top-2 right-4 z-[100] rounded-full bg-white w-9 h-9 
-                        flex items-center justify-center border border-gray-200 cursor-pointer">
+                <button id="toggleClose" @onclick="ToggleMenu"
+                        class="lg:hidden fixed top-2 right-4 z-[100] rounded-full bg-white w-9 h-9
+                               flex items-center justify-center border border-gray-200 cursor-pointer">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-black" viewBox="0 0 320.591 320.591">
                         <path d="M30.391 318.583a30.37 30.37 0 0 1-21.56-7.288c-11.774-11.844-11.774-30.973 0-42.817L266.643 10.665c12.246-11.459 31.462-10.822 42.921 1.424 10.362 11.074 10.966 28.095 1.414 39.875L51.647 311.295a30.366 30.366 0 0 1-21.256 7.288z"
                               data-original="#000000"></path>
@@ -60,26 +42,35 @@
                         </a>
                     </li>
                     <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/trails'
-                           class="@GetNavLinkClass("/trails")">Trails</a>
+                        <a href='/trails' class="@GetNavLinkClass("/trails")">Trails</a>
                     </li>
                     <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/trails/discover'
-                           class="@GetNavLinkClass("/trails/discover")">Discover</a>
+                        <a href='/trails/discover' class="@GetNavLinkClass("/trails/discover")">Discover</a>
                     </li>
                     <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/shop'
-                           class="@GetNavLinkClass("/shop")">Shop</a>
+                        <a href='/shop' class="@GetNavLinkClass("/shop")">Shop</a>
                     </li>
                 </ul>
             </div>
 
-            <div class="flex max-lg:ml-auto space-x-4">
-                <a href="/account/login" class="wt-btn">Login</a>
-                <a href="account/register" class="wt-btn-outline">Sign Up</a>
+            <div class="flex max-lg:ml-auto space-x-4 items-center">
+                <AuthorizeView>
+                    <NotAuthorized>
+                        <!-- ✅ Show when NOT logged in -->
+                        <a href="/account/identity/login" class="wt-btn">Login</a>
+                        <a href="/account/identity/register" class="wt-btn-outline">Sign Up</a>
+                    </NotAuthorized>
+                    <Authorized>
+                        <!-- ✅ Show when logged in -->
+                        <span class="hidden sm:inline text-sm text-gray-700 dark:text-gray-300 mr-2">
+                            Hi, @context.User.Identity?.Name
+                        </span>
+                        <button @onclick="HandleLogout" class="wt-btn">Logout</button>
+                    </Authorized>
+                </AuthorizeView>
 
                 <button @onclick="ToggleMenu" id="toggleOpen" class="lg:hidden cursor-pointer">
-                    <svg class="w-7 h-7" fill="#000" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <svg class="w-7 h-7 fill-current text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                         <path fill-rule="evenodd"
                               d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
                               clip-rule="evenodd"></path>
@@ -89,3 +80,61 @@
         </div>
     </header>
 </div>
+
+@code {
+    private bool isMenuOpen = false;
+
+    private void ToggleMenu()
+    {
+        isMenuOpen = !isMenuOpen;
+    }
+
+    private string MobileMenuClass => isMenuOpen ? "max-lg:block" : "max-lg:hidden";
+
+    private string GetNavLinkClass(string href)
+    {
+        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
+        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
+
+        return isActive
+            ? "wt-navbar-lnk-active"
+            : "wt-navbar-lnk";
+    }
+
+    // Add this to NavBar.razor @code section for debugging:
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        Console.WriteLine($"NavBar: User authenticated = {authState.User.Identity?.IsAuthenticated}");
+        Console.WriteLine($"NavBar: User name = {authState.User.Identity?.Name}");
+    }
+
+    /// <summary>
+    /// Handles user logout by clearing local storage and updating authentication state.
+    /// </summary>
+    /// <returns></returns>
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Clear local storage
+            var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
+            if (!string.IsNullOrEmpty(localStorageKey))
+            {
+                await LocalStorage.RemoveItemAsync(localStorageKey);
+            }
+
+            // Update authentication state to anonymous
+            var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+            await customAuthStateProvider.UpdateAuthenticatedState(null);
+
+            // ✅ Use forceLoad: true to ensure clean slate
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout error: {ex.Message}");
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+}

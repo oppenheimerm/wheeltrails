@@ -1,20 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+﻿<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>5aaec680-fee2-418e-ada8-6ff7e62cc276</UserSecretsId>
+    <BlazorWebAssemblyEnableLinking>false</BlazorWebAssemblyEnableLinking>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Pages\Shop\**" />
+    <Content Remove="Pages\Shop\**" />
+    <EmbeddedResource Remove="Pages\Shop\**" />
+    <None Remove="Pages\Shop\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.11" PrivateAssets="all" />
     <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Pages\Shop\" />
   </ItemGroup>
 
   <ItemGroup>

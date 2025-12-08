@@ -1,0 +1,99 @@
+﻿@page "/auth-diagnostic"
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorage
+@inject IConfiguration Configuration
+@using System.Text.Json
+@using Blazored.LocalStorage
+
+<div class="mt-[96.8px] p-8 bg-gray-900 min-h-screen">
+    <h1 class="text-3xl text-white mb-6">🔍 Authentication Diagnostic</h1>
+    
+    <button @onclick="CheckEverything" class="bg-blue-600 text-white px-4 py-2 rounded mb-4">
+        Run Full Diagnostic
+    </button>
+    
+    <div class="bg-gray-800 p-4 rounded mt-4">
+        <pre class="text-white text-sm overflow-auto">@output</pre>
+    </div>
+</div>
+
+@code {
+    private string output = "Click 'Run Full Diagnostic' to check authentication state...";
+
+    private async Task CheckEverything()
+    {
+        output = "🔍 Running diagnostic...\n\n";
+        StateHasChanged();
+        
+        try
+        {
+            // 1. Check configuration
+            output += "📋 CONFIGURATION CHECK:\n";
+            var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
+            var apiBaseUrl = Configuration["ConnectionStrings:BaseApiUrl"];
+            output += $"  LocalStorageKey: {localStorageKey ?? "NULL"}\n";
+            output += $"  API Base URL: {apiBaseUrl ?? "NULL"}\n\n";
+            
+            // 2. Check local storage
+            output += "💾 LOCAL STORAGE CHECK:\n";
+            if (!string.IsNullOrEmpty(localStorageKey))
+            {
+                var storedData = await LocalStorage.GetItemAsStringAsync(localStorageKey);
+                
+                if (string.IsNullOrEmpty(storedData))
+                {
+                    output += "  ❌ No data in local storage\n\n";
+                }
+                else
+                {
+                    output += $"  ✅ Data found (length: {storedData.Length})\n";
+                    
+                    try
+                    {
+                        var jsonDoc = JsonDocument.Parse(storedData);
+                        output += "  📄 Stored data:\n";
+                        output += JsonSerializer.Serialize(jsonDoc, new JsonSerializerOptions { WriteIndented = true });
+                        output += "\n\n";
+                    }
+                    catch (Exception ex)
+                    {
+                        output += $"  ❌ Failed to parse JSON: {ex.Message}\n\n";
+                    }
+                }
+            }
+            else
+            {
+                output += "  ❌ LocalStorageKey is null\n\n";
+            }
+            
+            // 3. Check authentication state
+            output += "🔐 AUTHENTICATION STATE CHECK:\n";
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            output += $"  IsAuthenticated: {authState.User.Identity?.IsAuthenticated}\n";
+            output += $"  Authentication Type: {authState.User.Identity?.AuthenticationType ?? "NULL"}\n";
+            output += $"  Name: {authState.User.Identity?.Name ?? "NULL"}\n\n";
+            
+            // 4. List all claims
+            output += "📜 CLAIMS:\n";
+            var claims = authState.User.Claims.ToList();
+            if (claims.Any())
+            {
+                foreach (var claim in claims)
+                {
+                    output += $"  - {claim.Type}: {claim.Value}\n";
+                }
+            }
+            else
+            {
+                output += "  ❌ No claims found\n";
+            }
+            
+            output += "\n✅ Diagnostic complete!";
+        }
+        catch (Exception ex)
+        {
+            output += $"\n🔥 ERROR: {ex.Message}\n";
+            output += $"Stack trace:\n{ex.StackTrace}";
+        }
+    }
+}
