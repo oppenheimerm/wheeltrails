@@ -1,0 +1,55 @@
+﻿@page "/test-login"
+@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+@using WT.Application.Extensions
+
+<div class="mt-[96.8px]">
+    <h3 class="text-white">Test Login</h3>
+    <button class="w-full py-2 px-4 text-[15px] font-medium tracking-wide rounded-md
+                   text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer" 
+            @onclick="TestLoginMethod">
+        Test Login
+    </button>
+    <p class="text-white">@result</p>
+</div>
+
+@code {
+    private string result = "";
+
+    private async Task TestLoginMethod()
+    {
+        try
+        {
+            result = "🔄 Logging in...\n";
+            StateHasChanged();
+
+            var response = await AccountService.LoginAsync(new LoginDTO
+            {
+                Email = "admin1@domain.com",
+                Password = "$New_seCUre_password_123!"
+            });
+
+            if (response.Success)
+            {
+                // ✅ THIS IS THE KEY: Update the authentication state provider
+                var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+                await customAuthStateProvider.UpdateAuthenticatedState(response);
+
+                result = $"✅ Login successful! Token: {response.JwtToken?[..20]}...";
+                
+                // Navigate to home or dashboard after successful login
+                await Task.Delay(1000); // Brief delay to show success message
+                Navigation.NavigateTo("/", true); // true = force reload to refresh auth state
+            }
+            else
+            {
+                result = $"❌ Login failed: {response.Message}";
+            }
+        }
+        catch (Exception ex)
+        {
+            result = $"🔥 Exception: {ex.Message}";
+        }
+    }
+}

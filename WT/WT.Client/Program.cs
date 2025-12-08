@@ -1,7 +1,9 @@
+﻿using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Microsoft.AspNetCore.Components.Authorization;
-using WT.Application.DependencyInjection;
+using WT.Application.Extensions;
+using WT.Application.Services;
 using WT.Client;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
@@ -9,19 +11,33 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// Register HttpClient with specific base address for WT.Client
-builder.Services.AddScoped(sp => new HttpClient 
-{ 
-    BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) 
+// ✅ Verify configuration is loaded
+var apiBaseUrl = builder.Configuration["ConnectionStrings:BaseApiUrl"];
+var localStorageKey = builder.Configuration["ApplicationSettings:LocalStorageKey"];
+
+Console.WriteLine($"🔧 API Base URL: {apiBaseUrl}");
+Console.WriteLine($"🔧 LocalStorageKey: {localStorageKey}");
+
+if (string.IsNullOrEmpty(localStorageKey))
+{
+    Console.WriteLine("❌ ERROR: LocalStorageKey is not configured!");
+}
+
+// Register services
+builder.Services.AddBlazoredLocalStorage();
+
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri(apiBaseUrl ?? "https://localhost:5001")
 });
 
-// OR if calling external API:
-// builder.Services.AddScoped(sp => new HttpClient 
-// { 
-//     BaseAddress = new Uri("https://localhost:5001") // Your API URL
-// });
+builder.Services.AddScoped<IAccountService, AccountService>();
 
-// Register Application Services (includes auth, local storage, etc.)
-builder.Services.AddApplicationServices();
+// Register authentication
+builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+
+// Optional: logging
+builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 await builder.Build().RunAsync();

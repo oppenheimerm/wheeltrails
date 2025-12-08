@@ -1,7 +1,12 @@
-﻿@using Microsoft.AspNetCore.Components.Forms
-@using System.Linq.Expressions
+﻿@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
 
-@page "/account/login"
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Linq.Expressions
+@using WT.Application.Extensions
+
+@page "/account/identity/login"
 
 <PageTitle>WheelyTrails - Login</PageTitle>
 
@@ -9,21 +14,96 @@
     private LoginDTO ModelDTO { get; set; } = new();
     private EditContext? editContext;
 
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private ValidationMessageStore? messageStore;
+
+
     protected override void OnInitialized()
     {
         editContext = new EditContext(ModelDTO);
+
+        // Add debug logging to verify initialization
+        Console.WriteLine("Login page initialized");
     }
 
-    private void HandleValidSubmit()
+    private async Task HandleValidSubmit()
     {
-        Console.WriteLine("Form submitted successfully!");
+        Console.WriteLine("✅ HandleValidSubmit CALLED!");
         Console.WriteLine($"Email: {ModelDTO.Email}");
+        Console.WriteLine($"Password length: {ModelDTO.Password?.Length ?? 0}");
+
+        if (isSubmitting) return;
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            StateHasChanged();
+
+            var response = await AccountService.LoginAsync(ModelDTO);
+
+            Console.WriteLine($"Response received. Success: {response.Success}");
+
+            if (response.Success)
+            {
+                Console.WriteLine("🔐 Updating authentication state...");
+                
+                var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+                await customAuthStateProvider.UpdateAuthenticatedState(response);
+                
+                // ✅ Verify it was saved
+                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+                Console.WriteLine($"✅ Auth state after update - IsAuthenticated: {authState.User.Identity?.IsAuthenticated}");
+                
+                // We set forceLoad to false to avoid a full page reload
+                // because the authentication state has already been updated
+                NavigationManager.NavigateTo("/", forceLoad: false);
+            }
+            else
+            {
+                errorMessage = response.Message;
+                Console.WriteLine($"Login failed: {errorMessage}");
+
+                if (editContext != null && messageStore != null)
+                {
+                    messageStore.Clear();
+                    messageStore.Add(() => ModelDTO.Email!, response.Message);
+                    editContext.NotifyValidationStateChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Exception: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            errorMessage = $"Error: {ex.Message}";
+        }
+        finally 
+        {
+            isSubmitting = false;
+        }
+    }
+
+
+    private void HandleInvalidSubmit()
+    {
+        Console.WriteLine("❌ HandleInvalidSubmit called - form has validation errors");
+
+        if (editContext != null)
+        {
+            var errors = editContext.GetValidationMessages();
+            foreach (var error in errors)
+            {
+                Console.WriteLine($"  - {error}");
+            }
+        }
     }
 
     private bool HasValidationErrors(Expression<Func<string?>> accessor)
     {
         if (editContext == null) return false;
-        
+
         var fieldIdentifier = FieldIdentifier.Create(accessor);
         return editContext.GetValidationMessages(fieldIdentifier).Any();
     }
@@ -47,9 +127,19 @@
             <!-- The use of property Model and EditContext are mutually exclusive.  You can only use
                 one or the other not both, as the form will not render in the browser
             -->
-            <EditForm OnValidSubmit="HandleValidSubmit" EditContext="editContext">
+            <EditForm OnValidSubmit="HandleValidSubmit"
+                      OnInvalidSubmit="HandleInvalidSubmit"
+                      EditContext="editContext">
                 <DataAnnotationsValidator />
-                
+
+                <!-- Error Display -->
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
+                        @errorMessage
+                    </div>
+                }
+
                 <div class="mb-12">
                     <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Sign in</h1>
                     <p class="text-base mt-6 font-medium">Don't have an account <a href="/account/register" class="wt-link">Register here</a></p>
@@ -59,9 +149,9 @@
                     <div>
                         <label class="wt-form-lbl" for="email">Email</label>
                         <div class="relative flex items-center">
-                            <InputText @bind-Value="ModelDTO.Email" 
+                            <InputText @bind-Value="ModelDTO.Email"
                                        id="email"
-                                       class="@GetInputClass(() => ModelDTO.Email)" 
+                                       class="@GetInputClass(() => ModelDTO.Email)"
                                        placeholder="Email address" />
 
                             <!-- icon wrap -->
@@ -77,12 +167,12 @@
                     <div>
                         <label class="wt-form-lbl" for="password">Password</label>
                         <div class="relative flex items-center">
-                            <InputText @bind-Value="ModelDTO.Password" 
-                                       type="password" 
+                            <InputText @bind-Value="ModelDTO.Password"
+                                       type="password"
                                        id="password"
-                                       class="@GetInputClass(() => ModelDTO.Password)" 
+                                       class="@GetInputClass(() => ModelDTO.Password)"
                                        placeholder="Enter password" />
-                            
+
                             <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
                                 <span class="material-symbols-rounded text-[18px]">
@@ -95,16 +185,21 @@
                 </div>
 
                 <div class="mt-12">
-                    <button type="submit" class="w-full py-2 px-4 text-[15px] font-medium tracking-wide rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer">
-                        Sign in
+                    <button type="submit" class="w-full py-2 px-4 text-[15px] font-medium tracking-wide rounded-md 
+                        text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer" 
+                        disabled="@isSubmitting">
+                        @(isSubmitting ? "Signing in..." : "Sign in")
                     </button>
                 </div>
+
+                <!-- Social login -->
 
                 <div class="my-4 flex items-center gap-4">
                     <hr class="w-full border-slate-300 dark:border-slate-600" />
                     <p class="text-sm text-slate-900 dark:text-white text-center">or</p>
                     <hr class="w-full border-slate-300 dark:border-slate-600" />
                 </div>
+                
 
                 <button type="button" class="wt-btn-outline-social">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20px" class="inline" viewBox="0 0 512 512">

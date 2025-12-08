@@ -102,10 +102,16 @@ namespace WT.Application.Extensions
             {
                 // Add null checks for injected dependencies
                 if (localStorageService is null || configuration is null)
+                {
+                    LogException.LogToConsole("Authentication state provider: Required services not available");
                     return await Task.FromResult(new AuthenticationState(anonymous));
-                
+                }
+
                 if (string.IsNullOrEmpty(LocalStorageKey))
+                {
+                    LogException.LogToConsole("Authentication state provider: Local storage key not configured");
                     return await Task.FromResult(new AuthenticationState(anonymous));
+                }
 
                 var authData = await localStorageService.GetItemAsStringAsync(LocalStorageKey);
 
@@ -116,11 +122,13 @@ namespace WT.Application.Extensions
                 //  Not null so get claims
                 AuthenticatedLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
 
-                if (AuthenticatedLocalStorageDTO is not null && AuthenticatedLocalStorageDTO.JWtToken is not null && AuthenticatedLocalStorageDTO.Id is not null)
+                if (AuthenticatedLocalStorageDTO is not null && AuthenticatedLocalStorageDTO.JWtToken is not null && AuthenticatedLocalStorageDTO.Id != Guid.Empty)
                 {
                     var getUserClaims = DecryptToken(AuthenticatedLocalStorageDTO.JWtToken);
                     if (getUserClaims is null || string.IsNullOrEmpty(getUserClaims.Email) || getUserClaims.Id == Guid.Empty)
                     {
+                        // LOG: Invalid claims extracted from token (potential security issue)
+                        LogException.LogToConsole($"Authentication state provider: Invalid claims extracted from token at {DateTime.UtcNow}");
                         return await Task.FromResult(new AuthenticationState(anonymous));
                     }
 
@@ -130,12 +138,32 @@ namespace WT.Application.Extensions
                 }
                 else
                 {
+                    // LOG: Token data incomplete or missing
+                    LogException.LogToConsole($"Authentication state provider: Incomplete authentication data at {DateTime.UtcNow}");
                     return await Task.FromResult(new AuthenticationState(anonymous));
                 }
             }
             catch (InvalidOperationException)
             {
                 // Ignore error during prerendering
+                // Don't log - expected during prerendering
+                return await Task.FromResult(new AuthenticationState(anonymous));
+            }
+            catch (JsonException ex)
+            {
+                // LOG: Corrupted authentication data in local storage
+                LogException.LogToConsole($"Authentication state provider: Failed to deserialize authentication data - {ex.Message}");
+                // Clear corrupted data
+                if (localStorageService is not null && !string.IsNullOrEmpty(LocalStorageKey))
+                {
+                    await localStorageService.RemoveItemAsync(LocalStorageKey);
+                }
+                return await Task.FromResult(new AuthenticationState(anonymous));
+            }
+            catch (Exception ex)
+            {
+                // LOG: Unexpected authentication error
+                LogException.LogExceptions(ex);
                 return await Task.FromResult(new AuthenticationState(anonymous));
             }
         }
@@ -182,9 +210,16 @@ namespace WT.Application.Extensions
                 var firstName = token.Claims.FirstOrDefault(_ => _.Type == ClaimTypes.Name);
                 var email = token.Claims.FirstOrDefault(_ => _.Type == ClaimTypes.Email);
 
+                // Validate required claims exist
+                if (Id is null || firstName is null || email is null)
+                {
+                    LogException.LogToConsole($"DecryptToken: Missing required claims in JWT token at {DateTime.UtcNow}");
+                    return new UserClaimsDTO();
+                }
+
 
                 var _roles = token.Claims.Where(_ => _.Type == ClaimTypes.Role).ToList();
-                if (_roles is not null)
+                if (_roles is not null && _roles.Any())
                 {
 
                     if (_roles.Any())
@@ -206,6 +241,18 @@ namespace WT.Application.Extensions
                     Id = Guid.Parse(Id!.Value), 
                     Roles = rolesCollection 
                 };
+            }
+            catch (FormatException ex)
+            {
+                // LOG: Invalid GUID format in token
+                LogException.LogToConsole($"DecryptToken: Invalid user ID format in token - {ex.Message}");
+                return new UserClaimsDTO();
+            }
+            catch (ArgumentException ex)
+            {
+                // LOG: Malformed JWT token
+                LogException.LogToConsole($"DecryptToken: Malformed JWT token - {ex.Message}");
+                return new UserClaimsDTO();
             }
             catch (Exception ex)
             {
@@ -254,45 +301,75 @@ namespace WT.Application.Extensions
         /// </remarks>
         public async Task UpdateAuthenticatedState(APIResponseAuthentication? apiResponseAuthentication)
         {
+            Console.WriteLine("🔄 UpdateAuthenticatedState called");
+            
             // Validate dependencies
             if (localStorageService is null || string.IsNullOrEmpty(LocalStorageKey))
             {
+                Console.WriteLine("❌ LocalStorageService or LocalStorageKey is null");
                 NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(anonymous)));
                 return;
             }
 
             var claimsPrincipal = new ClaimsPrincipal();
-            if (apiResponseAuthentication is not null && apiResponseAuthentication.Success &&
+            
+            if (apiResponseAuthentication is not null && 
+                apiResponseAuthentication.Success &&
                 !string.IsNullOrEmpty(apiResponseAuthentication.JwtToken))
             {
+                Console.WriteLine("✅ Valid authentication response received");
+                Console.WriteLine($"📧 User email: {apiResponseAuthentication.User?.Email}");
+                
                 var getUserClaims = DecryptToken(apiResponseAuthentication.JwtToken!);
-                if (getUserClaims.Id != Guid.Empty && !string.IsNullOrEmpty(getUserClaims.Email))
+                
+                Console.WriteLine($"🔐 Claims extracted - Email: {getUserClaims?.Email}, ID: {getUserClaims?.Id}");
+                
+                if (getUserClaims is not null && 
+                    getUserClaims.Id != Guid.Empty && 
+                    !string.IsNullOrEmpty(getUserClaims.Email))
                 {
+                    Console.WriteLine("✅ Claims are valid, creating auth data...");
+                    
                     AuthenticatedLocalStorageDTO = new AuthenticatedLocalStorageDTO()
                     {
                         JWtToken = apiResponseAuthentication.JwtToken,
                         RefreshToken = apiResponseAuthentication.RefreshToken,
                         TimeStamp = DateTime.UtcNow,
-                        Id = apiResponseAuthentication!.User!.Id,
+                        Id = apiResponseAuthentication.User!.Id,
                         UserPhoto = apiResponseAuthentication.User.ProfilePicture,
                         FirstName = apiResponseAuthentication.User.FirstName,
-                        Bio = apiResponseAuthentication.User.Bio
+                        Bio = apiResponseAuthentication.User.Bio,
+                        Email = apiResponseAuthentication.User.Email
                     };
 
                     var jsonString = JsonSerializer.Serialize(AuthenticatedLocalStorageDTO);
-
-                    claimsPrincipal = SetClaimsPrincipal(getUserClaims);
+                    Console.WriteLine($"💾 Saving to local storage with key: {LocalStorageKey}");
+            
                     await localStorageService.SetItemAsStringAsync(LocalStorageKey, jsonString);
+            
+                    Console.WriteLine("✅ Data saved to local storage");
+            
+                    claimsPrincipal = SetClaimsPrincipal(getUserClaims);
+            
+                    Console.WriteLine($"✅ ClaimsPrincipal created with {claimsPrincipal.Claims.Count()} claims");
+                    Console.WriteLine($"👤 Identity name: {claimsPrincipal.Identity?.Name}");
+                    Console.WriteLine($"👤 Is authenticated: {claimsPrincipal.Identity?.IsAuthenticated}");
+                }
+                else
+                {
+                    Console.WriteLine("❌ Claims validation failed");
                 }
             }
             else
             {
+                Console.WriteLine("🚪 Logout scenario - clearing local storage");
                 await localStorageService.RemoveItemAsync(LocalStorageKey);
-                claimsPrincipal = anonymous; //  Set to anonymous if no user is authenticated
+                claimsPrincipal = anonymous;
             }
             
-            //  Notify App to rerender
+            Console.WriteLine("📢 Notifying authentication state changed...");
             NotifyAuthenticationStateChanged(Task.FromResult(new AuthenticationState(claimsPrincipal)));
+            Console.WriteLine("✅ Notification complete");
         }
 
         /// <summary>
@@ -324,10 +401,16 @@ namespace WT.Application.Extensions
         /// </remarks>
         private ClaimsPrincipal SetClaimsPrincipal(UserClaimsDTO claims)
         {
+            Console.WriteLine($"🔧 SetClaimsPrincipal called for: {claims.Email}");
+            
             if (claims.Email is null || string.IsNullOrEmpty(LocalStorageKey))
+            {
+                Console.WriteLine("❌ Email or LocalStorageKey is null");
                 return new ClaimsPrincipal();
+            }
 
-            var userClaims = new List<Claim> {
+            var userClaims = new List<Claim> 
+            {
                 new Claim(ClaimTypes.NameIdentifier, claims.Id.ToString()!),
                 new Claim(ClaimTypes.Name, claims.FirstName!),
                 new Claim(ClaimTypes.Email, claims.Email!),
@@ -337,13 +420,19 @@ namespace WT.Application.Extensions
             {
                 foreach (var role in claims.Roles)
                 {
-                    userClaims.Add(
-                        new Claim(ClaimTypes.Role, role.RoleName!));
+                    userClaims.Add(new Claim(ClaimTypes.Role, role.RoleName!));
                 }
             }
 
-            return new ClaimsPrincipal(
-                new ClaimsIdentity(userClaims, LocalStorageKey));
+            Console.WriteLine($"✅ Creating ClaimsIdentity with {userClaims.Count} claims");
+            Console.WriteLine($"🔑 Authentication type: {LocalStorageKey}");
+
+            var identity = new ClaimsIdentity(userClaims, LocalStorageKey);
+            var principal = new ClaimsPrincipal(identity);
+            
+            Console.WriteLine($"✅ ClaimsPrincipal created - IsAuthenticated: {principal.Identity?.IsAuthenticated}");
+            
+            return principal;
         }
     }
 }

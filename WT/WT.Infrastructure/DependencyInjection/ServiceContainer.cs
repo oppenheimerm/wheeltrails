@@ -6,9 +6,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using WT.Application.Contracts;
+using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
+using WT.Infrastructure.Services;
 
 namespace WT.Infrastructure.DependencyInjection
 {
@@ -56,17 +58,8 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddAuthentication();
             services.AddAuthorization();
             
-            // add CORS
-            /*services.AddCors(options =>
-            {
-                options.AddPolicy("WebClient",
-                    builder => builder
-                    .WithOrigins("")
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials());
-            });*/
-            services.AddScoped<IWTAccount, WTAccount>();
+            services.AddScoped<IAccountService, WTAccount>();
+            services.AddScoped<IEmailService, EmailService>();
             return services;
         }
     }

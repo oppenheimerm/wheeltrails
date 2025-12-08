@@ -1,9 +1,11 @@
 ﻿@inherits LayoutComponentBase
 
-<NavBar />
-<main class="z-5">
-    <div>
-        @Body
+<CascadingAuthenticationState>
+    <div class="page">
+        <NavBar />
+        
+        <main class="main-content">
+            @Body
+        </main>
     </div>
-</main>
-<Footer />
+</CascadingAuthenticationState>

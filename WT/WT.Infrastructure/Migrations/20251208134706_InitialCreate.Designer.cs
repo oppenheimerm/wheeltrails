@@ -12,7 +12,7 @@ using WT.Infrastructure.Data;
 namespace WT.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251202135213_InitialCreate")]
+    [Migration("20251208134706_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
