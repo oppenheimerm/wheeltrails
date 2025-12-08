@@ -8,7 +8,7 @@
 
 ## Quick Links
 
-- 📖 **[Full Documentation](src/WT/README.md)** - Complete setup and usage guide
+- 📖 **[Full Documentation](WT/README.md)** - Complete setup and usage guide
 - 🚀 **[Getting Started](src/WT/README.md#-getting-started)**
 - 📧 **[Email Configuration](src/WT/README.md#-email-service)**
 - 🔐 **[Authentication](src/WT/README.md#-authentication--security)**
