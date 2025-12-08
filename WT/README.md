@@ -509,27 +509,15 @@ Please ensure your code follows the project's architecture patterns and conventi
 - 📋 Testing suite
 - 📋 Azure deployment
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
-## 👥 Authors
+## Contact
 
-- **oppenheimerm** - *Initial work* - [GitHub](https://github.com/oppenheimerm)
-
-## 🙏 Acknowledgments
-
-- Microsoft for .NET and Blazor
-- [Mailtrap](https://mailtrap.io) for excellent email testing infrastructure
-- The accessibility community for inspiration and feedback
-- Open source contributors
-
-## 📞 Support
-
-For questions or support, please:
-- Open an issue on [GitHub](https://github.com/oppenheimerm/wheeltrails/issues)
-- Contact the maintainer via GitHub
+- GitHub: [@oppenheimerm](https://github.com/oppenheimerm)
+- Issues: [GitHub Issues](https://github.com/oppenheimerm/wheeltrails/issues)
 
 ---
 
-**Built with ❤️ for the wheely community**
+📖 For detailed documentation, see **[src/WT/README.md](src/WT/README.md)**
