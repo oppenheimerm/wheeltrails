@@ -1,23 +1,26 @@
-﻿@inject NavigationManager Navigation
+﻿@using WT.Client.Pages
+@inject NavigationManager Navigation
 
 @if (isLoading)
 {
     <LoadingScreen Text="Loading your experience..." />
 }
-else{
+else
+{
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
             <FocusOnNavigate RouteData="@routeData" Selector="h1" />
         </Found>
         <NotFound>
-            <PageTitle>Not found</PageTitle>
+            @* ✅ Use your custom NotFound component *@
             <LayoutView Layout="@typeof(MainLayout)">
-                <p role="alert">Sorry, there's nothing at this address.</p>
+                <NotFound />
             </LayoutView>
         </NotFound>
     </Router>
 }
+
 @code {
     private bool isLoading = true;
 

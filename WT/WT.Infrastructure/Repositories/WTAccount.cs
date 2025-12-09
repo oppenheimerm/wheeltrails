@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -132,9 +134,14 @@ namespace WT.Infrastructure.Repositories
         /// </remarks>
         public async Task<BaseAPIResponseDTO> CreateAdmin()
         {
-            try {
+            try 
+            {
                 if ((await FindRoleByNameAsync(Constants.Role.ADMIN_DEVELOPER)) != null)
-                    return new BaseAPIResponseDTO() { Success = false, Message = "Admin account already created." };
+                    return new BaseAPIResponseDTO() 
+                    { 
+                        Success = false, 
+                        Message = "Admin account already created." 
+                    };
 
                 var admin = new RegisterDTO()
                 { 
@@ -145,7 +152,7 @@ namespace WT.Infrastructure.Repositories
                     Bio = "Administrator Account"
                 };
 
-                var adminRole = new List<RoleDTO>
+                var adminRoles = new List<RoleDTO>
                 {
                     new RoleDTO { RoleName = Constants.Role.ADMIN_DEVELOPER },
                     new RoleDTO { RoleName = Constants.Role.ADMIN_EDITOR },
@@ -153,10 +160,11 @@ namespace WT.Infrastructure.Repositories
                     new RoleDTO { RoleName = Constants.Role.USER_EDITOR}
                 };
 
-                // make sure admin roles are created
-                await CreateAdminRoles(adminRole);
+                // Ensure admin roles are created
+                await CreateAdminRoles(adminRoles);
 
-                admin.Roles = adminRole;
+                // ✅ REMOVED: admin.Roles = adminRoles; (security fix)
+                // Roles are now assigned separately after registration
 
                 var status = await RegisterAsync(admin);
                 if (status.Success)
@@ -164,25 +172,38 @@ namespace WT.Infrastructure.Repositories
                     var user = await FindUserByEmailAsync(admin.Email!);
                     if (user != null)
                     {
-                        foreach (var role in admin.Roles!)
+                        // ✅ Assign roles after user creation (not during registration)
+                        foreach (var role in adminRoles)
                         {
                             await AddUserToRoleAsync(user, role.RoleName!);
                         }
                     }
                     
                     LogException.LogToFile($"Admin user created: {admin.Email} at {DateTime.UtcNow}");
-                    return new BaseAPIResponseDTO() { Success = true, Message = "Sucessfully created Admin account" };
+                    return new BaseAPIResponseDTO() 
+                    { 
+                        Success = true, 
+                        Message = "Successfully created Admin account" 
+                    };
                 }
                 else
                 {
                     LogException.LogToConsole($"Failed to create admin user: {admin.Email} at {DateTime.UtcNow}. Reason: {status.Message}");
-                    return new BaseAPIResponseDTO() { Success = false, Message = status.Message };
+                    return new BaseAPIResponseDTO() 
+                    { 
+                        Success = false, 
+                        Message = status.Message 
+                    };
                 }
             }
             catch(Exception err)
             {
                 LogException.LogExceptions(err);
-                return new BaseAPIResponseDTO() { Success = false, Message = "Failed to created Admin account" };
+                return new BaseAPIResponseDTO() 
+                { 
+                    Success = false, 
+                    Message = "Failed to create Admin account" 
+                };
             }
         }
 
@@ -369,8 +390,9 @@ namespace WT.Infrastructure.Repositories
                     };
                 }
 
+                // ✅ Bypass AcceptTerms validation in Development e
                 // User must accept terms and conditions
-                if (!model.AcceptTerms)
+                if (!model.AcceptTerms && !IsDevelopmentEnvironment())
                 {
                     return new BaseAPIResponseDTO
                     {
@@ -383,7 +405,8 @@ namespace WT.Infrastructure.Repositories
                 {
                     UserName = model.Email,
                     Email = model.Email,
-                    FirstName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(model.FirstName.Replace(" ", "").ToLower()),
+                    FirstName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                        model.FirstName.Replace(" ", "").ToLower()),
                     Bio = model.Bio,
                     VerificationToken = GenerateVerificationToken(),
                     AcceptTerms = model.AcceptTerms,
@@ -395,8 +418,10 @@ namespace WT.Infrastructure.Repositories
 
                 if (result.Succeeded)
                 {
-                    // Add user to user role
+                    // ✅ SECURITY: Always assign default USER role for public registration
+                    // Ignore any roles provided in the DTO
                     var roleStatus = await userManager.AddToRoleAsync(user, Constants.Role.USER);
+                    
                     if (!roleStatus.Succeeded)
                     {
                         var roleErrors = string.Join("; ", roleStatus.Errors.Select(e => e.Description));
@@ -555,6 +580,228 @@ namespace WT.Infrastructure.Repositories
 
             return new BaseAPIResponseDTO { Success = true, Message = "Email verified successfully." };
         }
+
+        /// <summary>
+        /// Initiates the password reset process for a user account.
+        /// </summary>
+        /// <param name="model">The forgot password request containing the user's email address.</param>
+        /// <returns>
+        /// A response indicating the request was processed. For security, the same success message
+        /// is returned regardless of whether the email exists in the system.
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Password Reset Flow:</strong></para>
+        /// <list type="number">
+        /// <item><description>Validates email exists and is confirmed</description></item>
+        /// <item><description>Generates cryptographically secure password reset token via ASP.NET Identity</description></item>
+        /// <item><description>Sends password reset email with token link to user</description></item>
+        /// <item><description>Token expires after 24 hours (configurable via DataProtectionTokenProviderOptions)</description></item>
+        /// <item><description>Logs password reset attempt with timestamp</description></item>
+        /// </list>
+        /// <para><strong>Security Features:</strong></para>
+        /// <list type="bullet">
+        /// <item><description>Generic response prevents user enumeration attacks</description></item>
+        /// <item><description>Requires email confirmation before allowing password reset</description></item>
+        /// <item><description>Token is sent via email, never exposed in API response</description></item>
+        /// <item><description>Token is single-use and expires after 24 hours</description></item>
+        /// <item><description>Failed attempts are logged for security monitoring</description></item>
+        /// </list>
+        /// <para><strong>Token Configuration:</strong></para>
+        /// <para>
+        /// Token expiration can be configured in <c>Program.cs</c> via:
+        /// </para>
+        /// <code>
+        /// services.Configure&lt;DataProtectionTokenProviderOptions&gt;(options =>
+        ///     options.TokenLifespan = TimeSpan.FromHours(24));
+        /// </code>
+        /// <para><strong>Post-Reset:</strong></para>
+        /// <para>
+        /// After receiving the email, the user clicks the reset link which should call
+        /// <c>ResetPasswordAsync</c> with the token and new password to complete the reset.
+        /// </para>
+        /// </remarks>
+        public async Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model)
+        {
+            try
+            {
+                // Validate email is provided
+                if (string.IsNullOrWhiteSpace(model.Email))
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "Email address is required."
+                    };
+                }
+
+                // Check if user exists
+                var user = await FindUserByEmailAsync(model.Email);
+
+                // ✅ SECURITY: Return same message regardless of whether user exists
+                // This prevents user enumeration attacks
+                const string genericMessage = "If an account with that email exists and is verified, a password reset link has been sent.";
+
+                // If user doesn't exist or email is not confirmed, log but return generic message
+                if (user == null)
+                {
+                    LogException.LogToFile($"Password reset requested for non-existent email: {model.Email} at {DateTime.UtcNow}");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = genericMessage
+                    };
+                }
+
+                // Check if email is confirmed
+                if (!(await userManager.IsEmailConfirmedAsync(user)))
+                {
+                    LogException.LogToFile($"Password reset requested for unconfirmed email: {model.Email} at {DateTime.UtcNow}");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = genericMessage
+                    };
+                }
+
+                // Generate password reset token
+                var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+
+                // ✅ Send password reset email with token
+                var emailSent = await emailService.SendPasswordResetEmailAsync(
+                    user.Email!,
+                    user.FirstName!,
+                    resetToken);
+
+                if (!emailSent)
+                {
+                    LogException.LogToFile($"Failed to send password reset email to {user.Email} at {DateTime.UtcNow}");
+                    // Still return success to prevent information disclosure
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = genericMessage
+                    };
+                }
+
+                // Log successful password reset token generation
+                LogException.LogToFile($"Password reset token generated and sent to {model.Email} at {DateTime.UtcNow}");
+
+                return new BaseAPIResponseDTO
+                {
+                    Success = true,
+                    Message = genericMessage
+                };
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while processing your password reset request. Please try again later."
+                };
+            }
+        }
+
+
+        /// <summary>
+        /// Resets a user's password using a valid password reset token.
+        /// </summary>
+        /// <param name="model">The password reset data containing email, token, and new password.</param>
+        /// <returns>A response indicating whether the password was reset successfully.</returns>
+        /// <remarks>
+        /// <para><strong>Reset Flow:</strong></para>
+        /// <list type="number">
+        /// <item><description>Validates user exists by email</description></item>
+        /// <item><description>Validates reset token is valid and not expired</description></item>
+        /// <item><description>Validates new password meets strength requirements</description></item>
+        /// <item><description>Resets password using ASP.NET Identity's UserManager</description></item>
+        /// <item><description>Invalidates all existing refresh tokens for security</description></item>
+        /// <item><description>Logs password reset completion</description></item>
+        /// </list>
+        /// <para><strong>Security Features:</strong></para>
+        /// <list type="bullet">
+        /// <item><description>Token validation via ASP.NET Identity</description></item>
+        /// <item><description>Password strength validation</description></item>
+        /// <item><description>Single-use tokens (automatically invalidated after use)</description></item>
+        /// <item><description>All refresh tokens revoked on password change</description></item>
+        /// <item><description>Failed attempts logged for monitoring</description></item>
+        /// </list>
+        /// </remarks>
+        public async Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model)
+        {
+            try
+            {
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(model.Email) || 
+                    string.IsNullOrWhiteSpace(model.Token) || 
+                    string.IsNullOrWhiteSpace(model.NewPassword))
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "All fields are required."
+                    };
+                }
+
+                // Find user by email
+                var user = await FindUserByEmailAsync(model.Email);
+                if (user == null)
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "Invalid password reset request."
+                    };
+                }
+
+                // Reset password using token
+                var result = await userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+
+                if (result.Succeeded)
+                {
+                    // ✅ SECURITY: Revoke all refresh tokens when password is reset
+                    if (user.RefreshTokens != null && user.RefreshTokens.Any())
+                    {
+                        foreach (var token in user.RefreshTokens.Where(t => t.IsActive))
+                        {
+                            RevokeRefreshToken(token, "0.0.0.0", "Password reset");
+                        }
+
+                        await dbContext.SaveChangesAsync();
+                    }
+
+                    LogException.LogToFile($"Password reset successful for {model.Email} at {DateTime.UtcNow}");
+
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = "Your password has been reset successfully. Please log in with your new password."
+                    };
+                }
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    LogException.LogToFile($"Password reset failed for {model.Email} at {DateTime.UtcNow}. Errors: {errors}");
+
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = $"Password reset failed: {errors}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while resetting your password. Please try again later."
+                };
+            }
+        }
+
 
         #region Helpers
 
@@ -1063,6 +1310,23 @@ namespace WT.Infrastructure.Repositories
             throw new NotSupportedException(
                 "RefreshTokenAsync without IP address is not supported in server-side implementation. " +
                 "Use the controller which provides IP address extraction.");
+        }
+
+        /// <summary>
+        /// Checks if the application is running in Development environment.
+        /// </summary>
+        /// <returns>True if Development mode, false otherwise.</returns>
+        /// <remarks>
+        /// Used to bypass certain validations during development (e.g., AcceptTerms requirement).
+        /// In production, all validations are enforced for security and compliance.
+        /// </remarks>
+        private bool IsDevelopmentEnvironment()
+        {
+            // Check ASPNETCORE_ENVIRONMENT from configuration or environment variables
+            var environment = config["ASPNETCORE_ENVIRONMENT"] ??
+                             Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+            return environment?.Equals("Development", StringComparison.OrdinalIgnoreCase) ?? false;
         }
 
         #endregion

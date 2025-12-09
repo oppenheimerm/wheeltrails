@@ -217,6 +217,20 @@ namespace WT.Application.Services
         Task<BaseAPIResponseDTO> RegisterAsync(RegisterDTO model);
 
         /// <summary>
+        /// Initiates password reset process by sending reset token via email.
+        /// </summary>
+        /// <param name="model">The forgot password request containing user's email.</param>
+        /// <returns>A response indicating the request was processed.</returns>
+        Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model);
+
+        /// <summary>
+        /// Resets user password using valid reset token.
+        /// </summary>
+        /// <param name="model">The password reset data containing email, token, and new password.</param>
+        /// <returns>A response indicating whether password was reset successfully.</returns>
+        Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model);
+
+        /// <summary>
         /// Authenticates a user and issues JWT bearer token with refresh token for session management.
         /// </summary>
         /// <param name="model">

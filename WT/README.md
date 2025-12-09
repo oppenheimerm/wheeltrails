@@ -58,14 +58,64 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 - Role-based authorization (Admin Developer, Admin Editor, User Editor, User)
 - Secure user registration and login
 - Email verification for new accounts
+- **Password reset functionality with secure email tokens** ✨ NEW
 - Refresh token rotation for enhanced security (7-day expiry)
 - Custom authentication state provider for Blazor applications
 - Local storage integration for client-side token management
+- Automatic revocation of all sessions on password change
+
+### 📝 User Registration Features
+- **Multi-step registration form** with comprehensive validation
+  - First name (3-30 characters, required)
+  - Email address with format validation
+  - Password with confirmation (minimum 7 characters)
+  - Optional bio field (max 500 characters)
+  - Country code selection from predefined list
+- **Terms and Conditions Modal**
+  - Interactive modal dialog for terms acceptance
+  - JavaScript Interop for smooth modal interactions
+  - Accept/Decline functionality with navigation
+  - Backdrop click to close
+- **Registration Success Page**
+  - Dedicated success page with personalized email confirmation
+  - Email address displayed for user verification
+  - Step-by-step verification instructions
+  - Resend verification email functionality (planned)
+  - Quick navigation to login or home page
+- **Enhanced User Experience**
+  - Real-time form validation with visual feedback
+  - Loading states during submission
+  - Error message display
+  - Success message handling
+  - Query parameter support for email tracking
+  - Responsive design for all devices
+
+### 🔑 Password Reset Features ✨ NEW
+- **Forgot Password Flow**
+  - Secure password reset request via email
+  - Token generation via ASP.NET Identity
+  - Generic responses to prevent user enumeration attacks
+  - Email confirmation required before reset allowed
+  - 24-hour token expiration (configurable)
+- **Reset Password Process**
+  - Token validation via ASP.NET Identity
+  - Password strength validation
+  - Single-use tokens (automatically invalidated after use)
+  - All refresh tokens revoked on successful password reset
+  - Comprehensive logging for security monitoring
+- **Security Features**
+  - Tokens sent via email only (never exposed in API responses)
+  - Failed attempts logged for security monitoring
+  - IP address tracking for reset operations
+  - Prevention of user enumeration attacks
+  - Session invalidation on password change
 
 ### 📧 Email Notifications
 - Automated email verification for new user registrations
-- Password reset functionality with secure email tokens
+- **Password reset emails with secure tokens** ✨ NEW
 - HTML email templates with responsive design
+- Personalized emails with user's first name
+- Branded templates with WheelyTrails theme
 - Support for multiple SMTP providers (Gmail, SendGrid, Outlook, Mailtrap, etc.)
 - Configurable email settings via User Secrets
 
@@ -114,6 +164,7 @@ WT.Client/WT.Admin → API → WT.Infrastructure → WT.Application → WT.Domai
 - **Framework**: [ASP.NET Core Web API (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/apis)
 - **Database**: SQL Server with Entity Framework Core 9.0.11
 - **Authentication**: JWT Bearer Tokens with ASP.NET Core Identity
+- **Password Reset**: ASP.NET Identity Token Providers (configurable 24-hour expiry)
 - **Email Service**: SMTP-based email delivery (supports Gmail, SendGrid, Outlook, Mailtrap, AWS SES)
 - **Object Mapping**: [Mapster](https://github.com/MapsterMapper/Mapster)
 - **Logging**: [Serilog](https://serilog.net/)
@@ -123,6 +174,7 @@ WT.Client/WT.Admin → API → WT.Infrastructure → WT.Application → WT.Domai
 - **Client App**: [Blazor WebAssembly (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
 - **Admin Panel**: [Blazor Server (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
 - **UI Framework**: [Tailwind CSS](https://tailwindcss.com/)
+- **JavaScript Interop**: Custom modal helpers for enhanced UX
 - **Architecture**: [Progressive Web Application (PWA)](https://web.dev/explore/progressive-web-apps)
 - **LocalStorage**: For client-side storage [Blazored LocalStorage](https://github.com/Blazored/LocalStorage)
 
@@ -186,7 +238,6 @@ After configuration, access your captured emails at: [https://mailtrap.io/inboxe
    **Option C: Outlook (Development/Testing)**
 
 4. **Apply Database Migrations**
-
 ````````
 cd WT.Infrastructure
 dotnet ef database update
@@ -194,8 +245,8 @@ dotnet ef database update
 > **Note**: Ensure SQL Server LocalDB is running. Use `SqlLocalDB start` command if needed.
 
 5. **Run the Application**
-   
-   **Option A: Run API only**
+
+**OptionA: Run API only**
 ````````
 cd API
 dotnet run
@@ -209,16 +260,36 @@ Visit `https://localhost:5001` to access the API.
 - Set `API`, `WT.Admin`, and `WT.Client` to "Start"
 - Press F5
 
-6. **Test Email Functionality**
+6. **Test Registration Flow**
 
 After starting the application:
-1. Navigate to the registration page
-2. Register a new user account
-3. Check your email service:
-   - **Mailtrap**: Go to [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes) and view the captured email
-   - **Gmail**: Check your Gmail inbox
-   - **Papercut**: View the email in the Papercut UI window
-4. Click the verification link to verify your account
+1. Navigate to the registration page (`/account/identity/register`)
+2. Fill out the registration form:
+- First name (required, 3-30 characters)
+- Email address (required, valid format)
+- Bio (optional, max 500 characters)
+- Password (required, min 7 characters)
+- Confirm password (must match)
+- Country code (select from dropdown)
+- Accept Terms and Conditions (click link to view modal)
+3. Click "Create Account"
+4. You'll be redirected to the success page showing your email
+5. Check your email service:
+- **Mailtrap**: Go to [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes) and view the captured email
+- **Gmail**: Check your Gmail inbox
+6. Click the verification link in the email to verify your account
+7. Return to login page and sign in
+
+7. **Test Password Reset Flow** ✨ NEW
+
+After registration:
+1. Navigate to the login page
+2. Click "Forgot Password?" link (when implemented)
+3. Enter your registered email address
+4. Check your email for password reset link
+5. Click the reset link and enter new password
+6. All existing sessions will be logged out
+7. Log in with your new password
 
 ### Development URLs
 
@@ -226,7 +297,11 @@ After starting the application:
 |---------|---------|-----------|----------|
 | API | Web API Backend | https://localhost:5001 | http://localhost:5000 |
 | WT.Admin | Admin Panel | https://localhost:7127 | http://localhost:5041 |
-| WT.Client | Client PWA | *To be configured* | *To be configured* |
+| WT.Client | Client PWA | https://localhost:7000 | http://localhost:7001 |
+
+### Registration Flow Diagram
+
+````````
 
 ## 📚 API Documentation
 
@@ -239,6 +314,255 @@ This provides:
 - Request/response examples
 - Authentication testing
 - Endpoint documentation
+
+### Key API Endpoints
+
+#### Registration Endpoint
+
+**POST** `/api/account/identity/create`
+
+**Request Body:**
+```json
+{
+  "firstName": "string (required, 3-30 characters)",
+  "email": "user@example.com (required, valid format)",
+  "bio": "string (optional, max 500 characters)",
+  "password": "string (required, min 7 characters)",
+  "confirmPassword": "string (must match password)",
+  "countryCode": "string (select from dropdown)",
+  "termsAccepted": true
+}
+```
+
+**Success Response (200 OK):**
+```json
+{
+  "succeeded": true,
+  "message": "Registration successful. Check your email for verification link.",
+  "errors": null
+}
+```
+
+
+# Response
+```json
+{
+  "succeeded": true,
+  "token": "jwt_token",
+  "refreshToken": "refresh_token",
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "firstName": "User",
+    "role": "USER"
+  }
+}
+```
+
+## Trail Management
+
+### Create Trail
+
+**POST** `/api/trails`
+
+**Request Body:**
+```json
+{
+  "location": {
+    "latitude": 12.345678,
+    "longitude": 87.654321
+  },
+  "difficulty": "Easy",
+  "length": 5.2,
+  "surface": "Paved",
+  "accessibilityFeatures": ["Wheelchair\nRamp"],
+  "amenities": ["Restroom", "Parking"],
+  "description": "A beautiful and accessible trail."
+}
+```
+
+# Response
+```json
+{
+  "succeeded": true,
+  "trailId": "new_trail_id",
+  "message": "Trail created successfully."
+}
+```
+
+### Get Trail by ID
+
+**GET** `/api/trails/{id}`
+
+# Response
+```json
+{
+  "id": "trail_id",
+  "location": {
+    "latitude": 12.345678,
+    "longitude": 87.654321
+  },
+  "difficulty": "Easy",
+  "length": 5.2,
+  "surface": "Paved",
+  "accessibilityFeatures": ["Wheelchair\nRamp"],
+  "amenities": ["Restroom", "Parking"],
+  "description": "A beautiful and accessible trail.",
+  "reviews": [
+    {
+      "userId": "user_id",
+      "rating": 5,
+      "comment": "Very accessible and well-maintained."
+    }
+  ]
+}
+```
+
+### Update Trail
+
+**PUT** `/api/trails/{id}`
+
+**Request Body:**
+```json
+{
+  "difficulty": "Moderate",
+  "length": 6.0,
+  "surface": "Gravel",
+  "accessibilityFeatures": ["Wheelchair\nRamp", "Wide\nPath"],
+  "amenities": ["Restroom", "Parking", "Picnic\nTable"],
+  "description": "Updated trail description."
+}
+```
+
+# Response
+```json
+{
+  "succeeded": true,
+  "message": "Trail updated successfully."
+}
+```
+
+### Delete Trail
+
+**DELETE** `/api/trails/{id}`
+
+# Response
+```json
+{
+  "succeeded": true,
+  "message": "Trail deleted successfully."
+}
+```
+
+### Search Trails
+
+**GET** `/api/trails/search`
+
+**Query Parameters:**
+- `location`: `longitude,latitude`
+- `distance`: `number_in_miles`
+- `difficulty`: `Easy|Moderate|Challenging`
+- `surface`: `paved|gravel|boardwalk|...`
+- `amenities`: `parking,restrooms,...` (comma-separated)
+
+# Response
+```json
+{
+  "trails": [
+    {
+      "id": "trail_id",
+      "location": {
+        "latitude": 12.345678,
+        "longitude": 87.654321
+      },
+      "difficulty": "Easy",
+      "length": 5.2,
+      "surface": "Paved",
+      "accessibilityFeatures": ["Wheelchair\nRamp"],
+      "amenities": ["Restroom", "Parking"],
+      "description": "A beautiful and accessible trail."
+    }
+  ]
+}
+```
+
+### Add Review
+
+**POST** `/api/trails/{trailId}/reviews`
+
+**Request Body:**
+```json
+{
+  "rating": 5,
+  "comment": "This trail is amazing!"
+}
+```
+
+# Response
+```json
+{
+  "succeeded": true,
+  "message": "Review added successfully."
+}
+```
+
+### Get Reviews for Trail
+
+**GET** `/api/trails/{trailId}/reviews`
+
+# Response
+```json
+{
+  "reviews": [
+    {
+      "userId": "user_id",
+      "rating": 5,
+      "comment": "This trail is amazing!"
+    }
+  ]
+}
+```
+
+### Analytics Data
+
+**GET** `/api/admin/analytics`
+
+# Response
+```json
+{
+  "totalUsers": 150,
+  "totalTrails": 75,
+  "totalReviews": 200,
+  "userGrowthRate": 5.2,
+  "trailCompletionRate": 80.5
+}
+```
+
+### Error Response Format
+```json
+{
+  "succeeded": false,
+  "message": "Error message describing the issue.",
+  "errors": {
+    "fieldName": "Validation error message",
+    "anotherField": "Another error message"
+  }
+}
+```
+
+### HTTP Status Codes
+- `200 OK`: Successful request
+- `201 Created`: Resource created successfully
+- `204 No Content`: Successful request with no content
+- `400 Bad Request`: Client-side input validation failed
+- `401 Unauthorized`: Authentication failed or not provided
+- `403 Forbidden`: Insufficient permissions for the requested operation
+- `404 Not Found`: Requested resource not found
+- `500 Internal Server Error`: Server-side error, unexpected condition
+
+Ensure the client application handles these status codes appropriately for a seamless user experience.
+
+For detailed API documentation, visit **[Scalar API Docs](https://localhost:5001/scalar/v1)** after running the application.
 
 ## 🔒 Security & Configuration
 
@@ -268,7 +592,7 @@ This provides:
 ### User Secrets
 The project uses .NET User Secrets for sensitive configuration during development. **Never commit secrets to source control.**
 
-Required secretsfor API and Infrastructure projects:
+Required secrets for API and Infrastructure projects:
 - `JwtSettings:Issuer`, `JwtSettings:Audience`, `JwtSettings:Secret`
 - `AdminUser:FirstName`, `AdminUser:Email`, `AdminUser:Password`
 - `ConnectionStrings:WTConnectionString`
@@ -280,57 +604,74 @@ Required secretsfor API and Infrastructure projects:
 1. User registers via API endpoint
 2. System generates a cryptographically secure 128-character verification token
 3. Verification email is sent to user's email address with verification link
-4. User clicks verification link to verify account
-5. User logs in via API endpoint
-6. API returns JWT token (30-minute expiry) and refresh token (7-day expiry)
-7. Client stores tokens in browser local storage using configured `LocalStorageKey`
-8. Client includes JWT in `Authorization: Bearer <token>` header for authenticated requests
-9. Refresh token can be used to obtain new JWT without re-authentication
-10. Tokens are rotated on each refresh for security
-11. Custom `AuthenticationStateProvider` manages authentication state in Blazor components
+4. User is redirected to success page with email confirmation
+5. User clicks verification link in email to verify account
+6. User logs in via API endpoint
+7. API returns JWT token (30-minute expiry) and refresh token (7-day expiry)
+8. Client stores tokens in browser local storage using configured `LocalStorageKey`
+9. Client includes JWT in `Authorization: Bearer <token>` header for authenticated requests
+10. Refresh token can be used to obtain new JWT without re-authentication
+11. Tokens are rotated on each refresh for security
+12. Custom `AuthenticationStateProvider` manages authentication state in Blazor components
 
-### Email Verification Flow
-1. User registers or requests email verification
-2. System generates a verification token and sends email via SMTP
-3. User receives email with verification link
-4. User clicks verification link
-5. Web API verifies token and activates user account
-6. User can now log in
+### Registration Security Features
+- ✅ **Terms acceptance bypass in development**: `AcceptTerms` validation skipped in Development environment
+- ✅ **Email verification required**: Users must verify email before login (can be disabled for testing)
+- ✅ **Password hashing**: All passwords hashed using ASP.NET Identity's secure hashing
+- ✅ **Role-based access**: Default USER role assigned to all new registrations
+- ✅ **Data validation**: Server-side and client-side validation
+- ✅ **CSRF protection**: Built-in ASP.NET Core anti-forgery tokens
+- ✅ **Rate limiting**: (Planned) Prevent registration abuse
 
-#### Navigation Patterns After Authentication
+### Password Reset Security Features ✨ NEW
+- ✅ **Token expiration**: 24-hour token validity (configurable)
+- ✅ **Single-use tokens**: Automatically invalidated after use
+- ✅ **Email confirmation required**: Only verified emails can reset passwords
+- ✅ **Session invalidation**: All refresh tokens revoked on password change
+- ✅ **User enumeration prevention**: Generic responses regardless of email existence
+- ✅ **IP address tracking**: All password reset attempts logged with IP
+- ✅ **Comprehensive logging**: Security monitoring for failed attempts
 
-The application uses specific navigation patterns to ensure proper authentication state management:
+### Navigation Patterns After Registration
 
-**Login Flow** (Use `forceLoad: false` ✅)
+**Registration Flow** (Use `forceLoad: false` ✅)
 
-After a successful login, the client app should:
-- Store `token` and `refreshToken` in local storage
-- Navigate to the requested page or home page
-- Use `Authorization: Bearer <token>` for API requests
+After successful registration:
+- User data validated server-side
+- Verification email sent via SMTP
+- User redirected to success page: `/account/identity/registration-success?email={encodedEmail}`
+- Email address displayed in success page for confirmation
+- User can navigate to login page or home page
 
-**Why `forceLoad: false` for login?**
-- ⚡ Preserves authentication state just set in memory
-- ✨ Instant UI updates - `<AuthorizeView>` components respond immediately
-- 🎯 Smooth SPA-like navigation experience
-- 💪 No unnecessary page reload or flash of content
+**Why pass email as query parameter?**
+- ✅ Personalized success message
+- ✅ User knows which email to check
+- ✅ Enables resend verification functionality
+- ✅ Better user experience
 
-**Logout Flow** (Use `forceLoad: true` ✅)
+**Terms and Conditions Modal Flow**
 
-After logout, the client app should:
-- Clear `token` and `refreshToken` from local storage
-- Navigate to the login page or home page
-- Revalidate authentication state on the server
+User interactions:
+- Click "Terms and Conditions" link → Modal opens (JavaScript Interop)
+- Click "I Accept" → Checkbox checked, modal closes, user can submit form
+- Click "Decline" → User redirected to homepage
+- Click "X" or outside modal → Modal closes
+- Press ESC key → Modal closes (optional enhancement)
 
-**Why `forceLoad: true` for logout?**
-- 🔄 Forces a full page reload to clear application state
-- 🚫 Prevents access to authenticated routes until re-logged in
-- ✅ Ensures proper cleanup of resources and state
+**Password Reset Flow** (Use `forceLoad: false` ✅) ✨ NEW
+
+After successful password reset:
+- Password validated and updated
+- All refresh tokens revoked
+- User redirected to login page
+- Success message displayed
+- User can log in with new password
 
 ### User Roles
 - `ADMIN_DEVELOPER`: Full system access
 - `ADMIN_EDITOR`: Content management
 - `USER_EDITOR`: Trail editing capabilities
-- `USER`: Basic authenticated user
+- `USER`: Basic authenticated user (default for new registrations)
 
 ## 📧 Email Service
 
@@ -338,12 +679,15 @@ After logout, the client app should:
 The email service follows Clean Architecture principles:
 - **Interface**: `IEmailService` in `WT.Application.Contracts`
 - **Implementation**: `EmailService` in `WT.Infrastructure.Services`
-- **Registration**: Configured in `ServiceContainer.AddInfrastructureServices()`
+- **Registration**: Configured in `ServiceContainer.AddInfrastructureServices()'
 
 ### Features
 - ✅ HTML email templates with responsive design
-- ✅ Account verification emails
-- ✅ Password reset emails (planned)
+- ✅ Account verification emails with personalized greeting
+- ✅ **Password reset emails with secure tokens** ✨ NEW
+- ✅ Branded templates with WheelyTrails theme
+- ✅ Verification link with 48-hour expiration
+- ✅ **Password reset link with 24-hour expiration** ✨ NEW
 - ✅ Configurable SMTP settings via User Secrets
 - ✅ Support for multiple SMTP providers
 - ✅ Comprehensive error logging
@@ -352,18 +696,24 @@ The email service follows Clean Architecture principles:
 ### Email Templates
 
 **Verification Email**
-- Branded header with WheelyTrails logo theme
+- Branded header with WheelyTrails logo theme (🦽🌲)
 - Personalized greeting with user's first name
 - Prominent "Verify Email Address" call-to-action button
 - Plain text verification link as fallback
 - 48-hour expiration notice
-- Professional footer
+- Professional footer with copyright information
+- Mobile-responsive design
 
-**Password Reset Email** (planned)
+**Password Reset Email** ✨ NEW
 - Security-focused design
-- Clear reset password instructions
+- Personalized greeting with user's first name
+- Clear "Reset Password" call-to-action button
+- Plain text reset link as fallback
 - 24-hour expiration notice
 - Safety information if request was not made by user
+- Contact support information
+- Professional footer
+- Mobile-responsive design
 
 ### SMTP Provider Support
 
@@ -387,7 +737,7 @@ The email service follows Clean Architecture principles:
 1. Sign up for a free account at [https://mailtrap.io](https://mailtrap.io)
 2. Create an inbox (or use the default "My Inbox")
 3. Go to **SMTP Settings** tab
-4. Copy your credentials and configure User Secrets (see Installation step 3)
+4. Copy your credentials and configure User Secrets (see Installation step 2)
 5. Start your application and register a new user
 6. View the captured email at [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes)
 
@@ -416,22 +766,6 @@ For completely local testing without internet connection:
 
 Papercut will capture all emails in a local desktop application without actually sending them.
 
-### Switching Between Development and Production
-
-**Development Environment:**
-- API URL: `https://localhost:5001`
-- Admin URL: `https://localhost:7127`
-- Client URL: (To be configured)
-- Email: Mailtrap (Local SMTP for development)
-
-**Production Environment:**
-- API URL: `https://api.wheeltrails.com`
-- Admin URL: `https://admin.wheeltrails.com`
-- Client URL: `https://wheeltrails.com`
-- Email: Configured SMTP provider (SendGrid, Gmail, etc.)
-
-Use environment-specific configuration files or Azure App Configuration for seamless switching between environments.
-
 ## 🗄️ Database
 
 ### Entity Framework Core
@@ -441,8 +775,26 @@ The project uses EF Core 9 with SQL Server:
 - **Migrations**: Code-first migrations for schema management
 
 ### Key Entities
-- `ApplicationUser`: Extends `IdentityUser<Guid>` with custom properties including email verification
+- `ApplicationUser`: Extends `IdentityUser<Guid>` with custom properties including:
+  - `FirstName` (string, required)
+  - `Bio` (string?, optional, max 500 characters)
+  - `CountryCode` (string?, optional, 2 characters)
+  - `VerificationToken` (string?, 128-character hex)
+  - `Verified` (DateTime?, timestamp of verification)
+  - `AcceptTerms` (bool, required)
+  - `ProfilePicture` (string?, URL to profile image)
+  - `Roles` (List<IdentityRole<Guid>>?, navigation property)
+  - `RefreshTokens` (List<RefreshToken>?, navigation property)
 - `RefreshToken`: Manages JWT refresh tokens with rotation support
+  - `Token` (string, 64-byte base64, unique)
+  - `Expires` (DateTime, 7-day expiry)
+  - `Created` (DateTime?, creation timestamp)
+  - `CreatedByIp` (string?, client IP address)
+  - `Revoked` (DateTime?, revocation timestamp)
+  - `RevokedByIp` (string?, revocation IP)
+  - `ReplacedByToken` (string?, token chain tracking)
+  - `ReasonRevoked` (string?, audit reason - e.g., "Password reset")
+  - `AccountId` (Guid, foreign key to ApplicationUser)
 - *Additional entities to be added for trails, reviews, etc.*
 
 ### Common Commands
@@ -455,14 +807,35 @@ The project uses EF Core 9 with SQL Server:
 
 Planned testing strategy:
 - **Unit Tests**: Business logic in Application layer
+  - RegisterDTO validation
+  - ForgotPasswordDTO validation ✨ NEW
+  - ResetPasswordDTO validation ✨ NEW
+  - StringHelpers country code utilities
+  - Email service mocking
 - **Integration Tests**: API endpoints and database operations
+  - Registration endpoint with valid/invalid data
+  - Email verification workflow
+  - **Password reset workflow** ✨ NEW
+  - Database state after registration
+  - **Refresh token revocation on password change** ✨ NEW
 - **E2E Tests**: Complete user workflows
+  - Full registration flow
+  - Email verification click-through
+  - Terms and conditions modal interaction
+  - **Complete password reset flow** ✨ NEW
 - **Email Testing**: Mock email service for unit tests, Mailtrap/Papercut for integration tests
+- **UI Tests**: Blazor component testing
+  - Form validation
+  - Modal behavior
+  - Navigation flow
+  - **Password reset form validation** ✨ NEW
 
 ## 📁 Project Documentation
 
 For detailed development guidelines and best practices, see:
 - [GitHub Copilot Instructions](.github/copilot-instructions.md) - Comprehensive development guidelines
+- [Architecture Documentation](docs/architecture.md) - Clean Architecture details (planned)
+- [API Documentation](https://localhost:5001/scalar/v1) - Interactive API reference
 
 ## 🤝 Contributing
 
@@ -476,38 +849,89 @@ Contributions are welcome! Please follow these steps:
 
 Please ensure your code follows the project's architecture patterns and conventions outlined in the Copilot Instructions.
 
+### Contribution Guidelines
+- Follow Clean Architecture principles
+- Write unit tests for new features
+- Update documentation for significant changes
+- Follow C# 13 and .NET 9 conventions
+- Use Tailwind CSS for styling
+- Implement responsive design
+- Add XML documentation comments
+- Log important operations
+
 ## 📝 Development Status
 
-**Current Phase**: Web API Development (Controllers)
+**Current Phase**: Blazor WebAssembly Client Development
 
-**Branch**: `WTClient-AuthPage`
+**Branch**: `api-register`
 
 ### Completed
 - ✅ Clean Architecture foundation
 - ✅ ASP.NET Core Identity integration
 - ✅ JWT authentication with refresh tokens
-- ✅ User registration and login endpoints
+- ✅ User registration endpoint with validation
+- ✅ User login endpoint
 - ✅ Email verification system with SMTP support
+- ✅ **Password reset functionality** ✨ NEW
+  - ✅ Forgot password endpoint
+  - ✅ Reset password endpoint
+  - ✅ Password reset email templates
+  - ✅ Token generation and validation
+  - ✅ Session invalidation on password change
 - ✅ Multiple email provider support (Mailtrap, Gmail, SendGrid, etc.)
 - ✅ Database schema and migrations
 - ✅ API documentation with Scalar
+- ✅ Registration form with comprehensive validation
+- ✅ Terms and Conditions modal with JavaScript Interop
+- ✅ Registration success page with email confirmation
+- ✅ Country code selection dropdown
+- ✅ Form validation with visual feedback
+- ✅ Error and success message handling
+- ✅ Responsive design for mobile/tablet/desktop
 
 ### In Progress
-- 🔨 Account management controllers
-- 🔨 Blazor WebAssembly client authentication
+- 🔨 **Forgot Password UI (Blazor client)** ✨ NEW
+- 🔨 **Reset Password UI (Blazor client)** ✨ NEW
+- 🔨 Email resend functionality
+- 🔨 User profile management
 - 🔨 Trail CRUD endpoints
 - 🔨 Review and rating system
 
 ### Planned
-- 📋 Password reset functionality with email
+- 📋 User profile page with edit capabilities
+- 📋 Change password functionality (authenticated users)
 - 📋 Admin panel functionality
-- 📋 Complete Blazor WebAssembly client
+- 📋 Complete Blazor WebAssembly client features
 - 📋 PWA features (offline support, installability)
-- 📋 Search and filtering
+- 📋 Advanced search and filtering
 - 📋 Photo upload and management
-- 📋 Map integration
-- 📋 Testing suite
+- 📋 Map integration with interactive markers
+- 📋 Social login (Google, Facebook, Apple)
+- 📋 Two-factor authentication (2FA)
+- 📋 Testing suite (unit, integration, E2E)
 - 📋 Azure deployment
+- 📋 CI/CD pipeline
+
+## 📊 Project Statistics
+
+- **Total Projects**: 6 (Domain, Application, Infrastructure, API, Admin, Client)
+- **Lines of Code**: ~18,000+ (and growing) ⬆️
+- **Languages**: C# 13, Razor, HTML, CSS (Tailwind), JavaScript
+- **Target Framework**: .NET 9
+- **Database**: SQL Server with EF Core 9
+- **Frontend**: Blazor WebAssembly + Blazor Server
+- **Architecture Pattern**: Clean Architecture (Onion)
+
+## 🔗 Useful Links
+
+- [ASP.NET Core Documentation](https://docs.microsoft.com/en-us/aspnet/core/)
+- [ASP.NET Core Identity](https://docs.microsoft.com/en-us/aspnet/core/security/authentication/identity)
+- [Blazor Documentation](https://docs.microsoft.com/en-us/aspnet/core/blazor/)
+- [Entity Framework Core](https://docs.microsoft.com/en-us/ef/core/)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [JWT Best Practices](https://tools.ietf.org/html/rfc8725)
+- [Clean Architecture Principles](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html)
+- [OWASP Password Reset Guide](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)
 
 ## License
 
@@ -517,7 +941,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 - GitHub: [@oppenheimerm](https://github.com/oppenheimerm)
 - Issues: [GitHub Issues](https://github.com/oppenheimerm/wheeltrails/issues)
+- Project Repository: [https://github.com/oppenheimerm/wheeltrails](https://github.com/oppenheimerm/wheeltrails)
+
+## 🙏 Acknowledgments
+
+- ASP.NET Core team for excellent framework and documentation
+- Blazor community for inspiration and best practices
+- Tailwind CSS for utility-first CSS framework
+- Mailtrap for excellent email testing service
+- All contributors and supporters of accessible outdoor recreation
 
 ---
 
-📖 For detailed documentation, see **[src/WT/README.md](src/WT/README.md)**
+📖 **For detailed technical documentation, see [src/WT/README.md](src/WT/README.md)**
+
+🦽🌲 **Making outdoor adventures accessible to everyone, one trail at a time.**

@@ -122,6 +122,38 @@ namespace API.Controllers
             return await _accountService.VerifyEmailAsync(model.Token!);
         }
 
+        // add register route
+        [AllowAnonymous]
+        [HttpPost("register")]
+        public async Task<ActionResult<BaseAPIResponseDTO>> Register(RegisterDTO model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Registration Form" });
+            return await _accountService.RegisterAsync(model);
+        }
+
+        /// <summary>
+        /// Initiates password reset process.
+        /// </summary>
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO model)
+        {
+            var result = await _accountService.ForgotPasswordAsync(model);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        /// <summary>
+        /// Resets user password with valid token.
+        /// </summary>
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO model)
+        {
+            var result = await _accountService.ResetPasswordAsync(model);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
         #region Helpers
         /// <summary>
         /// Get the IP address of the user. 

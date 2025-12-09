@@ -1,25 +1,23 @@
-﻿
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
-using WT.Application.DTO.Response;
 
 namespace WT.Application.DTO.Request.Account
 {
+    /// <summary>
+    /// Public user registration - no role assignment allowed
+    /// </summary>
     public class RegisterDTO
     {
         [Required]
         [StringLength(30)]
-        [MinLength(3, ErrorMessage = "First name is reqired.")]
+        [MinLength(3, ErrorMessage = "First name is required.")]
         [PersonalData]
         public string FirstName { get; set; } = string.Empty;
 
-
-        // Ensure email address is valid
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
         [Display(Name = "Email")]
-        public string Email { get; set; } = "";
-
+        public string Email { get; set; } = string.Empty;
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
         public string? CountryCode { get; set; }
@@ -38,6 +36,7 @@ namespace WT.Application.DTO.Request.Account
         [Range(typeof(bool), "true", "true")]
         public bool AcceptTerms { get; set; }
 
-        public List<RoleDTO>? Roles {get; set; }
+        // ❌ REMOVED - Security risk for public registration
+        // public List<RoleDTO>? Roles { get; set; }
     }
 }
