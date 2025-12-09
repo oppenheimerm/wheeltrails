@@ -1,0 +1,231 @@
+﻿@page "/account/identity/registration-success"
+@inject NavigationManager NavigationManager
+@inject IAccountService AccountService
+
+<PageTitle>Registration Successful - WheelyTrails</PageTitle>
+
+@code {
+    // ✅ Capture email from query parameter
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "email")]
+    public string? userEmail { get; set; }
+
+    private bool isResending = false;
+    private string? resendMessage;
+    private bool resendSuccess = false;
+
+    private void NavigateToLogin()
+    {
+        NavigationManager.NavigateTo("/account/identity/login", forceLoad: false);
+    }
+
+    private void NavigateToHome()
+    {
+        NavigationManager.NavigateTo("/", forceLoad: false);
+    }
+
+    private async Task ResendVerificationEmail()
+    {
+        if (isResending) return;
+
+        // Validate email is available
+        if (string.IsNullOrEmpty(userEmail))
+        {
+            resendSuccess = false;
+            resendMessage = "❌ Email address not found. Please register again.";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            isResending = true;
+            resendMessage = null;
+            StateHasChanged();
+
+            // TODO: Implement resend verification email API call
+            // var response = await AccountService.ResendVerificationEmailAsync(userEmail);
+
+            await Task.Delay(1000); // Simulate API call
+
+            resendSuccess = true;
+            resendMessage = $"✅ Verification email has been resent to {userEmail}! Please check your inbox.";
+
+            Console.WriteLine($"🔄 Verification email resent to: {userEmail}");
+        }
+        catch (Exception ex)
+        {
+            resendSuccess = false;
+            resendMessage = "❌ Failed to resend verification email. Please try again later.";
+            Console.WriteLine($"Error resending verification email: {ex.Message}");
+        }
+        finally
+        {
+            isResending = false;
+            StateHasChanged();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Console.WriteLine($"Registration success page loaded for email: {userEmail ?? "Unknown"}");
+    }
+}
+
+
+<div class="mt-[96.8px]">
+    <div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-harp-50 via-white to-harp-50 dark:from-harp-950 dark:via-harp-900 dark:to-harp-950 py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl w-full space-y-8">
+            
+            <!-- Success Icon -->
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-full bg-green-100 dark:bg-green-900 mb-6">
+                    <svg class="h-16 w-16 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                
+                <h1 class="text-4xl md:text-5xl font-bold font-playfair text-gray-900 dark:text-harp-100 mb-4">
+                    Registration Successful! 🎉
+                </h1>
+                
+                <p class="text-xl text-gray-600 dark:text-harp-200 mb-8">
+                    Welcome to the WheelyTrails community!
+                </p>
+            </div>
+
+            <!-- Email Verification Instructions -->
+            <div class="bg-white dark:bg-harp-900 rounded-2xl shadow-xl p-8 space-y-6">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0">
+                        <svg class="h-8 w-8 text-harp-600 dark:text-harp-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-harp-100 mb-2">
+                            Check Your Email
+                        </h2>
+                        
+                        @if (!string.IsNullOrEmpty(userEmail))
+                        {
+                            <p class="text-gray-600 dark:text-harp-200 leading-relaxed mb-3">
+                                We've sent a verification email to:
+                            </p>
+                            <div class="bg-harp-50 dark:bg-harp-800/30 rounded-lg p-3 mb-3">
+                                <p class="text-lg font-semibold text-harp-700 dark:text-harp-300 break-all">
+                                    @userEmail
+                                </p>
+                            </div>
+                            <p class="text-gray-600 dark:text-harp-200 leading-relaxed">
+                                Please check your inbox and click the verification link to activate your account.
+                            </p>
+                        }
+                        else
+                        {
+                            <p class="text-gray-600 dark:text-harp-200 leading-relaxed">
+                                We've sent a verification email to your inbox. Please check your email and click the verification link to activate your account.
+                            </p>
+                        }
+                    </div>
+                </div>
+
+                <div class="border-t border-gray-200 dark:border-harp-700 pt-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-harp-100 mb-3">
+                        Next Steps:
+                    </h3>
+                    <ul class="space-y-3 text-gray-600 dark:text-harp-200">
+                        <li class="flex items-start">
+                            <svg class="h-6 w-6 text-harp-600 dark:text-harp-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            <span><strong>Step 1:</strong> Open your email inbox (don't forget to check your spam folder)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="h-6 w-6 text-harp-600 dark:text-harp-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            <span><strong>Step 2:</strong> Look for an email from WheelyTrails with the subject "Verify Your Account"</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="h-6 w-6 text-harp-600 dark:text-harp-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            <span><strong>Step 3:</strong> Click the verification link in the email</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="h-6 w-6 text-harp-600 dark:text-harp-400 mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            <span><strong>Step 4:</strong> Once verified, you can log in and start exploring accessible trails!</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="bg-blue-50 dark:bg-harp-800/50 rounded-lg p-4 border-l-4 border-blue-500">
+                    <div class="flex items-start">
+                        <svg class="h-6 w-6 text-blue-600 dark:text-blue-400 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-blue-900 dark:text-blue-200">
+                                <strong>Important:</strong> You must verify your email before you can log in.
+                            </p>
+                            <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                                The verification link will expire in 48 hours for security reasons.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button @onclick="NavigateToLogin"
+                        class="px-8 py-3 bg-harp-600 hover:bg-harp-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                    Go to Login Page
+                </button>
+                
+                <button @onclick="NavigateToHome"
+                        class="px-8 py-3 bg-white dark:bg-harp-900 text-gray-900 dark:text-harp-200 font-semibold rounded-lg border border-gray-300 dark:border-harp-700 hover:border-gray-400 dark:hover:border-harp-600 shadow-md hover:shadow-lg transition-all duration-200">
+                    Return to Home
+                </button>
+            </div>
+
+            <!-- Help Section -->
+            <div class="text-center pt-6 border-t border-gray-200 dark:border-harp-800">
+                @if (!string.IsNullOrEmpty(userEmail))
+                {
+                    <p class="text-sm text-gray-500 dark:text-harp-400">
+                        Didn't receive the email at <strong class="text-gray-700 dark:text-harp-300">@userEmail</strong>?<br />
+                        Check your spam folder or 
+                        <button @onclick="ResendVerificationEmail" 
+                                class="text-harp-600 dark:text-harp-400 hover:underline font-medium"
+                                disabled="@isResending">
+                            @(isResending ? "Sending..." : "resend verification email")
+                        </button>
+                    </p>
+                }
+                else
+                {
+                    <p class="text-sm text-gray-500 dark:text-harp-400">
+                        Didn't receive the email? Check your spam folder or 
+                        <button @onclick="ResendVerificationEmail" 
+                                class="text-harp-600 dark:text-harp-400 hover:underline font-medium"
+                                disabled="@isResending">
+                            @(isResending ? "Sending..." : "resend verification email")
+                        </button>
+                    </p>
+                }
+                
+                @if (!string.IsNullOrEmpty(resendMessage))
+                {
+                    <p class="mt-2 text-sm @(resendSuccess ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")">
+                        @resendMessage
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -131,5 +131,19 @@ namespace WT.Application.Services
             var result = await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>();
             return result ?? new BaseAPIResponseDTO { Success = false, Message = "Email verification failed" };
         }
+
+        public async Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/account/forgot-password", model);
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+                   ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to process password reset request" };
+        }
+
+        public async Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model)
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/account/reset-password", model);
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+                   ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to reset password" };
+        }
     }
 }
