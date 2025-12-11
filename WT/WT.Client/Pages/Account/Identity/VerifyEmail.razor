@@ -1,0 +1,362 @@
+﻿@inject IAccountService AccountService
+@inject NavigationManager NavigationManager
+
+@using Microsoft.AspNetCore.Components.Authorization
+
+@page "/account/identity/verify-email"
+
+<PageTitle>WheelyTrails - Verify Email</PageTitle>
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    private VerifyEmailDTO ModelDTO { get; set; } = new();
+    private bool isVerifying = false;
+    private bool verificationComplete = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private VerificationState currentState = VerificationState.Loading;
+
+    private enum VerificationState
+    {
+        Loading,
+        Success,
+        Error,
+        MissingToken
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine($"Verify Email page initialized. Token present: {!string.IsNullOrEmpty(Token)}");
+
+        // Check if token is provided
+        if (string.IsNullOrEmpty(Token))
+        {
+            currentState = VerificationState.MissingToken;
+            errorMessage = "Verification token is missing from the URL.";
+            Console.WriteLine("❌ No verification token provided");
+            return;
+        }
+
+        // Set token and auto-verify
+        ModelDTO.Token = Uri.UnescapeDataString(Token);
+        await VerifyEmailAsync();
+    }
+
+    private async Task VerifyEmailAsync()
+    {
+        if (string.IsNullOrEmpty(ModelDTO.Token))
+        {
+            currentState = VerificationState.Error;
+            errorMessage = "Verification token is required.";
+            return;
+        }
+
+        try
+        {
+            isVerifying = true;
+            currentState = VerificationState.Loading;
+            StateHasChanged();
+
+            Console.WriteLine($"🔍 Attempting to verify email with token length: {ModelDTO.Token.Length}");
+
+            var response = await AccountService.VerifyEmailAsync(ModelDTO.Token);
+
+            Console.WriteLine($"Response received. Success: {response.Success}");
+
+            if (response.Success)
+            {
+                Console.WriteLine("✅ Email verification successful!");
+                currentState = VerificationState.Success;
+                successMessage = response.Message;
+                verificationComplete = true;
+
+                // Auto-redirect to login after 3 seconds
+                await Task.Delay(3000);
+                NavigationManager.NavigateTo("/account/identity/login", forceLoad: false);
+            }
+            else
+            {
+                Console.WriteLine($"❌ Email verification failed: {response.Message}");
+                currentState = VerificationState.Error;
+                errorMessage = response.Message;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Exception during verification: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+            currentState = VerificationState.Error;
+            errorMessage = "An unexpected error occurred during verification. Please try again or contact support.";
+        }
+        finally
+        {
+            isVerifying = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NavigateToLogin()
+    {
+        NavigationManager.NavigateTo("/account/identity/login", forceLoad: false);
+    }
+
+    private void NavigateToRegister()
+    {
+        NavigationManager.NavigateTo("/account/identity/register", forceLoad: false);
+    }
+
+    private void NavigateToHome()
+    {
+        NavigationManager.NavigateTo("/", forceLoad: false);
+    }
+}
+
+<div class="mt-[96.8px]">
+    <div class="grid lg:grid-cols-2 md:grid-cols-2 items-center gap-4 bg-harp-200 dark:bg-harp-950 min-h-screen">
+        <!--lhs side background image -->
+        <div class="max-md:order-1 h-screen min-h-full">
+            <img src="https://readymadeui.com/image-3.webp" class="w-full h-full object-cover" alt="verify-email-image" />
+        </div>
+
+        <!-- rhs content-->
+        <div class="max-w-xl w-full p-6 mx-auto text-wt-black-950 dark:text-white">
+
+            @if (currentState == VerificationState.Loading)
+            {
+                <!-- Loading State -->
+                <div class="text-center space-y-6">
+                    <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-100 dark:bg-blue-900 rounded-full mb-4">
+                        <svg class="animate-spin h-10 w-10 text-blue-600 dark:text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+
+                    <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Verifying Email</h1>
+                    <p class="text-lg text-slate-600 dark:text-slate-300">
+                        Please wait while we verify your email address...
+                    </p>
+
+                    <div class="flex justify-center items-center space-x-2 mt-8">
+                        <div class="w-3 h-3 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+                        <div class="w-3 h-3 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+                        <div class="w-3 h-3 bg-blue-600 dark:bg-blue-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+                    </div>
+                </div>
+            }
+            else if (currentState == VerificationState.Success)
+            {
+                <!-- Success State -->
+                <div class="text-center space-y-6">
+                    <div class="inline-flex items-center justify-center w-24 h-24 bg-green-100 dark:bg-green-900 rounded-full mb-4 animate-scale-in">
+                        <span class="material-symbols-rounded text-[64px] text-green-600 dark:text-green-400">
+                            check_circle
+                        </span>
+                    </div>
+
+                    <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Email Verified!</h1>
+
+                    <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <p class="text-green-800 dark:text-green-200">
+                            @(!string.IsNullOrEmpty(successMessage) ? successMessage : "Your email has been successfully verified.")
+                        </p>
+                    </div>
+
+                    <div class="space-y-4 pt-6">
+                        <p class="text-slate-600 dark:text-slate-300">
+                            Your account is now active! You can log in and start exploring accessible trails.
+                        </p>
+
+                        <div class="flex items-center justify-center space-x-2 text-sm text-slate-500 dark:text-slate-400">
+                            <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Redirecting to login page...</span>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-4">
+                        <button type="button"
+                                @onclick="NavigateToLogin"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer transition-colors">
+                            Continue to Login
+                        </button>
+
+                        <button type="button"
+                                @onclick="NavigateToHome"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-slate-700 dark:text-white bg-white dark:bg-harp-800 border border-slate-300 dark:border-harp-600 hover:bg-slate-50 dark:hover:bg-harp-700 focus:outline-none cursor-pointer transition-colors">
+                            Go to Home
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (currentState == VerificationState.Error)
+            {
+                <!-- Error State -->
+                <div class="text-center space-y-6">
+                    <div class="inline-flex items-center justify-center w-24 h-24 bg-red-100 dark:bg-red-900 rounded-full mb-4">
+                        <span class="material-symbols-rounded text-[64px] text-red-600 dark:text-red-400">
+                            error
+                        </span>
+                    </div>
+
+                    <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Verification Failed</h1>
+
+                    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div class="flex items-start">
+                            <span class="material-symbols-rounded text-[24px] text-red-600 dark:text-red-400 mr-3 flex-shrink-0">
+                                info
+                            </span>
+                            <div class="text-left">
+                                <h3 class="font-semibold text-red-900 dark:text-red-100 mb-2">Unable to Verify Email</h3>
+                                <p class="text-sm text-red-800 dark:text-red-200">
+                                    @(!string.IsNullOrEmpty(errorMessage) ? errorMessage : "The verification link is invalid or has expired.")
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 pt-6">
+                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-left">
+                            <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                                <span class="material-symbols-rounded text-[20px] mr-2">
+                                    lightbulb
+                                </span>
+                                Troubleshooting Tips
+                            </h4>
+                            <ul class="text-sm text-blue-800 dark:text-blue-200 space-y-2 ml-7">
+                                <li class="list-disc">Make sure you're using the latest verification link from your email</li>
+                                <li class="list-disc">Verification links expire after 48 hours</li>
+                                <li class="list-disc">Check if you've already verified your email</li>
+                                <li class="list-disc">Try copying and pasting the full link from your email</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-4">
+                        <button type="button"
+                                @onclick="NavigateToLogin"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer transition-colors">
+                            Try Logging In
+                        </button>
+
+                        <button type="button"
+                                @onclick="NavigateToRegister"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-slate-700 dark:text-white bg-white dark:bg-harp-800 border border-slate-300 dark:border-harp-600 hover:bg-slate-50 dark:hover:bg-harp-700 focus:outline-none cursor-pointer transition-colors">
+                            Register New Account
+                        </button>
+
+                        <button type="button"
+                                @onclick="NavigateToHome"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none cursor-pointer transition-colors">
+                            <span class="flex items-center justify-center">
+                                <span class="material-symbols-rounded text-[18px] mr-2">
+                                    home
+                                </span>
+                                Back to Home
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            }
+            else if (currentState == VerificationState.MissingToken)
+            {
+                <!-- Missing Token State -->
+                <div class="text-center space-y-6">
+                    <div class="inline-flex items-center justify-center w-24 h-24 bg-amber-100 dark:bg-amber-900 rounded-full mb-4">
+                        <span class="material-symbols-rounded text-[64px] text-amber-600 dark:text-amber-400">
+                            warning
+                        </span>
+                    </div>
+
+                    <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Invalid Verification Link</h1>
+
+                    <div class="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                        <div class="flex items-start">
+                            <span class="material-symbols-rounded text-[24px] text-amber-600 dark:text-amber-400 mr-3 flex-shrink-0">
+                                info
+                            </span>
+                            <div class="text-left">
+                                <h3 class="font-semibold text-amber-900 dark:text-amber-100 mb-2">No Verification Token Found</h3>
+                                <p class="text-sm text-amber-800 dark:text-amber-200">
+                                    This page requires a verification token from your registration email.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 pt-6">
+                        <div class="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-left">
+                            <h4 class="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center">
+                                <span class="material-symbols-rounded text-[20px] mr-2">
+                                    help
+                                </span>
+                                What should I do?
+                            </h4>
+                            <ol class="text-sm text-blue-800 dark:text-blue-200 space-y-2 ml-7">
+                                <li class="list-decimal">Check your email inbox for the verification email from WheelyTrails</li>
+                                <li class="list-decimal">Click on the verification link in that email</li>
+                                <li class="list-decimal">If you can't find the email, check your spam/junk folder</li>
+                                <li class="list-decimal">If you still don't have the email, you may need to register again</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3 pt-4">
+                        <button type="button"
+                                @onclick="NavigateToRegister"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer transition-colors">
+                            <span class="flex items-center justify-center">
+                                <span class="material-symbols-rounded text-[18px] mr-2">
+                                    person_add
+                                </span>
+                                Register New Account
+                            </span>
+                        </button>
+
+                        <button type="button"
+                                @onclick="NavigateToLogin"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-slate-700 dark:text-white bg-white dark:bg-harp-800 border border-slate-300 dark:border-harp-600 hover:bg-slate-50 dark:hover:bg-harp-700 focus:outline-none cursor-pointer transition-colors">
+                            Already Verified? Sign In
+                        </button>
+
+                        <button type="button"
+                                @onclick="NavigateToHome"
+                                class="w-full py-3 px-4 text-[15px] font-medium tracking-wide rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none cursor-pointer transition-colors">
+                            <span class="flex items-center justify-center">
+                                <span class="material-symbols-rounded text-[18px] mr-2">
+                                    home
+                                </span>
+                                Back to Home
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            }
+
+        </div>
+    </div>
+</div>
+
+<style>
+    @@keyframes scale-in {
+        0% {
+            transform: scale(0);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .animate-scale-in {
+        animation: scale-in 0.5s ease-out;
+    }
+</style>

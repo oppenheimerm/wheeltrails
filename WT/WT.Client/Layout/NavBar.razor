@@ -4,6 +4,91 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IConfiguration Configuration
 
+@code {
+    private bool isMenuOpen = false;
+    private bool isUserMenuOpen = false;
+    private string? userProfilePicture;
+
+    private void ToggleMenu()
+    {
+        isMenuOpen = !isMenuOpen;
+    }
+
+    private void ToggleUserMenu()
+    {
+        isUserMenuOpen = !isUserMenuOpen;
+    }
+
+    private void CloseUserMenu()
+    {
+        isUserMenuOpen = false;
+    }
+
+    private string MobileMenuClass => isMenuOpen ? "max-lg:block" : "max-lg:hidden";
+
+    private string GetNavLinkClass(string href)
+    {
+        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
+        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
+
+        return isActive
+            ? "wt-navbar-lnk-active"
+            : "wt-navbar-lnk";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        Console.WriteLine($"NavBar: User authenticated = {authState.User.Identity?.IsAuthenticated}");
+        Console.WriteLine($"NavBar: User name = {authState.User.Identity?.Name}");
+
+        // TODO: Load user profile picture from claims or API
+        // For now, userProfilePicture remains null and shows Material Symbol
+        // Example: userProfilePicture = authState.User.FindFirst("ProfilePicture")?.Value;
+    }
+
+    /// <summary>
+    /// Handles user logout by clearing local storage and updating authentication state.
+    /// </summary>
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Clear local storage
+            var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
+            if (!string.IsNullOrEmpty(localStorageKey))
+            {
+                await LocalStorage.RemoveItemAsync(localStorageKey);
+            }
+
+            // Update authentication state to anonymous
+            var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+            await customAuthStateProvider.UpdateAuthenticatedState(null);
+
+            // Close the user menu
+            isUserMenuOpen = false;
+
+            // ✅ Use forceLoad: true to ensure clean slate
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout error: {ex.Message}");
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    // Close dropdown when clicking outside
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // You could add JavaScript interop here to detect clicks outside the dropdown
+            // For now, clicking menu items will close it via CloseUserMenu()
+        }
+    }
+}
+
 <!-- Fixed Header-->
 <div class="bg-harp-200 dark:bg-harp-950 fixed w-full z-20 top-0 start-0 border-b border-default dark:border-wt-black-400/50">
     <header class="flex shadow-md py-4 px-4 sm:px-10 min-h-[70px] tracking-wide relative z-50">
@@ -61,11 +146,75 @@
                         <a href="/account/identity/register" class="wt-btn-outline">Sign Up</a>
                     </NotAuthorized>
                     <Authorized>
-                        <!-- ✅ Show when logged in -->
-                        <span class="hidden sm:inline text-sm text-gray-700 dark:text-gray-300 mr-2">
-                            Hi, @context.User.Identity?.Name
-                        </span>
-                        <button @onclick="HandleLogout" class="wt-btn">Logout</button>
+                        <!-- ✅ Show when logged in - User Menu Dropdown -->
+                        <div class="relative">
+                            <!-- User Avatar Button -->
+                            <button @onclick="ToggleUserMenu"
+                                    class="flex items-center space-x-2 focus:outline-none"
+                                    type="button">
+                                @if (!string.IsNullOrEmpty(userProfilePicture))
+                                {
+                                    <!-- User has profile picture -->
+                                    <img src="@userProfilePicture"
+                                         alt="Profile"
+                                         class="w-10 h-10 rounded-full border-2 border-harp-400 dark:border-harp-600 object-cover hover:border-harp-600 dark:hover:border-harp-400 transition-colors cursor-pointer" />
+                                }
+                                else
+                                {
+                                    <!-- Default Material Symbol Account Circle -->
+                                    <span class="material-symbols-rounded text-[40px] text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 transition-colors cursor-pointer">
+                                        account_circle
+                                    </span>
+                                }
+                            </button>
+
+                            <!-- Dropdown Menu -->
+                            @if (isUserMenuOpen)
+                            {
+                                <div class="absolute right-0 mt-2 w-64 bg-white dark:bg-harp-900 rounded-lg shadow-xl border border-gray-200 dark:border-harp-700 z-50"
+                                     @onclick:stopPropagation="true">
+
+                                    <!-- Dropdown Header with Greeting -->
+                                    <div class="px-4 py-3 border-b border-gray-200 dark:border-harp-700">
+                                        <p class="text-sm text-gray-500 dark:text-harp-400">Signed in as</p>
+                                        <p class="text-base font-semibold text-gray-900 dark:text-white truncate">
+                                            Hi, @context.User.Identity?.Name
+                                        </p>
+                                    </div>
+
+                                    <!-- Dropdown Links -->
+                                    <div class="py-2">
+                                        <a href="/account/profile"
+                                           class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-harp-200 hover:bg-gray-100 dark:hover:bg-harp-800 transition-colors"
+                                           @onclick="CloseUserMenu">
+                                            <span class="material-symbols-rounded text-[20px] mr-3">
+                                                person
+                                            </span>
+                                            Profile
+                                        </a>
+
+                                        <a href="/account/settings"
+                                           class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-harp-200 hover:bg-gray-100 dark:hover:bg-harp-800 transition-colors"
+                                           @onclick="CloseUserMenu">
+                                            <span class="material-symbols-rounded text-[20px] mr-3">
+                                                settings
+                                            </span>
+                                            Settings
+                                        </a>
+
+                                        <hr class="my-2 border-gray-200 dark:border-harp-700" />
+
+                                        <button @onclick="HandleLogout"
+                                                class="w-full flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left">
+                                            <span class="material-symbols-rounded text-[20px] mr-3">
+                                                logout
+                                            </span>
+                                            Logout
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        </div>
                     </Authorized>
                 </AuthorizeView>
 
@@ -80,61 +229,3 @@
         </div>
     </header>
 </div>
-
-@code {
-    private bool isMenuOpen = false;
-
-    private void ToggleMenu()
-    {
-        isMenuOpen = !isMenuOpen;
-    }
-
-    private string MobileMenuClass => isMenuOpen ? "max-lg:block" : "max-lg:hidden";
-
-    private string GetNavLinkClass(string href)
-    {
-        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
-        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
-
-        return isActive
-            ? "wt-navbar-lnk-active"
-            : "wt-navbar-lnk";
-    }
-
-    // Add this to NavBar.razor @code section for debugging:
-    protected override async Task OnInitializedAsync()
-    {
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        Console.WriteLine($"NavBar: User authenticated = {authState.User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"NavBar: User name = {authState.User.Identity?.Name}");
-    }
-
-    /// <summary>
-    /// Handles user logout by clearing local storage and updating authentication state.
-    /// </summary>
-    /// <returns></returns>
-    private async Task HandleLogout()
-    {
-        try
-        {
-            // Clear local storage
-            var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
-            if (!string.IsNullOrEmpty(localStorageKey))
-            {
-                await LocalStorage.RemoveItemAsync(localStorageKey);
-            }
-
-            // Update authentication state to anonymous
-            var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
-            await customAuthStateProvider.UpdateAuthenticatedState(null);
-
-            // ✅ Use forceLoad: true to ensure clean slate
-            Navigation.NavigateTo("/", forceLoad: true);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Logout error: {ex.Message}");
-            Navigation.NavigateTo("/", forceLoad: true);
-        }
-    }
-}

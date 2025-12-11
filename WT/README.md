@@ -56,18 +56,33 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 ### 🔐 Authentication & Security
 - JWT Bearer token authentication with ASP.NET Core Identity
 - Role-based authorization (Admin Developer, Admin Editor, User Editor, User)
-- Secure user registration and login
-- Email verification for new accounts
-- **Password reset functionality with secure email tokens** ✨ NEW
+- Secure user registration and login with comprehensive validation
+- **Email verification system with automated email sending** ✨
+- **Password reset functionality with secure token-based flow** ✨
 - Refresh token rotation for enhanced security (7-day expiry)
 - Custom authentication state provider for Blazor applications
 - Local storage integration for client-side token management
 - Automatic revocation of all sessions on password change
+- IP address tracking for security monitoring
+
+### 👤 User Interface & Navigation ✨ NEW
+- **User Menu Dropdown** with profile avatar
+  - Displays user profile picture or Material Symbol icon fallback
+  - Personalized greeting with user's first name
+  - Quick access to Profile, Settings, and Logout
+  - Smooth transitions and hover effects
+  - Mobile-responsive design
+  - Automatic close on navigation
+- **Enhanced Navigation Bar**
+  - Active link highlighting
+  - Dark mode support
+  - Mobile hamburger menu
+  - Tailwind CSS styling
 
 ### 📝 User Registration Features
 - **Multi-step registration form** with comprehensive validation
   - First name (3-30 characters, required)
-  - Email address with format validation
+  - Email address with format validation and uniqueness check
   - Password with confirmation (minimum 7 characters)
   - Optional bio field (max 500 characters)
   - Country code selection from predefined list
@@ -76,12 +91,21 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
   - JavaScript Interop for smooth modal interactions
   - Accept/Decline functionality with navigation
   - Backdrop click to close
-- **Registration Success Page**
+- **Registration Success Page** (`/account/identity/registration-success`)
   - Dedicated success page with personalized email confirmation
   - Email address displayed for user verification
   - Step-by-step verification instructions
   - Resend verification email functionality (planned)
   - Quick navigation to login or home page
+  - Beautiful, responsive UI with step-by-step instructions
+- **Email Verification Page** (`/account/identity/verify-email`) ✨
+  - Automatic email verification with token from URL query parameter
+  - Four distinct UI states: Loading, Success, Error, and Missing Token
+  - User-friendly error messages with troubleshooting tips
+  - Auto-redirect to login page after successful verification (3 seconds)
+  - Manual navigation options to login, register, or home
+  - Token validation via ASP.NET Identity
+  - Comprehensive logging for debugging
 - **Enhanced User Experience**
   - Real-time form validation with visual feedback
   - Loading states during submission
@@ -90,34 +114,62 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
   - Query parameter support for email tracking
   - Responsive design for all devices
 
-### 🔑 Password Reset Features ✨ NEW
+### 🔑 Password Reset Features ✨
+- **Forgot Password Page** (`/account/identity/forgot-password`)
+  - Clean, user-friendly password reset request form
+  - Email address validation
+  - Generic success messages to prevent user enumeration attacks
+  - Loading states and error handling
+  - Navigation to login and home pages
+- **Reset Password Page** (`/account/identity/reset-password`)
+  - Secure password reset form with token validation
+  - Token extracted from URL query parameter
+  - Password strength validation with confirmation
+  - Real-time form validation feedback
+  - Four distinct UI states: Loading, Form, Success, and Error
+  - Auto-redirect to login page after successful reset (3 seconds)
+  - User-friendly error messages and troubleshooting tips
 - **Forgot Password Flow**
   - Secure password reset request via email
-  - Token generation via ASP.NET Identity
+  - Token generation via ASP.NET Identity's `GeneratePasswordResetTokenAsync()`
   - Generic responses to prevent user enumeration attacks
   - Email confirmation required before reset allowed
-  - 24-hour token expiration (configurable)
+  - 24-hour token expiration (configurable via `DataProtectionTokenProviderOptions`)
+  - SMTP-based email delivery with branded templates
 - **Reset Password Process**
-  - Token validation via ASP.NET Identity
+  - Token validation via ASP.NET Identity's `ResetPasswordAsync()`
   - Password strength validation
   - Single-use tokens (automatically invalidated after use)
-  - All refresh tokens revoked on successful password reset
+  - All refresh tokens revoked on successful password reset for security
   - Comprehensive logging for security monitoring
 - **Security Features**
   - Tokens sent via email only (never exposed in API responses)
-  - Failed attempts logged for security monitoring
+  - Failed attempts logged for security monitoring with timestamps
   - IP address tracking for reset operations
   - Prevention of user enumeration attacks
   - Session invalidation on password change
+  - Cryptographically secure token generation
 
 ### 📧 Email Notifications
 - Automated email verification for new user registrations
-- **Password reset emails with secure tokens** ✨ NEW
+- **Password reset emails with secure tokens** ✨
 - HTML email templates with responsive design
 - Personalized emails with user's first name
-- Branded templates with WheelyTrails theme
-- Support for multiple SMTP providers (Gmail, SendGrid, Outlook, Mailtrap, etc.)
+- Branded templates with WheelyTrails theme (🦽🌲)
+- Support for multiple SMTP providers (Gmail, SendGrid, Outlook, Mailtrap, AWS SES, Mailgun)
 - Configurable email settings via User Secrets
+- 48-hour verification link expiration
+- 24-hour password reset link expiration
+- Email service abstraction via `IEmailService` interface
+
+### 🛠️ Developer Tools
+- **Authentication Diagnostic Page** (`/auth-diagnostic`) 🔍
+  - Real-time authentication state inspection
+  - Local storage data viewer with JSON formatting
+  - Claims viewer with all user claims
+  - Configuration checker (API URL, LocalStorage key)
+  - Full diagnostic report with error handling
+  - Helps troubleshoot authentication issues during development
 
 ## 🏗️ Architecture
 
@@ -280,7 +332,7 @@ After starting the application:
 6. Click the verification link in the email to verify your account
 7. Return to login page and sign in
 
-7. **Test Password Reset Flow** ✨ NEW
+8. **Test Password Reset Flow** ✨ NEW
 
 After registration:
 1. Navigate to the login page
