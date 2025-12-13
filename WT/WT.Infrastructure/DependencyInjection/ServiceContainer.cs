@@ -58,8 +58,17 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddAuthentication();
             services.AddAuthorization();
             
+            // ✅ Register WTAccount for BOTH interfaces
             services.AddScoped<IAccountService, WTAccount>();
+            services.AddScoped<IAccountRepository, WTAccount>();
             services.AddScoped<IEmailService, EmailService>();
+            // ✅ Add Firebase Storage Service
+            services.AddScoped<IFileStorageService, FirebaseStorageService>();
+            // ✅ Add Username Validator (singleton - loaded once on startup)
+            services.AddSingleton<IUsernameValidator, UsernameValidator>();
+            // ✅ Register WTTrailRepository
+            services.AddScoped<IWTTrailRepository, WTTrailRepository>();
+
             return services;
         }
     }

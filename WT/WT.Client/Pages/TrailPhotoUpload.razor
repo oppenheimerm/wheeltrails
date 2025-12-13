@@ -1,0 +1,217 @@
+﻿@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
+
+@code {
+    [Parameter] public Guid TrailId { get; set; }
+    [Parameter] public EventCallback<List<string>> OnPhotosChanged { get; set; }
+
+    private List<string> uploadedPhotos = new();
+    private bool isUploading = false;
+    private string? uploadMessage;
+    private bool uploadSuccess = false;
+    private int currentUpload = 0;
+    private int totalUploads = 0;
+
+    private async Task HandleTrailPhotoUpload(InputFileChangeEventArgs e)
+    {
+        uploadMessage = null;
+        uploadSuccess = false;
+
+        const long maxFileSize = 10 * 1024 * 1024; // 10MB
+        const int maxFiles = 5;
+
+        var files = e.GetMultipleFiles(maxFiles);
+        totalUploads = files.Count;
+        currentUpload = 0;
+
+        try
+        {
+            isUploading = true;
+            StateHasChanged();
+
+            var successCount = 0;
+            var failureCount = 0;
+
+            foreach (var file in files)
+            {
+                currentUpload++;
+                StateHasChanged();
+
+                // Validate file size
+                if (file.Size > maxFileSize)
+                {
+                    Console.WriteLine($"❌ {file.Name} exceeds 10MB limit");
+                    failureCount++;
+                    continue;
+                }
+
+                // Validate file type
+                var allowedTypes = new[] { "image/png", "image/jpeg", "image/jpg" };
+                if (!allowedTypes.Contains(file.ContentType))
+                {
+                    Console.WriteLine($"❌ {file.Name} is not a valid image type");
+                    failureCount++;
+                    continue;
+                }
+
+                // Create multipart form data
+                using var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(file.OpenReadStream(maxFileSize));
+                fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+                content.Add(fileContent, "file", file.Name);
+                content.Add(new StringContent(TrailId.ToString()), "trailId");
+
+                // Upload to API
+                var apiBaseUrl = Configuration["ConnectionStrings:BaseApiUrl"];
+                var response = await Http.PostAsync($"{apiBaseUrl}/api/files/upload-trail-photo", content);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var downloadUrl = await response.Content.ReadAsStringAsync();
+                    uploadedPhotos.Add(downloadUrl.Trim('"')); // Remove JSON quotes
+                    successCount++;
+                }
+                else
+                {
+                    Console.WriteLine($"❌ Failed to upload {file.Name}");
+                    failureCount++;
+                }
+            }
+
+            // Show summary message
+            if (successCount > 0)
+            {
+                uploadSuccess = true;
+                uploadMessage = $"{successCount} photo(s) uploaded successfully!";
+                if (failureCount > 0)
+                {
+                    uploadMessage += $" ({failureCount} failed)";
+                }
+
+                // Notify parent
+                await OnPhotosChanged.InvokeAsync(uploadedPhotos);
+            }
+            else
+            {
+                uploadSuccess = false;
+                uploadMessage = "All uploads failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Upload error: {ex.Message}");
+            uploadMessage = $"Upload failed: {ex.Message}";
+            uploadSuccess = false;
+        }
+        finally
+        {
+            isUploading = false;
+            currentUpload = 0;
+            totalUploads = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RemovePhoto(string photoUrl)
+    {
+        try
+        {
+            var apiBaseUrl = Configuration["ConnectionStrings:BaseApiUrl"];
+            var response = await Http.DeleteAsync($"{apiBaseUrl}/api/files/delete?fileUrl={Uri.EscapeDataString(photoUrl)}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                uploadedPhotos.Remove(photoUrl);
+                await OnPhotosChanged.InvokeAsync(uploadedPhotos);
+            }
+            else
+            {
+                uploadMessage = "Failed to delete photo";
+                uploadSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Delete error: {ex.Message}");
+            uploadMessage = $"Failed to delete photo: {ex.Message}";
+            uploadSuccess = false;
+        }
+    }
+}
+
+<div class="space-y-4">
+    <!-- Upload Form -->
+    <div class="flex items-center justify-center w-full">
+        <label for="trail-photo-upload"
+               class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+
+            @if (isUploading)
+            {
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg class="animate-spin h-10 w-10 text-harp-600 dark:text-harp-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Uploading @currentUpload of @totalUploads photos...
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <span class="material-symbols-rounded text-[48px] text-gray-400 dark:text-gray-500 mb-3">
+                        add_photo_alternate
+                    </span>
+                    <p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span class="font-semibold">Click to upload</span> trail photos
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG (MAX. 10MB per file, 5 files max)</p>
+                </div>
+            }
+
+            <InputFile id="trail-photo-upload"
+                       OnChange="HandleTrailPhotoUpload"
+                       accept="image/png,image/jpeg,image/jpg"
+                       multiple
+                       class="hidden"
+                       disabled="@isUploading" />
+        </label>
+    </div>
+
+    <!-- Uploaded Photos Preview -->
+    @if (uploadedPhotos.Any())
+    {
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+            @foreach (var photo in uploadedPhotos)
+            {
+                <div class="relative group">
+                    <img src="@photo"
+                         alt="Trail photo"
+                         class="w-full h-32 object-cover rounded-lg border-2 border-gray-200 dark:border-gray-700" />
+                    <button @onclick="() => RemovePhoto(photo)"
+                            type="button"
+                            class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100">
+                        <span class="material-symbols-rounded text-[18px]">
+                            close
+                        </span>
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Error/Success Messages -->
+    @if (!string.IsNullOrEmpty(uploadMessage))
+    {
+        <div class="@(uploadSuccess ? "bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200" : "bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200") p-3 rounded border">
+            <div class="flex items-center">
+                <span class="material-symbols-rounded text-[20px] mr-2">
+                    @(uploadSuccess ? "check_circle" : "error")
+                </span>
+                @uploadMessage
+            </div>
+        </div>
+    }
+</div>

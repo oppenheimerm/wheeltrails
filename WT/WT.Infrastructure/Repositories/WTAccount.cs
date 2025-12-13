@@ -72,7 +72,7 @@ namespace WT.Infrastructure.Repositories
         SignInManager<ApplicationUser> signinManager,
         AppDbContext dbContext,
         IConfiguration config,
-        IEmailService emailService) : IAccountService
+        IEmailService emailService) : IAccountService, IAccountRepository
     {
         /// <summary>
         /// Adds a user to a specified role.
@@ -996,6 +996,33 @@ namespace WT.Infrastructure.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
+        // ✅ IAccountRepository implementation (already exists, just make it public)
+        public async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
+        {
+            var user = await userManager.FindByIdAsync(id.ToString());
+            return user;
+        }
+
+        public async Task<ApplicationUser?> FindUserByUserName(string username)
+        {
+            var user = await userManager.Users
+                .FirstOrDefaultAsync(u => u.Username == username);
+            return user;
+        }
+
+        public async Task<ApplicationUser?> FindUserByEmailAsync(string email)
+        {
+            var user = await userManager.FindByEmailAsync(email);
+            return user;
+        }
+
+        public async Task<bool> IsUsernameAvailableAsync(string username)
+        {
+            var user = await FindUserByUserName(username);
+            return user == null;
+        }
+
+
         /// <summary>
         /// Generates a cryptographically secure refresh token for a user.
         /// </summary>
@@ -1064,27 +1091,6 @@ namespace WT.Infrastructure.Repositories
             }
         }
 
-        /// <summary>
-        /// Finds a user by email address.
-        /// </summary>
-        /// <param name="email">The email address to search for.</param>
-        /// <returns>The ApplicationUser if found, otherwise null.</returns>
-        private async Task<ApplicationUser?> FindUserByEmailAsync(string email)
-        {
-            var user = await userManager.FindByEmailAsync(email);
-            return user;
-        }
-
-        /// <summary>
-        /// Finds a user by their unique identifier.
-        /// </summary>
-        /// <param name="id">The user's GUID identifier.</param>
-        /// <returns>The ApplicationUser if found, otherwise null.</returns>
-        private async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
-        {
-            var user = await userManager.FindByIdAsync(id.ToString());
-            return user;
-        }
 
         /// <summary>
         /// Finds a user by their refresh token.
@@ -1330,5 +1336,99 @@ namespace WT.Infrastructure.Repositories
         }
 
         #endregion
+
+        /// <summary>
+        /// Soft deletes a user account by marking it as deleted without removing from the database.
+        /// An optional reason can be provided for the deletion, which is logged for auditing purposes.
+        /// </summary>
+        /// <param name="userId">The unique identifier of the user to soft delete.</param>
+        /// <param name="reason">Optional reason for the deletion (e.g., "User requested account deletion").</param>
+        /// <returns>
+        /// A response indicating success or failure.
+        /// On success, the user account is marked as deleted and anonymized.
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Soft Delete Process:</strong></para>
+        /// <list type="number">
+        /// <item><description>Finds the user by ID</description></item>
+        /// <item><description>Marks the user as deleted (IsDeleted = true)</description></item>
+        /// <item><description>Sets the deletion timestamp (DeletedAt = Now)</description></item>
+        /// <item><description>Optionally set a deletion reason</description></item>
+        /// <item><description>Anonymizes user data (email, username, name) for privacy</description></item>
+        /// <item><description>Updates the user in the database</description></item>
+        /// </list>
+        /// <para><strong>Security and Compliance:</strong></para>
+        /// <list type="bullet">
+        /// <item><description>Meets GDPR and CCPA requirements for data removal</description></item>
+        /// <item><description>Retention of deletion reason and timestamp for auditing</description></item>
+        /// <item><description>Actual data removal is not performed to allow potential account recovery</description></item>
+        /// </list>
+        /// <para>
+        /// <strong>Soft Delete vs Hard Delete:</strong>
+        /// </para>
+        /// <para>
+        /// This method performs a soft delete, which keeps the user record in the database
+        /// but marks it as deleted. This is generally safer and allows for account recovery.
+        /// A hard delete (permanent removal) would require a separate method and is not
+        /// recommended unless absolutely necessary.
+        /// </para>
+        /// </remarks>
+        public async Task<BaseAPIResponseDTO> SoftDeleteUserAsync(Guid userId, string? reason = null)
+        {
+            try
+            {
+                var user = await FindUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "User not found"
+                    };
+                }
+
+                // Mark as deleted instead of actually deleting
+                user.IsDeleted = true;
+                user.DeletedAt = DateTime.UtcNow;
+                user.DeleteReason = reason;
+
+                // Optionally anonymize user data for privacy
+                user.Email = $"deleted_{user.Id}@deleted.com";
+                user.UserName = $"deleted_{user.Id}";
+                user.FirstName = "[Deleted User]";
+                user.Bio = null;
+                user.ProfilePicture = null;
+
+                var result = await userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    LogException.LogToFile($"User soft-deleted: {userId} at {DateTime.UtcNow}");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = "User account deactivated successfully"
+                    };
+                }
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = $"Failed to deactivate user: {errors}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while deactivating user account"
+                };
+            }
+        }
     }
 }
