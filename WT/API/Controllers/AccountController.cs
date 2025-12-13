@@ -1,9 +1,16 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Application.Services;
+using WT.Domain.Entity;
+using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
 
 namespace API.Controllers
@@ -13,10 +20,14 @@ namespace API.Controllers
     public class AccountController : ControllerBase
     {
         private readonly IAccountService _accountService;
+        private readonly AppDbContext _dbContext;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public AccountController(IAccountService accountService)
+        public AccountController(IAccountService accountService, AppDbContext dbContext, 
+            UserManager<ApplicationUser> userManager)
         {
             _accountService = accountService;
+            _dbContext = dbContext;
         }
 
         [HttpGet]
@@ -125,6 +136,7 @@ namespace API.Controllers
         // add register route
         [AllowAnonymous]
         [HttpPost("register")]
+        [EnableRateLimiting("AuthPolicy")] // ✅ Strict rate limit
         public async Task<ActionResult<BaseAPIResponseDTO>> Register(RegisterDTO model)
         {
             if (!ModelState.IsValid)
@@ -152,6 +164,90 @@ namespace API.Controllers
         {
             var result = await _accountService.ResetPasswordAsync(model);
             return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        // ✅ ALWAYS validate server-side (client validation can be bypassed)
+        [HttpPost("upload-profile-picture")]
+        public async Task<IActionResult> UploadProfilePicture([FromForm] IFormFile file)
+        {
+            const long maxFileSize = 5 * 1024 * 1024;
+            
+            // ✅ Server-side validation is mandatory
+            if (file.Length > maxFileSize)
+                return BadRequest("File size exceeds 5MB limit");
+
+            var allowedTypes = new[] { "image/png", "image/jpeg", "image/jpg" };
+            if (!allowedTypes.Contains(file.ContentType.ToLower()))
+                return BadRequest("Invalid file type");
+
+            return Ok();
+        }
+
+        [HttpPost("set-username")]
+        [Authorize] // Must be logged in
+        public async Task<IActionResult> SetUsername(
+            [FromBody] SetUsernameDTO model,
+            [FromServices] IUsernameValidator usernameValidator)
+        {
+            try
+            {
+                // Get current user
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                {
+                    return Unauthorized();
+                }
+
+                var user = await _userManager.FindByIdAsync(userId);
+                if (user == null)
+                {
+                    return NotFound(new { success = false, message = "User not found" });
+                }
+
+                //  Check if the username was set in the last 90 days
+                if (user.UsernameSetDate.HasValue && 
+                    (DateTime.UtcNow - user.UsernameSetDate.Value).TotalDays < 90)
+                {
+                    return BadRequest(new { success = false, message = "Username can only be changed once every 90 days" });
+                }
+
+
+                // Validate username
+                if (!usernameValidator.IsUsernameAllowed(model.Username))
+                {
+                    var reason = usernameValidator.GetRejectionReason(model.Username);
+                    return BadRequest(new { success = false, message = reason ?? "Invalid username" });
+                }
+
+                // Check if username is already taken
+                var existingUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == model.Username);
+                if (existingUser != null)
+                {
+                    return BadRequest(new { success = false, message = "Username is already taken" });
+                }
+
+                // Set username (one-time only)
+                user.Username = model.Username;
+                user.UsernameIsSet = true;
+
+                var result = await _userManager.UpdateAsync(user);
+
+                if (result.Succeeded)
+                {
+                    LogException.LogToFile($"Username set for user {user.Email}: {model.Username} at {DateTime.UtcNow}");
+                    return Ok(new { success = true, message = "Username set successfully", username = user.Username });
+                }
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    return BadRequest(new { success = false, message = $"Failed to set username: {errors}" });
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { success = false, message = "An error occurred while setting username" });
+            }
         }
 
         #region Helpers

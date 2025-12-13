@@ -1,0 +1,170 @@
+﻿@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
+
+@code {
+    [Parameter] public string? CurrentProfilePicture { get; set; }
+    [Parameter] public EventCallback<string> OnUploadComplete { get; set; }
+
+    private bool isUploading = false;
+    private string? uploadMessage;
+    private bool uploadSuccess = false;
+    private int uploadProgress = 0;
+
+    private async Task HandleProfilePictureUpload(InputFileChangeEventArgs e)
+    {
+        uploadMessage = null;
+        uploadSuccess = false;
+        uploadProgress = 0;
+
+        var file = e.File;
+
+        // Validate file size (max 5MB)
+        const long maxFileSize = 5 * 1024 * 1024;
+        if (file.Size > maxFileSize)
+        {
+            uploadMessage = "File size must be less than 5MB";
+            uploadSuccess = false;
+            return;
+        }
+
+        // Validate file type
+        var allowedTypes = new[] { "image/png", "image/jpeg", "image/jpg" };
+        if (!allowedTypes.Contains(file.ContentType))
+        {
+            uploadMessage = "Only PNG and JPEG images are allowed";
+            uploadSuccess = false;
+            return;
+        }
+
+        try
+        {
+            isUploading = true;
+            StateHasChanged();
+
+            // Get current user ID from authentication state
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userIdClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                uploadMessage = "User not authenticated. Please log in.";
+                uploadSuccess = false;
+                return;
+            }
+
+            // Create multipart form data
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(file.OpenReadStream(maxFileSize));
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(fileContent, "file", file.Name);
+            content.Add(new StringContent(userId.ToString()), "userId");
+
+            uploadProgress = 50;
+            StateHasChanged();
+
+            // Upload to API
+            var apiBaseUrl = Configuration["ConnectionStrings:BaseApiUrl"];
+            var response = await Http.PostAsync($"{apiBaseUrl}/api/files/upload-profile-picture", content);
+
+            uploadProgress = 90;
+            StateHasChanged();
+
+            if (response.IsSuccessStatusCode)
+            {
+                var downloadUrl = await response.Content.ReadAsStringAsync();
+                CurrentProfilePicture = downloadUrl.Trim('"'); // Remove JSON quotes
+
+                uploadSuccess = true;
+                uploadMessage = "Profile picture updated successfully!";
+                uploadProgress = 100;
+
+                // Notify parent component
+                await OnUploadComplete.InvokeAsync(CurrentProfilePicture);
+            }
+            else
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                uploadMessage = $"Upload failed: {errorMessage}";
+                uploadSuccess = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ Upload error: {ex.Message}");
+            uploadMessage = $"Upload failed: {ex.Message}";
+            uploadSuccess = false;
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+}
+
+
+<div class="space-y-4">
+    <!-- Current Profile Picture -->
+    @if (!string.IsNullOrEmpty(CurrentProfilePicture))
+    {
+        <div class="flex justify-center">
+            <img src="@CurrentProfilePicture"
+                 alt="Profile"
+                 class="w-32 h-32 rounded-full object-cover border-4 border-harp-500 dark:border-harp-600" />
+        </div>
+    }
+
+    <!-- Upload Form -->
+    <div class="flex items-center justify-center w-full">
+        <label for="profile-picture-upload"
+               class="flex flex-col items-center justify-center w-full h-64 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg cursor-pointer bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+
+            @if (isUploading)
+            {
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <svg class="animate-spin h-10 w-10 text-harp-600 dark:text-harp-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        Uploading... @uploadProgress%
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                    <span class="material-symbols-rounded text-[48px] text-gray-400 dark:text-gray-500 mb-3">
+                        cloud_upload
+                    </span>
+                    <p class="mb-2 text-sm text-gray-500 dark:text-gray-400">
+                        <span class="font-semibold">Click to upload</span> profile picture
+                    </p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG (MAX. 5MB)</p>
+                </div>
+            }
+
+            <InputFile id="profile-picture-upload"
+                       OnChange="HandleProfilePictureUpload"
+                       accept="image/png,image/jpeg,image/jpg"
+                       class="hidden"
+                       disabled="@isUploading" />
+        </label>
+    </div>
+
+    <!-- Error/Success Messages -->
+    @if (!string.IsNullOrEmpty(uploadMessage))
+    {
+        <div class="@(uploadSuccess ? "bg-green-100 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200" : "bg-red-100 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200") p-3 rounded border">
+            <div class="flex items-center">
+                <span class="material-symbols-rounded text-[20px] mr-2">
+                    @(uploadSuccess ? "check_circle" : "error")
+                </span>
+                @uploadMessage
+            </div>
+        </div>
+    }
+</div>
+
+

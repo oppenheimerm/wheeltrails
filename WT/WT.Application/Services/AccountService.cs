@@ -1,4 +1,5 @@
 ﻿using Blazored.LocalStorage;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -6,6 +7,7 @@ using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Application.Extensions;
+using WT.Domain.Entity;
 
 namespace WT.Application.Services
 {
@@ -145,5 +147,7 @@ namespace WT.Application.Services
             return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to reset password" };
         }
+        // ✅ REMOVED: FindUserByIdAsync (not needed for HTTP client)
+        // ✅ REMOVED: FindUserByUserName (not needed for HTTP client)
     }
 }

@@ -27,4 +27,19 @@ namespace WT.Application.DTO.Response
     string? JwtToken = "",
     string? RefreshToken = ""
     ) : BaseAPIResponseDTO(Success, Message);
+
+
+    /// <summary>
+    /// Handles the response for trail creation operations.  Returns trail ID and title upon success.
+    /// </summary>
+    /// <param name="Success"></param>
+    /// <param name="Message"></param>
+    /// <param name="TrailId"></param>
+    /// <param name="TrailTitle"></param>
+    public record APIResponseCreateTrail(
+        bool Success = false,
+        string Message = null!,
+        Guid? TrailId = null,
+        string? TrailTitle = "") : BaseAPIResponseDTO(Success, Message);
+
 }

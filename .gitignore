@@ -489,3 +489,9 @@ $RECYCLE.BIN/
 
 # But DO commit the base appsettings.json with non-sensitive defaults
 !**/wwwroot/appsettings.json
+
+
+# Firebase Service Account Keys
+*firebase-adminsdk*.json
+wheelytrails-firebase*.json
+firebase-keys/
