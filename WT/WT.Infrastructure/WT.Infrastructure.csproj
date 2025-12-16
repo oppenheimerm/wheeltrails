@@ -2,11 +2,24 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <UserSecretsId>0d24f07a-9d8c-48c4-b09d-95d4a2600f8d</UserSecretsId>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>WT.Infrastructure</RootNamespace>
   </PropertyGroup>
 
+  <!-- ✅ STEP 1: Remove the file from default compilation -->
+  <ItemGroup>
+    <None Remove="Data\BadWords.en.txt" />
+  </ItemGroup>
+
+  <!-- ✅ STEP 2: Add as embedded resource with explicit logical name -->
+  <ItemGroup>
+    <EmbeddedResource Include="Data\BadWords.en.txt">
+      <LogicalName>WT.Infrastructure.Data.BadWords.en.txt</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!-- Package references -->
   <ItemGroup>
     <PackageReference Include="FirebaseAdmin" Version="3.4.0" />
     <PackageReference Include="FirebaseAuthentication.net" Version="4.1.0" />

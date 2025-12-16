@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace WT.Domain.Entity
 {
@@ -9,44 +10,43 @@ namespace WT.Domain.Entity
         public string? FirstName { get; set; }
 
         /// <summary>
-        /// Unique username for display purposes (different from email).
-        /// Once set, it cannot be changed for 90 days <see cref="UsernameSetDate"/>. 
-        /// For the last time it was set. Must be unique and not contain offensive words.
+        /// Unique profile username for display purposes and profile URLs (e.g., @john_doe).
+        /// Different from Email. Set once during registration and CANNOT be changed.
+        /// Must be unique and not contain offensive words.
+        /// Used in profile URLs: /user/profileusername or /@profileusername
         /// </summary>
-        [MaxLength(20, ErrorMessage = "Username has a maximum size of 20 characters.")]
-        [MinLength(3, ErrorMessage = "Username must be at least 3 characters.")]
-        [RegularExpression(@"^[a-zA-Z0-9_.-]+$", ErrorMessage = "Username can only contain letters, numbers, underscores, dashes, and dots.")]
-        public string? Username { get; set; }
+        [Required]
+        [MaxLength(20, ErrorMessage = "Profile username has a maximum size of 20 characters.")]
+        [MinLength(3, ErrorMessage = "Profile username must be at least 3 characters.")]
+        [RegularExpression(@"^[a-zA-Z0-9_.-]+$", ErrorMessage = "Profile username can only contain letters, numbers, underscores, dashes, and dots.")]
+        public string ProfileUsername { get; set; } = string.Empty;
 
         /// <summary>
-        /// Indicates if username has been set (cannot be changed after first set).
+        /// When the profile username was created (same as account registration date).
         /// </summary>
-        public bool UsernameIsSet { get; set; } = false;
-
-
-        /// <summary>
-        /// The date when the username was set for the first time.
-        /// </summary>
-        public DateTime? UsernameSetDate { get; set; }
+        public DateTime ProfileUsernameCreatedAt { get; set; } = DateTime.UtcNow;
 
         public string? ProfilePicture { get; set; }
 
         [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]
         public string? Bio { get; set; }
 
+        [NotMapped] // Don't map to database - managed separately
         public List<IdentityRole<Guid>>? Roles { get; set; }
-
-        [Range(typeof(bool), "true", "true")]
 
         public DateTime? Verified { get; set; }
 
+        [NotMapped]
         public bool IsVerified => Verified.HasValue;
 
         public string? VerificationToken { get; set; }
+        
         public bool AcceptTerms { get; set; }
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
         public string? CountryCode { get; set; }
+        
+        [NotMapped] // Don't map to database - managed separately
         public List<RefreshToken>? RefreshTokens { get; set; }
         
         // Navigation property for the trails created by the user

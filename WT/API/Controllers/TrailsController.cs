@@ -28,13 +28,12 @@ namespace API.Controllers
         }
 
         [HttpPost]
-        [Authorize]// ✅ Requires valid JWT token
+        [Authorize] // ✅ Requires valid JWT token
         public async Task<IActionResult> CreateTrail([FromBody] CreateTrailDTO model)
         {
             try
             {
                 // ✅ SECURITY: Extract userId from authenticated JWT claims
-                // Client CANNOT fake this
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -76,9 +75,9 @@ namespace API.Controllers
         [Authorize]
         public async Task<IActionResult> LikeTrail(Guid trailId, [FromBody] AddTrailLikeDTO model)
         {
-            try {
+            try 
+            {
                 // ✅ SECURITY: Extract userId from authenticated JWT claims
-                // Client CANNOT fake this
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -97,9 +96,7 @@ namespace API.Controllers
                 // Log trail like creation
                 LogException.LogToFile($"User ID: {userId} liked Trail ID: {trailId} at time: {DateTime.UtcNow}");
 
-                // Return success response
-                return Ok( response);
-
+                return Ok(response);
             }
             catch (Exception ex)
             {
@@ -116,9 +113,9 @@ namespace API.Controllers
         [Authorize]
         public async Task<IActionResult> UnlikeTrail(Guid trailId)
         {
-            try {
+            try 
+            {
                 // ✅ SECURITY: Extract userId from authenticated JWT claims
-                // Client CANNOT fake this
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
                 if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
@@ -134,13 +131,13 @@ namespace API.Controllers
                     return BadRequest(response);
                 }
 
-                // Log trail unlike creation
+                // Log trail unlike
                 LogException.LogToFile($"User ID: {userId} unliked Trail ID: {trailId} at time: {DateTime.UtcNow}");
 
-                // Return success response
                 return Ok(response);
             }
-            catch (Exception ex) {
+            catch (Exception ex) 
+            {
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new BaseAPIResponseDTO()
                 {
@@ -148,27 +145,44 @@ namespace API.Controllers
                     Message = "An error occurred while unliking the trail"
                 });
             }
-
         }
 
+        /// <summary>
+        /// Gets all likes for a specific trail, including user details and ratings.
+        /// Public endpoint - anyone can view who liked a trail.
+        /// </summary>
         [HttpGet("{trailId:guid}/likes")]
+        [AllowAnonymous] // ✅ Public endpoint
         public async Task<IActionResult> GetTrailLikes(Guid trailId)
         {
-            var likes = await _context.TrailLikes
-                .Where(tl => tl.TrailId == trailId)
-                .Include(tl => tl.User)
-                .Select(tl => new
-                {
-                    UserId = tl.UserId,
-                    Username = tl.User.Username ?? tl.User.FirstName,
-                    ProfilePicture = tl.User.ProfilePicture,
-                    LikedAt = tl.LikedAt,
-                    Rating = tl.Rating
-                })
-                .OrderByDescending(tl => tl.LikedAt)
-                .ToListAsync();
+            try
+            {
+                var likes = await _context.TrailLikes
+                    .Where(tl => tl.TrailId == trailId)
+                    .Include(tl => tl.User)
+                    .Select(tl => new
+                    {
+                        UserId = tl.UserId,
+                        // ✅ UPDATED: Use ProfileUsername instead of Username (email)
+                        ProfileUsername = tl.User.ProfileUsername ?? tl.User.FirstName ?? "Anonymous",
+                        ProfilePicture = tl.User.ProfilePicture,
+                        LikedAt = tl.LikedAt,
+                        Rating = tl.Rating
+                    })
+                    .OrderByDescending(tl => tl.LikedAt)
+                    .ToListAsync();
 
-            return Ok(new { success = true, likes, count = likes.Count });
+                return Ok(new { success = true, likes, count = likes.Count });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new 
+                { 
+                    success = false, 
+                    message = "An error occurred while retrieving trail likes" 
+                });
+            }
         }
     }
 }

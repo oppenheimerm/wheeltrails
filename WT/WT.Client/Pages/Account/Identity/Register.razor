@@ -3,6 +3,8 @@
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
+@implements IDisposable
+
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Linq.Expressions
 @using WT.Application.Extensions
@@ -14,11 +16,14 @@
 @code {
     private RegisterDTO ModelDTO { get; set; } = new();
     private EditContext? editContext;
-    private ValidationMessageStore? messageStore;
 
     private bool isSubmitting = false;
-    private string? errorMessage;
+    private bool isCheckingUsername = false;
+    private bool isUsernameAvailable = false;
+    private string usernameAvailabilityMessage = string.Empty;
+    private string? errorMessage = string.Empty;
     private string? successMessage;
+    private System.Threading.Timer? usernameCheckTimer;
 
     // ✅ Cache country codes to avoid calling method during render
     private List<CountryCode> countryCodes = [];
@@ -26,12 +31,61 @@
     protected override void OnInitialized()
     {
         editContext = new EditContext(ModelDTO);
-
-        // ✅ Load country codes once during initialization
         countryCodes = StringHelpers.GetCountryCodes();
-
-        // Add debug logging to verify initialization
         Console.WriteLine("Register page initialized");
+    }
+
+    private async void OnUsernameChanged(ChangeEventArgs e)
+    {
+        var username = e.Value?.ToString()?.Trim();
+
+        usernameCheckTimer?.Dispose();
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            usernameAvailabilityMessage = string.Empty;
+            isUsernameAvailable = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (username.Length < 3)
+        {
+            usernameAvailabilityMessage = "Username must be at least 3 characters";
+            isUsernameAvailable = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        usernameCheckTimer = new System.Threading.Timer(async _ =>
+        {
+            await CheckUsernameAvailability(username);
+        }, null, 500, Timeout.Infinite);
+    }
+
+    private async Task CheckUsernameAvailability(string username)
+    {
+        isCheckingUsername = true;
+        await InvokeAsync(StateHasChanged);
+
+        try
+        {
+            // ✅ NEW: Combined validation (availability + profanity)
+            var result = await AccountService.ValidateProfileUsernameAsync(username);
+            isUsernameAvailable = result.IsValid;
+            usernameAvailabilityMessage = result.Message ?? "Unknown validation error";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error checking username: {ex.Message}");
+            usernameAvailabilityMessage = "Unable to check username availability";
+            isUsernameAvailable = false;
+        }
+        finally
+        {
+            isCheckingUsername = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     private async Task HandleValidSubmit()
@@ -57,21 +111,15 @@
             {
                 Console.WriteLine("🎉 Registration successful!");
 
-                // ✅ Pass email as query parameter
-                var encodedEmail = Uri.EscapeDataString(ModelDTO.Email);
+                // ✅ Fix null reference warning
+                var email = ModelDTO.Email ?? string.Empty;
+                var encodedEmail = Uri.EscapeDataString(email);
                 NavigationManager.NavigateTo($"/account/identity/registration-success?email={encodedEmail}", forceLoad: false);
             }
             else
             {
                 errorMessage = response.Message;
                 Console.WriteLine($"Registration failed: {errorMessage}");
-
-                if (editContext != null && messageStore != null)
-                {
-                    messageStore.Clear();
-                    messageStore.Add(() => ModelDTO.Email, response.Message);
-                    editContext.NotifyValidationStateChanged();
-                }
             }
         }
         catch (Exception ex)
@@ -114,49 +162,47 @@
         return HasValidationErrors(accessor) ? "wt-form-input-error" : "wt-form-input";
     }
 
-    // Show modal
     private async Task ShowTermsModal()
     {
         await JSRuntime.InvokeVoidAsync("modalHelper.showModal", "default-modal");
     }
 
-    // Close modal
     private async Task CloseModal()
     {
         await JSRuntime.InvokeVoidAsync("modalHelper.hideModal", "default-modal");
     }
 
-    // Accept terms
     private async Task AcceptTerms()
     {
         ModelDTO.AcceptTerms = true;
         await CloseModal();
-        StateHasChanged();
+        StateHasChanged();  // ❌ Should be StateHasChanged()
     }
 
-    // Decline terms
     private void DeclineTerms()
     {
         ModelDTO.AcceptTerms = false;
         NavigationManager.NavigateTo("/", forceLoad: false);
     }
+
+    public void Dispose()
+    {
+        usernameCheckTimer?.Dispose();
+    }
 }
 
 <div class="mt-[96.8px]">
     <div class="grid lg:grid-cols-2 md:grid-cols-2 items-center gap-4 bg-harp-200 dark:bg-harp-950">
-        <!--lhs side background image -->
         <div class="max-md:order-1 h-screen min-h-full">
             <img src="https://readymadeui.com/image-3.webp" class="w-full h-full object-cover" alt="register-image" />
         </div>
 
-        <!-- rhs form-->
         <div class="max-w-xl w-full p-6 mx-auto text-wt-black-950 dark:text-white">
             <EditForm OnValidSubmit="HandleValidSubmit"
                       OnInvalidSubmit="HandleInvalidSubmit"
                       EditContext="editContext">
                 <DataAnnotationsValidator />
 
-                <!-- Error Display -->
                 @if (!string.IsNullOrEmpty(errorMessage))
                 {
                     <div class="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
@@ -164,7 +210,6 @@
                     </div>
                 }
 
-                <!-- Success Display -->
                 @if (!string.IsNullOrEmpty(successMessage))
                 {
                     <div class="mb-4 p-3 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded">
@@ -186,15 +231,51 @@
                                        id="firstName"
                                        class="@GetInputClass(() => ModelDTO.FirstName)"
                                        placeholder="Enter first name" />
-
-                            <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    person
-                                </span>
+                                <span class="material-symbols-rounded text-[18px]">person</span>
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.FirstName)" class="wt-form-error-msg" />
+                        <ValidationMessage For="@(() => ModelDTO.FirstName)" />
+                    </div>
+
+                    <!-- Username -->
+                    <div>
+                        <label class="wt-form-lbl" for="profileUsername">
+                            Username <span class="text-red-600">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-3 text-gray-500 dark:text-gray-400">@@</span>
+                            <InputText @bind-Value="ModelDTO.ProfileUsername" 
+                                       id="profileUsername"
+                                       class="@($"{GetInputClass(() => ModelDTO.ProfileUsername)} !pl-[28px]")"
+                                       placeholder="your_unique_username"
+                                       @oninput="OnUsernameChanged" />
+                            <div class="w-[18px] h-[18px] absolute right-2 top-3 pointer-events-none">
+                                <span class="material-symbols-rounded text-[18px]">alternate_email</span>
+                            </div>
+                        </div>
+                        <ValidationMessage For="@(() => ModelDTO.ProfileUsername)" />
+
+                        @if (isCheckingUsername)
+                        {
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex items-center">
+                                <span class="animate-spin mr-2">⏳</span> Checking availability...
+                            </p>
+                        }
+                        else if (!string.IsNullOrEmpty(usernameAvailabilityMessage))
+                        {
+                            <p class="text-sm mt-1 flex items-center @(isUsernameAvailable ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400")">
+                                <span class="mr-1">@(isUsernameAvailable ? "✓" : "✗")</span>
+                                @usernameAvailabilityMessage
+                            </p>
+                        }
+
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            ⚠️ Choose wisely! Your username cannot be changed after registration.
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            3-20 characters. Letters, numbers, underscores, dashes, and dots only.
+                        </p>
                     </div>
 
                     <!-- Email -->
@@ -205,28 +286,22 @@
                                        id="email"
                                        class="@GetInputClass(() => ModelDTO.Email)"
                                        placeholder="Email address" />
-
-                            <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    mail
-                                </span>
+                                <span class="material-symbols-rounded text-[18px]">mail</span>
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.Email)" class="wt-form-error-msg" />
+                        <ValidationMessage For="@(() => ModelDTO.Email)" />
                     </div>
 
-                    <!-- Bio (Optional) -->
+                    <!-- Bio -->
                     <div>
                         <label class="wt-form-lbl" for="bio">Bio (Optional)</label>
-                        <div class="relative flex items-center">
-                            <InputTextArea @bind-Value="ModelDTO.Bio"
-                                           id="bio"
-                                           class="@GetInputClass(() => ModelDTO.Bio)"
-                                           placeholder="Tell us about yourself (max 500 characters)"
-                                           rows="3" />
-                        </div>
-                        <ValidationMessage For="@(() => ModelDTO.Bio)" class="wt-form-error-msg" />
+                        <InputTextArea @bind-Value="ModelDTO.Bio"
+                                       id="bio"
+                                       class="@GetInputClass(() => ModelDTO.Bio)"
+                                       placeholder="Tell us about yourself (max 500 characters)"
+                                       rows="3" />
+                        <ValidationMessage For="@(() => ModelDTO.Bio)" />
                     </div>
 
                     <!-- Password -->
@@ -238,15 +313,11 @@
                                        id="password"
                                        class="@GetInputClass(() => ModelDTO.Password)"
                                        placeholder="Enter password (min 7 characters)" />
-
-                            <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    lock
-                                </span>
+                                <span class="material-symbols-rounded text-[18px]">lock</span>
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.Password)" class="wt-form-error-msg" />
+                        <ValidationMessage For="@(() => ModelDTO.Password)" />
                     </div>
 
                     <!-- Confirm Password -->
@@ -258,18 +329,14 @@
                                        id="confirmPassword"
                                        class="@GetInputClass(() => ModelDTO.ConfirmPassword)"
                                        placeholder="Confirm password" />
-
-                            <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    lock
-                                </span>
+                                <span class="material-symbols-rounded text-[18px]">lock</span>
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.ConfirmPassword)" class="wt-form-error-msg" />
+                        <ValidationMessage For="@(() => ModelDTO.ConfirmPassword)" />
                     </div>
 
-                    <!-- Country Code dropdown -->
+                    <!-- Country Code -->
                     <div>
                         <label class="wt-form-lbl" for="countryCode">Country Code</label>
                         <div class="relative flex items-center">
@@ -282,14 +349,11 @@
                                     <option value="@countryCode.Code">@countryCode.Name</option>
                                 }
                             </InputSelect>
-                            <!-- icon wrap -->
                             <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    public
-                                </span>
+                                <span class="material-symbols-rounded text-[18px]">public</span>
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.CountryCode)" class="wt-form-error-msg" />
+                        <ValidationMessage For="@(() => ModelDTO.CountryCode)" />
                     </div>
 
                     <!-- Accept Terms -->
@@ -300,10 +364,10 @@
                                            class="w-4 h-4 border border-harp-400 rounded bg-harp-50 focus:ring-3 focus:ring-harp-300 dark:bg-harp-900 dark:border-harp-600 dark:focus:ring-harp-600 cursor-pointer" />
                         </div>
                         <label for="acceptTerms" class="ml-3 text-sm font-medium text-wt-black-900 dark:text-white cursor-pointer">
-                            I accept the <a @onclick="ShowTermsModal" @onclick:preventDefault="true" id="terms-lnk" href="#" class="text-blue-500 hover:underline">Terms and Conditions</a>
+                            I accept the <a @onclick="ShowTermsModal" @onclick:preventDefault="true" href="#" class="text-blue-500 hover:underline">Terms and Conditions</a>
                         </label>
                     </div>
-                    <ValidationMessage For="@(() => ModelDTO.AcceptTerms)" class="wt-form-error-msg" />
+                    <ValidationMessage For="@(() => ModelDTO.AcceptTerms)" />
                 </div>
 
                 <div class="mt-12">
@@ -357,72 +421,9 @@
                     </svg>
                     Continue with Facebook
                 </button>
-
-                <!-- Main modal with backdrop -->
-                <div id="default-modal" 
-                     tabindex="-1" 
-                     aria-hidden="true" 
-                     class="hidden fixed inset-0 z-50 overflow-y-auto overflow-x-hidden">
-                    
-                    <!-- Backdrop with blur -->
-                    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @onclick="CloseModal"></div>
-                    
-                    <!-- Modal container - centered -->
-                    <div class="flex items-center justify-center min-h-screen p-4">
-                        <div class="relative w-full max-w-2xl">
-                            <!-- Modal content -->
-                            <div class="relative bg-white dark:bg-harp-900 border border-slate-200 dark:border-harp-700 rounded-lg shadow-xl p-6 md:p-8">
-                                <!-- Modal header -->
-                                <div class="flex items-center justify-between border-b border-slate-200 dark:border-harp-700 pb-4 mb-6">
-                                    <h3 class="text-xl font-semibold text-wt-black-900 dark:text-white">
-                                        Terms of Service
-                                    </h3>
-                                    <button type="button" 
-                                            class="text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-harp-800 rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center transition-colors"
-                                            @onclick="CloseModal"
-                                            @onclick:stopPropagation="true">
-                                        <svg class="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18 17.94 6M18 18 6.06 6" />
-                                        </svg>
-                                        <span class="sr-only">Close modal</span>
-                                    </button>
-                                </div>
-                                
-                                <!-- Modal body -->
-                                <div class="space-y-4 mb-6 max-h-[60vh] overflow-y-auto">
-                                    <p class="text-base leading-relaxed text-slate-700 dark:text-slate-300">
-                                        With less than a month to go before the European Union enacts new consumer privacy laws for its citizens, companies around the world are updating their terms of service agreements to comply.
-                                    </p>
-                                    <p class="text-base leading-relaxed text-slate-700 dark:text-slate-300">
-                                        The European Union's General Data Protection Regulation (G.D.P.R.) goes into effect on May 25 and is meant to ensure a common set of data rights in the European Union. It requires organizations to notify users as soon as possible of high-risk data breaches that could personally affect them.
-                                    </p>
-                                    <p class="text-base leading-relaxed text-slate-700 dark:text-slate-300">
-                                        By using WheelyTrails, you agree to these terms and conditions. We are committed to protecting your privacy and ensuring that your trail experiences are shared in a safe and secure environment.
-                                    </p>
-                                </div>
-                                
-                                <!-- Modal footer -->
-                                <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-200 dark:border-harp-700">
-                                    <button type="button" 
-                                            class="flex-1 text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 dark:focus:ring-blue-800 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none transition-colors"
-                                            @onclick="AcceptTerms"
-                                            @onclick:stopPropagation="true">
-                                        I accept
-                                    </button>
-                                    <button type="button" 
-                                            class="flex-1 text-slate-700 dark:text-slate-300 bg-white dark:bg-harp-800 border border-slate-300 dark:border-harp-600 hover:bg-slate-50 dark:hover:bg-harp-700 focus:ring-4 focus:ring-slate-200 dark:focus:ring-harp-700 font-medium rounded-lg text-sm px-5 py-2.5 focus:outline-none transition-colors"
-                                            @onclick="DeclineTerms"
-                                            @onclick:stopPropagation="true">
-                                        Decline
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             </EditForm>
         </div>
     </div>
 </div>
+                    
 

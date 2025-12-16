@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WT.Application.APIServiceLogs;
+using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Application.Services;
@@ -19,21 +20,24 @@ namespace API.Controllers
     [ApiController]
     public class AccountController : ControllerBase
     {
-        private readonly IAccountService _accountService;
+        private readonly IAccountRepository _accountRepository; // ✅ Use IAccountRepository
         private readonly AppDbContext _dbContext;
         private readonly UserManager<ApplicationUser> _userManager;
 
-        public AccountController(IAccountService accountService, AppDbContext dbContext, 
+        public AccountController(
+            IAccountRepository accountRepository, // ✅ Inject IAccountRepository
+            AppDbContext dbContext, 
             UserManager<ApplicationUser> userManager)
         {
-            _accountService = accountService;
+            _accountRepository = accountRepository;
             _dbContext = dbContext;
+            _userManager = userManager;
         }
 
         [HttpGet]
         public async Task<ActionResult> CreateAdmin()
         {
-            await _accountService.CreateAdmin();
+            await _accountRepository.CreateAdmin();
             return Ok();
         }
 
@@ -45,7 +49,7 @@ namespace API.Controllers
                 return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Registration Form" });
 
 
-            return await _accountService.RegisterAsync(model);
+            return await _accountRepository.RegisterAsync(model);
         }
 
         [AllowAnonymous]
@@ -56,7 +60,7 @@ namespace API.Controllers
                 return BadRequest(new APIResponseAuthentication { Success = false, Message = "Password or Email Address is incorrect" });
             
             // Cast to concrete type to access internal method
-            var wtAccount = _accountService as WTAccount;
+            var wtAccount = _accountRepository as WTAccount;
             if (wtAccount == null)
             {
                 return StatusCode(500, new APIResponseAuthentication 
@@ -93,7 +97,7 @@ namespace API.Controllers
             }
 
             // Cast to concrete type to access internal method
-            var wtAccount = _accountService as WTAccount;
+            var wtAccount = _accountRepository as WTAccount;
             if (wtAccount == null)
             {
                 return StatusCode(500, new APIResponseAuthentication 
@@ -130,7 +134,7 @@ namespace API.Controllers
 
             if (!ModelState.IsValid)
                 return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Varification Form" });
-            return await _accountService.VerifyEmailAsync(model.Token!);
+            return await _accountRepository.VerifyEmailAsync(model.Token!);
         }
 
         // add register route
@@ -141,7 +145,7 @@ namespace API.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Registration Form" });
-            return await _accountService.RegisterAsync(model);
+            return await _accountRepository.RegisterAsync(model);
         }
 
         /// <summary>
@@ -151,7 +155,7 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDTO model)
         {
-            var result = await _accountService.ForgotPasswordAsync(model);
+            var result = await _accountRepository.ForgotPasswordAsync(model);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -162,7 +166,7 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDTO model)
         {
-            var result = await _accountService.ResetPasswordAsync(model);
+            var result = await _accountRepository.ResetPasswordAsync(model);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -183,7 +187,7 @@ namespace API.Controllers
             return Ok();
         }
 
-        [HttpPost("set-username")]
+        /*[HttpPost("set-username")]
         [Authorize] // Must be logged in
         public async Task<IActionResult> SetUsername(
             [FromBody] SetUsernameDTO model,
@@ -202,13 +206,6 @@ namespace API.Controllers
                 if (user == null)
                 {
                     return NotFound(new { success = false, message = "User not found" });
-                }
-
-                //  Check if the username was set in the last 90 days
-                if (user.UsernameSetDate.HasValue && 
-                    (DateTime.UtcNow - user.UsernameSetDate.Value).TotalDays < 90)
-                {
-                    return BadRequest(new { success = false, message = "Username can only be changed once every 90 days" });
                 }
 
 
@@ -247,6 +244,102 @@ namespace API.Controllers
             {
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new { success = false, message = "An error occurred while setting username" });
+            }
+        }*/
+
+        /// <summary>
+        /// Check if a profile username is available
+        /// </summary>
+        [HttpGet("profile-username/check/{profileUsername}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> CheckProfileUsernameAvailability(string profileUsername)
+        {
+            if (string.IsNullOrWhiteSpace(profileUsername) || profileUsername.Length < 3)
+            {
+                return BadRequest(new { isAvailable = false, message = "Profile username must be at least 3 characters" });
+            }
+
+            // ✅ Call IAccountRepository method
+            var isAvailable = await _accountRepository.IsProfileUsernameAvailableAsync(profileUsername);
+            
+            return Ok(new { isAvailable });
+        }
+
+        /// <summary>
+        /// Get user profile by ProfileUsername (for profile URLs)
+        /// </summary>
+        [HttpGet("user/{profileUsername}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetUserByProfileUsername(string profileUsername)
+        {
+            // ✅ Call IAccountRepository method
+            var user = await _accountRepository.FindUserByProfileUsernameAsync(profileUsername);
+            
+            if (user == null || user.IsDeleted)
+            {
+                return NotFound(new BaseAPIResponseDTO { Success = false, Message = "User not found" });
+            }
+
+            var userDto = new ApplicationUserDTO
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                ProfileUsername = user.ProfileUsername,
+                Bio = user.Bio,
+                ProfilePicture = user.ProfilePicture,
+                RegistrationDate = user.ProfileUsernameCreatedAt
+            };
+
+            return Ok(new { Success = true, User = userDto });
+        }
+
+        /// <summary>
+        /// Validate profile username for availability and content
+        /// </summary>
+        [HttpGet("profile-username/validate/{profileUsername}")]
+        public async Task<IActionResult> ValidateProfileUsername(string profileUsername)
+        {
+            try
+            {
+                // Check if username is available (not taken)
+                var isAvailable = await _accountRepository.IsProfileUsernameAvailableAsync(profileUsername);
+                
+                if (!isAvailable)
+                {
+                    return Ok(new { 
+                        IsValid = false, 
+                        IsAvailable = false,
+                        Message = "Username is already taken" 
+                    });
+                }
+                
+                // Check if username is allowed (no profanity)
+                var usernameValidator = HttpContext.RequestServices.GetRequiredService<IUsernameValidator>();
+                var isAllowed = usernameValidator.IsUsernameAllowed(profileUsername);
+                
+                if (!isAllowed)
+                {
+                    var reason = usernameValidator.GetRejectionReason(profileUsername);
+                    return Ok(new { 
+                        IsValid = false, 
+                        IsAvailable = true,
+                        Message = reason ?? "Username contains inappropriate content" 
+                    });
+                }
+                
+                return Ok(new { 
+                    IsValid = true, 
+                    IsAvailable = true,
+                    Message = "Username is available!" 
+                });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { 
+                    IsValid = false, 
+                    Message = "Unable to validate username" 
+                });
             }
         }
 

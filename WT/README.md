@@ -568,8 +568,7 @@ For detailed API documentation, visit **[Scalar API Docs](https://localhost:5001
 - API keys and credentials
 - Admin user passwords
 - **Firebase service account JSON** ✨ NEW
-- **Application Insights connection string** ✨ NEW
-- Any sensitive data
+- **Application Insights connection string** ✨ NEW (optional)
 
 #### Blazor WebAssembly (WT.Client)
 ⚠️ **Use appsettings.json in wwwroot** (public configuration only):
@@ -583,6 +582,88 @@ For detailed API documentation, visit **[Scalar API Docs](https://localhost:5001
 - ❌ **NEVER** Firebase service account credentials
 
 > **Why?** Blazor WASM runs entirely in the browser. All files in `wwwroot` are downloaded to the client and can be inspected using browser DevTools. User Secrets only work for server-side .NET projects.
+
+### Privacy Protection ✨ NEW
+
+⚠️ **CRITICAL: Never Expose User Email Addresses Publicly**
+
+**Security Rule:** The `ApplicationUser.Email` property should **NEVER** be exposed in public API responses or displayed in user-facing interfaces.
+
+**Why?**
+- **Privacy:** Email addresses are personal identifiable information (PII)
+- **Security:** Exposing emails enables targeted phishing attacks
+- **Spam:** Email harvesting bots can scrape public email addresses
+- **GDPR Compliance:** Email addresses are protected under privacy regulations
+- **Professional Standards:** User emails should only be visible to the user themselves and administrators
+
+**What to Use Instead:**
+- ✅ **ProfileUsername** (`@john_doe`) - Public display name for profiles, comments, and likes
+- ✅ **FirstName** - Safe for public display in user interfaces
+- ✅ **UserId (Guid)** - Internal identifier, safe to expose in API responses
+
+**Examples of Correct Usage:**
+
+
+**When Email CAN Be Used:**
+- ✅ Authentication (login process)
+- ✅ Password reset emails
+- ✅ Admin user management interfaces
+- ✅ User's own profile settings page (viewing their own email)
+- ✅ Internal logging and audit trails
+- ✅ Email verification workflows
+
+**When Email MUST NOT Be Used:**
+- ❌ Public profile pages (`/user/{profileUsername}`)
+- ❌ Trail likes/comments display
+- ❌ Search results
+- ❌ API responses for trail creators
+- ❌ Social features (followers, likes, ratings)
+- ❌ Any public-facing UI component
+- ❌ Trail owner display (`Created by: {email}`)
+- ❌ Community leaderboards or user listings
+
+**ProfileUsername Implementation Details:**
+
+**Database Schema:**
+```sql
+CREATE TABLE ApplicationUser (
+    Id UNIQUEIDENTIFIER PRIMARY KEY,
+    UserName NVARCHAR(256) NOT NULL UNIQUE,
+    NormalizedUserName NVARCHAR(256) NOT NULL UNIQUE,
+    Email NVARCHAR(256) NOT NULL UNIQUE,
+    NormalizedEmail NVARCHAR(256) NOT NULL UNIQUE,
+    // ...
+    ProfileUsername NVARCHAR(20) NOT NULL UNIQUE,
+    CONSTRAINT CK_ProfileUsername_NoDirtyWords CHECK (ProfileUsername NOT LIKE '%badword1%' AND ProfileUsername NOT LIKE '%badword2%')
+);
+
+CREATE INDEX IX_ApplicationUser_ProfileUsername ON ApplicationUser(ProfileUsername);
+```
+
+**Registration Flow:**
+1. User provides ProfileUsername during registration (required field)
+2. Real-time availability check via API endpoint: `GET /api/account/profile-username/check/{profileUsername}`
+3. Server-side profanity validation using LDNOOBW word list
+4. Uniqueness enforced by database constraint
+5. ProfileUsername set once and cannot be changed (permanent)
+
+**Profile URL Structure:**
+- ✅ **Recommended:** `/user/{profileUsername}` or `/@{profileUsername}`
+- ✅ **Example:** `https://wheeltrails.com/@john_doe`
+- ✅ **Benefits:** SEO-friendly, shareable, memorable
+- ❌ **Never use:** `/user/{email}` or `/user/{userId}` for public profiles
+
+**API Endpoints for ProfileUsername:**
+- `GET /api/account/profile-username/check/{profileUsername}`: Check availability
+- `POST /api/account/profile-username`: Set or update ProfileUsername (admin only)
+
+**Security Notes:**
+- ProfileUsername is **permanent** - cannot be changed after registration
+- This prevents URL breaking and maintains profile link stability
+- Username changes (if ever implemented) should require admin approval
+- All usernames normalized to lowercase for consistency
+- Maximum length: 20 characters, minimum: 3 characters
+- Allowed characters: `a-z`, `A-Z`, `0-9`, `_`, `-`, `.`
 
 ### User Secrets
 The project uses .NET User Secrets for sensitive configuration during development. **Never commit secrets to source control.**
@@ -610,3 +691,4 @@ Required secrets for API and Infrastructure projects:
 - Prevents brute force attacks
 
 **Override Rate Limits:**
+To adjust rate limits, modify `Program.cs`:
