@@ -692,3 +692,92 @@ Required secrets for API and Infrastructure projects:
 
 **Override Rate Limits:**
 To adjust rate limits, modify `Program.cs`:
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+
+#### Registration Flow ✨ ENHANCED
+- [ ] Navigate to `/account/identity/register`
+- [ ] Fill out form with valid data
+- [ ] Test ProfileUsername validation:
+  - [ ] Enter existing username → See "already taken" error
+  - [ ] Enter username with profanity → See "inappropriate content" error
+  - [ ] Enter valid unique username → See green "available!" checkmark
+- [ ] Submit form
+- [ ] Verify email received with verification link
+- [ ] Click verification link
+- [ ] Confirm successful email verification
+
+#### Login Flow
+- [ ] Navigate to `/account/identity/login`
+- [ ] Enter registered email and password
+- [ ] Verify successful login with JWT token
+- [ ] Check LocalStorage for authentication data
+- [ ] Verify user menu displays ProfileUsername
+- [ ] Test logout functionality
+
+#### Password Reset Flow
+- [ ] Click "Forgot Password?" link
+- [ ] Enter registered email
+- [ ] Verify reset email received
+- [ ] Click reset link
+- [ ] Enter new password
+- [ ] Confirm password reset successful
+- [ ] Verify all sessions logged out
+- [ ] Login with new password
+
+#### Trail Likes ✨ NEW
+- [ ] Navigate to a trail detail page
+- [ ] Click "Like" button
+- [ ] Verify like count increments
+- [ ] Verify visual feedback (heart icon filled)
+- [ ] Click "Unlike" button
+- [ ] Verify like count decrements
+- [ ] Attempt to like the same trail twice (should fail with error)
+
+#### Health Checks ✨ NEW
+- [ ] Visit `/health` endpoint
+- [ ] Verify "Healthy" status returned
+- [ ] Visit `/health/ready` endpoint
+- [ ] Verify readiness probe responds
+
+## 🐛 Known Issues
+
+### Current Limitations
+- ProfileUsername is permanent (cannot be changed after registration)
+- Rate limiting is IP-based (may affect users behind shared IPs)
+- Email verification required before login (no skip option)
+
+## 🗺️ Roadmap
+
+### Planned Features
+- [ ] ProfileUsername change requests (admin approval required)
+- [ ] User-to-user messaging system
+- [ ] Trail difficulty voting/consensus
+- [ ] Offline mode for trail discovery
+- [ ] Mobile app (React Native or .NET MAUI)
+- [ ] Advanced search with natural language processing
+- [ ] Trail recommendations based on user preferences
+- [ ] Social features (followers, activity feed)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **LDNOOBW** - List of Dirty, Naughty, Obscene, and Otherwise Bad Words (profanity filter)
+- **Firebase** - Cloud storage for images
+- **Azure** - Application Insights for monitoring
+- **Tailwind CSS** - Utility-first CSS framework
+- **Blazor Community** - Blazor WebAssembly and Server components
+
+## 📞 Contact
+
+- **Project Repository**: [https://github.com/oppenheimerm/wheeltrails](https://github.com/oppenheimerm/wheeltrails)
+- **Issues**: [https://github.com/oppenheimerm/wheeltrails/issues](https://github.com/oppenheimerm/wheeltrails/issues)
+
+---
+
+**Built with ❤️ for the wheelchair community by the WheelyTrails team**
