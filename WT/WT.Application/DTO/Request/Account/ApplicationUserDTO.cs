@@ -10,10 +10,12 @@ namespace WT.Application.DTO.Request.Account
     {
         public Guid Id { get; set; }
         public string? FirstName { get; set; }
+        public string? ProfileUsername { get; set; }
         public string? Email { get; set; }
         public string? ProfilePicture { get; set; }
         public List<RoleDTO>? Roles { get; set; }
         public string? CountryCode { get; set; }
         public string? Bio { get; set; }
+        public DateTime? RegistrationDate { get; set; }
     }
 }

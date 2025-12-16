@@ -12,6 +12,7 @@ using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
 using WT.Infrastructure.Services;
 
+
 namespace WT.Infrastructure.DependencyInjection
 {
     /// <summary>
@@ -64,7 +65,7 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddScoped<IEmailService, EmailService>();
             // ✅ Add Firebase Storage Service
             services.AddScoped<IFileStorageService, FirebaseStorageService>();
-            // ✅ Add Username Validator (singleton - loaded once on startup)
+            // ✅ Register Username Validator (singleton - loaded once on startup)
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
             // ✅ Register WTTrailRepository
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();

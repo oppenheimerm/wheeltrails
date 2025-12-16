@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
+using WT.Domain.Entity;
 
 namespace WT.Application.Services
 {
@@ -21,7 +22,18 @@ namespace WT.Application.Services
         Task<APIResponseAuthentication> RefreshTokenAsync(string token);
         Task<BaseAPIResponseDTO> VerifyEmailAsync(string token);
         
-        // ✅ REMOVED: FindUserByIdAsync - Not needed for HTTP client
-        // ✅ REMOVED: FindUserByUserName - Not needed for HTTP client
+        // ✅ ProfileUsername methods
+        Task<bool> IsProfileUsernameAvailableAsync(string profileUsername);
+        Task<ApplicationUserDTO?> FindUserByProfileUsernameAsync(string profileUsername);
+        
+        // ✅ Combined validation (availability + profanity check)
+        Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername);
+    }
+
+    public class UsernameValidationResult
+    {
+        public bool IsValid { get; set; }
+        public bool IsAvailable { get; set; }
+        public string? Message { get; set; }
     }
 }

@@ -16,21 +16,13 @@ namespace WT.Application.Services
     /// This implementation makes HTTP calls to the API backend and is used by Blazor WebAssembly (WT.Client)
     /// and Blazor Server (WT.Admin) presentation layers.
     /// </summary>
-    public class AccountService : BaseService, IAccountService
+    public class AccountService : IAccountService
     {
         private readonly HttpClient _httpClient;
-        private readonly IConfiguration _configuration;
-        private readonly ILocalStorageService? _localStorageService;
 
-        public AccountService(
-            HttpClient httpClient, 
-            IConfiguration configuration, 
-            ILocalStorageService localStorageService)
-            : base(httpClient, configuration, localStorageService)
+        public AccountService(HttpClient httpClient)
         {
             _httpClient = httpClient;
-            _configuration = configuration;
-            _localStorageService = localStorageService;
         }
 
         public async Task<BaseAPIResponseDTO> RegisterAsync(RegisterDTO model)
@@ -147,7 +139,82 @@ namespace WT.Application.Services
             return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to reset password" };
         }
-        // ✅ REMOVED: FindUserByIdAsync (not needed for HTTP client)
-        // ✅ REMOVED: FindUserByUserName (not needed for HTTP client)
+
+        // ✅ IAccountService implementation (client-side, calls API and returns DTO)
+        public async Task<ApplicationUserDTO?> FindUserByProfileUsernameAsync(string profileUsername)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/account/user/{Uri.EscapeDataString(profileUsername)}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
+                    return result?.User;
+                }
+                
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching user profile: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<bool> IsProfileUsernameAvailableAsync(string profileUsername)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/account/profile-username/check/{Uri.EscapeDataString(profileUsername)}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ProfileUsernameCheckResponse>();
+                    return result?.IsAvailable ?? false;
+                }
+                
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error checking profile username availability: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername)
+        {
+            try
+            {
+                var response = await _httpClient.GetAsync($"/api/account/profile-username/validate/{Uri.EscapeDataString(profileUsername)}");
+                
+                if (response.IsSuccessStatusCode)
+                {
+                    return await response.Content.ReadFromJsonAsync<UsernameValidationResultDTO>() 
+                        ?? new UsernameValidationResultDTO { IsValid = false, Message = "Validation failed" };
+                }
+                
+                return new UsernameValidationResultDTO { IsValid = false, Message = "Unable to validate username" };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error validating username: {ex.Message}");
+                return new UsernameValidationResultDTO { IsValid = false, Message = "Unable to validate username" };
+            }
+        }
+
+
+        // Helper classes for deserialization
+        private class ProfileUsernameCheckResponse
+        {
+            public bool IsAvailable { get; set; }
+        }
+
+        private class UserProfileResponse
+        {
+            public bool Success { get; set; }
+            public ApplicationUserDTO? User { get; set; }
+        }
     }
 }

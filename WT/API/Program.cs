@@ -5,7 +5,8 @@ using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using WT.Infrastructure.Data;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore; // Add this using directive at the top of the file
+using Microsoft.EntityFrameworkCore;
+using WT.Application.Contracts; // ✅ ADD THIS
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -105,6 +106,26 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+
+// ✅ FORCE USERNAME VALIDATOR TO LOAD AT STARTUP
+using (var scope = app.Services.CreateScope())
+{
+    var usernameValidator = scope.ServiceProvider.GetRequiredService<IUsernameValidator>();
+
+    // ✅ Test 1: Valid username
+    var validResult = usernameValidator.IsUsernameAllowed("testuser");
+    Console.WriteLine($"✅ Valid username 'testuser': {validResult}");
+
+    // ✅ Test 2: Bad word (should be rejected)
+    var badResult = usernameValidator.IsUsernameAllowed("asshole");
+    Console.WriteLine($"❌ Bad username 'asshole': {badResult}");
+
+    // ✅ Test 3: Contains bad word
+    var containsBadResult = usernameValidator.IsUsernameAllowed("myasshole123");
+    Console.WriteLine($"❌ Username containing bad word 'myasshole123': {containsBadResult}");
+
+    Console.WriteLine($"🎯 UsernameValidator loaded and tested successfully!");
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

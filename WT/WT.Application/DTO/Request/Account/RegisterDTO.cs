@@ -8,35 +8,34 @@ namespace WT.Application.DTO.Request.Account
     /// </summary>
     public class RegisterDTO
     {
-        [Required]
-        [StringLength(30)]
-        [MinLength(3, ErrorMessage = "First name is required.")]
-        [PersonalData]
-        public string FirstName { get; set; } = string.Empty;
+        [Required(ErrorMessage = "First name is required.")]
+        [StringLength(50, MinimumLength = 3)]
+        public string? FirstName { get; set; }
 
-        [Required(ErrorMessage = "Email is required")]
-        [EmailAddress(ErrorMessage = "Invalid email format")]
-        [Display(Name = "Email")]
-        public string Email { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email is required.")]
+        [EmailAddress(ErrorMessage = "Invalid email address.")]
+        public string? Email { get; set; }
 
-        [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
-        public string? CountryCode { get; set; }
+        // ✅ NEW: ProfileUsername (for display and URLs)
+        [Required(ErrorMessage = "Profile username is required.")]
+        [StringLength(20, MinimumLength = 3, ErrorMessage = "Profile username must be between 3 and 20 characters.")]
+        [RegularExpression(@"^[a-zA-Z0-9_.-]+$", ErrorMessage = "Profile username can only contain letters, numbers, underscores, dashes, and dots.")]
+        public string? ProfileUsername { get; set; }
 
-        [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]
+        [MaxLength(500)]
         public string? Bio { get; set; }
 
-        [Required]
-        [MinLength(7)]
+        [Required(ErrorMessage = "Password is required.")]
+        [StringLength(100, MinimumLength = 7)]
         public string? Password { get; set; }
 
-        [Required]
-        [Compare("Password")]
+        [Required(ErrorMessage = "Password confirmation is required.")]
+        [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
         public string? ConfirmPassword { get; set; }
 
-        [Range(typeof(bool), "true", "true")]
         public bool AcceptTerms { get; set; }
 
-        // ❌ REMOVED - Security risk for public registration
-        // public List<RoleDTO>? Roles { get; set; }
+        [MaxLength(2), MinLength(2)]
+        public string? CountryCode { get; set; }
     }
 }

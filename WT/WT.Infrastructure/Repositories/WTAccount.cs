@@ -67,13 +67,34 @@ namespace WT.Infrastructure.Repositories
     /// <item><description>IP address tracking for all authentication operations</description></item>
     /// </list>
     /// </remarks>
-    public class WTAccount(RoleManager<IdentityRole<Guid>> roleManager,
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signinManager,
-        AppDbContext dbContext,
-        IConfiguration config,
-        IEmailService emailService) : IAccountService, IAccountRepository
+    public class WTAccount : IAccountService, IAccountRepository
     {
+        private readonly UserManager<ApplicationUser> userManager;
+        private readonly RoleManager<IdentityRole<Guid>> roleManager;
+        private readonly SignInManager<ApplicationUser> signinManager;
+        private readonly AppDbContext dbContext;
+        private readonly IConfiguration config;
+        private readonly IEmailService emailService;
+        private readonly IUsernameValidator _usernameValidator;
+
+        public WTAccount(
+            RoleManager<IdentityRole<Guid>> roleManager,
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signinManager,
+            AppDbContext dbContext,
+            IConfiguration config,
+            IEmailService emailService,
+            IUsernameValidator usernameValidator)
+        {
+            this.roleManager = roleManager;
+            this.userManager = userManager;
+            this.signinManager = signinManager;
+            this.dbContext = dbContext;
+            this.config = config;
+            this.emailService = emailService;
+            this._usernameValidator = usernameValidator;
+        }
+
         /// <summary>
         /// Adds a user to a specified role.
         /// </summary>
@@ -146,6 +167,7 @@ namespace WT.Infrastructure.Repositories
                 var admin = new RegisterDTO()
                 { 
                     FirstName = config["AdminUser:FirstName"]!,
+                    ProfileUsername = "TheTrailWonderer",
                     Email = config["AdminUser:Email"]!,
                     Password = config["AdminUser:Password"]!,
                     AcceptTerms = true,
@@ -361,9 +383,10 @@ namespace WT.Infrastructure.Repositories
         /// </remarks>
         public async Task<BaseAPIResponseDTO> RegisterAsync(RegisterDTO model)
         {
-            try {
-
-                if(await FindUserByEmailAsync(model.Email) != null)
+            try 
+            {
+                // ✅ Check if email already exists
+                if (await FindUserByEmailAsync(model.Email) != null)
                 {
                     return new BaseAPIResponseDTO
                     {
@@ -372,41 +395,63 @@ namespace WT.Infrastructure.Repositories
                     };
                 }
 
-                if (string.IsNullOrWhiteSpace(model.Password))
+                // ✅ Check if ProfileUsername already exists
+                var existingUser = await dbContext.Users
+                    .FirstOrDefaultAsync(u => u.ProfileUsername == model.ProfileUsername.ToLower().Trim());
+                
+                if (existingUser != null)
                 {
                     return new BaseAPIResponseDTO
                     {
                         Success = false,
-                        Message = "Password is required."
+                        Message = "This profile username is already taken. Please choose another."
                     };
+                }
+
+                // ✅ Validate ProfileUsername against profanity filter
+                if (!await _usernameValidator.IsUsernameValidAsync(model.ProfileUsername))
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "Profile username contains inappropriate content. Please choose another."
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(model.Password))
+                {
+                    return new BaseAPIResponseDTO { Success = false, Message = "Password is required." };
                 }
 
                 if (string.IsNullOrWhiteSpace(model.FirstName))
                 {
-                    return new BaseAPIResponseDTO
-                    {
-                        Success = false,
-                        Message = "First name is required."
-                    };
+                    return new BaseAPIResponseDTO { Success = false, Message = "First name is required." };
                 }
 
-                // ✅ Bypass AcceptTerms validation in Development e
-                // User must accept terms and conditions
+                if (string.IsNullOrWhiteSpace(model.ProfileUsername))
+                {
+                    return new BaseAPIResponseDTO { Success = false, Message = "Profile username is required." };
+                }
+
+                // ✅ Bypass AcceptTerms validation in Development
                 if (!model.AcceptTerms && !IsDevelopmentEnvironment())
                 {
-                    return new BaseAPIResponseDTO
-                    {
-                        Success = false,
-                        Message = "You must accept the terms and conditions to register."
-                    };
+                    return new BaseAPIResponseDTO { Success = false, Message = "You must accept the terms and conditions." };
                 }
 
                 var user = new ApplicationUser
                 {
+                    // ✅ Email is used for sign-in (UserName in Identity)
                     UserName = model.Email,
                     Email = model.Email,
+                    
                     FirstName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
                         model.FirstName.Replace(" ", "").ToLower()),
+                    
+                    // ✅ ProfileUsername is for display and URLs
+                    ProfileUsername = model.ProfileUsername.ToLower().Trim(),
+                    ProfileUsernameCreatedAt = DateTime.UtcNow,
+                    
                     Bio = model.Bio,
                     VerificationToken = GenerateVerificationToken(),
                     AcceptTerms = model.AcceptTerms,
@@ -418,21 +463,14 @@ namespace WT.Infrastructure.Repositories
 
                 if (result.Succeeded)
                 {
-                    // ✅ SECURITY: Always assign default USER role for public registration
-                    // Ignore any roles provided in the DTO
                     var roleStatus = await userManager.AddToRoleAsync(user, Constants.Role.USER);
                     
                     if (!roleStatus.Succeeded)
                     {
                         var roleErrors = string.Join("; ", roleStatus.Errors.Select(e => e.Description));
-                        return new BaseAPIResponseDTO
-                        {
-                            Success = false,
-                            Message = $"Failed to add user to role: {roleErrors}"
-                        };
+                        return new BaseAPIResponseDTO { Success = false, Message = $"Failed to add user to role: {roleErrors}" };
                     }
 
-                    // ✅ Send verification email
                     var emailSent = await emailService.SendVerificationEmailAsync(
                         user.Email!, 
                         user.FirstName!, 
@@ -441,10 +479,9 @@ namespace WT.Infrastructure.Repositories
                     if (!emailSent)
                     {
                         LogException.LogToFile($"Failed to send verification email to {user.Email} at {DateTime.UtcNow}");
-                        // Don't fail registration if email fails - just log it
                     }
 
-                    LogException.LogToFile($"New user registered: {user.Email} at {DateTime.UtcNow}");
+                    LogException.LogToFile($"New user registered: {user.Email} (@{user.ProfileUsername}) at {DateTime.UtcNow}");
 
                     return new BaseAPIResponseDTO
                     {
@@ -455,23 +492,13 @@ namespace WT.Infrastructure.Repositories
                 else
                 {
                     var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-                    LogException.LogToFile($"User registration failed for {model.Email} at {DateTime.UtcNow}. Errors: {errors}");
-
-                    return new BaseAPIResponseDTO
-                    {
-                        Success = false,
-                        Message = $"User registration failed: {errors}"
-                    };
+                    return new BaseAPIResponseDTO { Success = false, Message = $"Registration failed: {errors}" };
                 }
             }
             catch (Exception Err)
             {
                 LogException.LogExceptions(Err);
-                return new BaseAPIResponseDTO
-                {
-                    Success = false,
-                    Message = "An error occurred during registration. Please try again later."
-                };
+                return new BaseAPIResponseDTO { Success = false, Message = "An error occurred during registration." };
             }
         }
 
@@ -803,6 +830,13 @@ namespace WT.Infrastructure.Repositories
         }
 
 
+        // ✅ IAccountRepository implementation (already exists, just make it public)
+        public async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
+        {
+            var user = await userManager.FindByIdAsync(id.ToString());
+            return user;
+        }
+
         #region Helpers
 
         /// <summary>
@@ -996,17 +1030,12 @@ namespace WT.Infrastructure.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // ✅ IAccountRepository implementation (already exists, just make it public)
-        public async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
-        {
-            var user = await userManager.FindByIdAsync(id.ToString());
-            return user;
-        }
+
 
         public async Task<ApplicationUser?> FindUserByUserName(string username)
         {
             var user = await userManager.Users
-                .FirstOrDefaultAsync(u => u.Username == username);
+                .FirstOrDefaultAsync(u => u.UserName == username);
             return user;
         }
 
@@ -1016,9 +1045,49 @@ namespace WT.Infrastructure.Repositories
             return user;
         }
 
-        public async Task<bool> IsUsernameAvailableAsync(string username)
+
+        // ✅ IAccountRepository implementation (server-side, returns domain entity)
+        // This is used by API controllers for direct database access
+        public async Task<ApplicationUser?> FindUserByProfileUsernameAsync(string profileUsername)
         {
-            var user = await FindUserByUserName(username);
+            var user = await dbContext.Users
+                .FirstOrDefaultAsync(u => u.ProfileUsername == profileUsername.ToLower());
+            return user;
+        }
+
+        // ✅ IAccountService implementation (client-side, returns DTO)
+        // Explicit interface implementation to avoid conflict
+        async Task<ApplicationUserDTO?> IAccountService.FindUserByProfileUsernameAsync(string profileUsername)
+        {
+            // Call the repository method and convert to DTO
+            var user = await FindUserByProfileUsernameAsync(profileUsername);
+
+            if (user == null)
+                return null;
+
+            return new ApplicationUserDTO
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                ProfileUsername = user.ProfileUsername,
+                Email = user.Email,
+                Bio = user.Bio,
+                ProfilePicture = user.ProfilePicture,
+                RegistrationDate = user.ProfileUsernameCreatedAt
+            };
+        }
+
+        /// <summary>
+        /// Check if the profile username is available
+        /// </summary>
+        /// <param name="profileUsername">The profile username to check</param>
+        /// <returns>True if available, false if taken</returns>
+        /// <remarks>
+        /// This method is case-insensitive and ignores leading/trailing spaces.
+        /// </remarks>
+        public async Task<bool> IsProfileUsernameAvailableAsync(string profileUsername)
+        {
+            var user = await FindUserByProfileUsernameAsync(profileUsername);
             return user == null;
         }
 
@@ -1429,6 +1498,11 @@ namespace WT.Infrastructure.Repositories
                     Message = "An error occurred while deactivating user account"
                 };
             }
+        }
+
+        public Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername)
+        {
+            throw new NotImplementedException();
         }
     }
 }
