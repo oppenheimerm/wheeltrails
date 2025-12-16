@@ -342,7 +342,7 @@
                         <div class="relative flex items-center">
                             <InputSelect @bind-Value="ModelDTO.CountryCode"
                                          id="countryCode"
-                                         class="@GetInputClass(() => ModelDTO.CountryCode)">
+                                         class="@(HasValidationErrors(() => ModelDTO.CountryCode) ? "wt-form-input-dd-error" : "wt-form-input-dd")">
                                 <option value="">Select Country Code</option>
                                 @foreach (var countryCode in countryCodes)
                                 {
