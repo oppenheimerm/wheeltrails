@@ -1,5 +1,6 @@
 ﻿
 using WT.Application.DTO.Request.Account;
+using WT.Application.DTO.Response.Account;
 
 namespace WT.Application.DTO.Response
 {
@@ -26,6 +27,13 @@ namespace WT.Application.DTO.Response
     ApplicationUserDTO? User = null!,
     string? JwtToken = "",
     string? RefreshToken = ""
+    ) : BaseAPIResponseDTO(Success, Message);
+
+    // User Profile
+    public record APIResponseViewAccountSettings(
+        bool Success = false,
+        string Message = null!,
+        APIResponseUserSettingsDTO? UserSettings = null!
     ) : BaseAPIResponseDTO(Success, Message);
 
 

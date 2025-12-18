@@ -1,0 +1,35 @@
+﻿@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<!-- 📱 Mobile-First Header -->
+<nav class="flex items-center justify-between h-16 px-4">
+    
+    <!-- Logo/Brand -->
+    <a href="/" class="flex items-center space-x-2">
+        <span class="text-2xl">🦽</span>
+        <span class="font-bold text-lg hidden sm:inline">WheelyTrails</span>
+    </a>
+
+    <!-- Right Side: Search + User Menu -->
+    <div class="flex items-center space-x-4">
+        
+        <!-- Search Icon (Mobile) -->
+        <button class="sm:hidden text-gray-600 dark:text-gray-300">
+            <span class="material-symbols-rounded">search</span>
+        </button>
+
+        <!-- User Menu Dropdown (Desktop) -->
+        <AuthorizeView>
+            <Authorized>
+                <UserMenuDropdown />
+            </Authorized>
+            <NotAuthorized>
+                <a href="/account/identity/login" class="text-blue-600 hover:text-blue-700 font-medium">
+                    Sign In
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
+        
+    </div>
+
+</nav>

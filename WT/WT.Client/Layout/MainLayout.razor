@@ -1,11 +1,33 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@using WT.Client.Shared
 
-<CascadingAuthenticationState>
-    <div class="page">
+<!-- ✨ Material Design 3 Native App Layout with Fixed Header & Footer -->
+<div class="flex flex-col h-screen overflow-hidden bg-[var(--md-sys-color-background)]">
+
+    <!-- 📱 FIXED HEADER (Material 3 Top App Bar) -->
+    <header class="fixed top-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-b border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
+            style="padding-top: var(--safe-area-inset-top);">
         <NavBar />
-        
-        <main class="main-content">
+    </header>
+
+    <!-- 📄 SCROLLABLE CONTENT AREA (Hidden Scrollbar for Native Feel) -->
+    <!-- Update main content padding to match navbar -->
+    <main class="flex-1 overflow-y-auto pt-16 pb-20 bg-[var(--md-sys-color-background)] hide-scrollbar">
+        <div class="container mx-auto px-4 py-6 max-w-screen-xl">
             @Body
-        </main>
-    </div>
-</CascadingAuthenticationState>
+        </div>
+    </main>
+
+    <!-- 📱 FIXED FOOTER (Material 3 Navigation Bar) -->
+    <footer class="fixed bottom-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-t border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
+            style="padding-bottom: var(--safe-area-inset-bottom);">
+        <TabBar />
+    </footer>
+
+</div>
+
+@code {
+    // Layout-specific logic
+    private bool IsAuthPage => Navigation.Uri.Contains("/account/identity/");
+}

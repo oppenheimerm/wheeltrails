@@ -54,6 +54,11 @@
         public string? FirstName { get; set; }
 
         /// <summary>
+        /// Gets or sets the puiblic username of the authenticated user.
+        /// </summary>
+        public string ProfileUsername { get; set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets the Bio or description of the authenticated user.
         /// </summary>
         public string? Bio { get; set; }

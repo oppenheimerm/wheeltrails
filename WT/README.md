@@ -4,6 +4,7 @@
 [![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![Blazor](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor)](https://blazor.net/)
 [![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8?logo=pwa)](https://web.dev/explore/progressive-web-apps)
+[![Material Design 3](https://img.shields.io/badge/Material-Design%203-757575?logo=material-design)](https://m3.material.io/)
 [![Firebase](https://img.shields.io/badge/Firebase-Storage-FFCA28?logo=firebase)](https://firebase.google.com/)
 [![Application Insights](https://img.shields.io/badge/Azure-Application%20Insights-0078D4?logo=microsoft-azure)](https://azure.microsoft.com/en-us/services/monitor/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -15,6 +16,57 @@
 **WheelyTrails** is a community-driven Progressive Web Application (PWA) built with ASP.NET Core Blazor WebAssembly and ASP.NET Core Web API. The platform enables users to discover, share, and rate wheelchair-accessible trails worldwide, fostering an inclusive outdoor experience for everyone.
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
+
+## 🔄 Latest updates (v1.3 — Dec 18, 2025)
+
+- Visual & UX polish for the client app:
+  - Top App Bar (NavBar) standardized to Material 3 recommended height: 64px (`min-h-[64px]`).
+  - Subtle backdrop blur + translucent surface and increased elevation (`shadow-elevation-3`) for a layered, native-app feel.
+  - Mobile drawer now stops above the TabBar (drawer bottom inset = `4rem` / `h-16`) and supports internal scrolling to avoid clipping footer controls (Login/Sign Up, Settings).
+  - Bottom TabBar primary Add action converted to a true circular floating action: square container `w-14 h-14` + `rounded-full`, shadow, ring and hover/focus micro-interactions so the Add button appears perfectly round and accessible.
+  - Small accessibility improvements: visible focus rings on interactive controls and ensured touch targets meet minimum sizes.
+- Navigation consistency:
+  - Settings/Profile routes unified in the UI (NavBar & TabBar) — ensure canonical route in codebase (see `NavBar.razor` / `TabBar.razor`).
+- Theme and contrast:
+  - Dark mode toggle persists via `localStorage`. Contrast selector remains in the UI but is non-destructive until `themeManager.setContrast` + contrast CSS files are implemented.
+- Other: Application Insights integration and health check endpoints added for monitoring.
+
+For full component and implementation notes see the design system: `Design-Notes.md` (updated to v1.3).
+
+## 🎨 Design System
+
+WheelyTrails follows **Material Design 3 (Material You)** principles with a comprehensive design system built on **Tailwind CSS 3.4+**.
+
+### 📐 Design Documentation
+
+For detailed design specifications, implementation guidelines, and component libraries, see:
+
+**[📘 Design System Documentation](Design-Notes.md)**
+
+The design documentation includes:
+- **Color System** - Material 3 theme with seed color `#7CAC7E` (nature green)
+  - Light, dark, and high-contrast modes
+  - 30+ color tokens with WCAG AAA compliance
+  - Surface elevation system with 5 levels
+- **Typography** - Roboto font family with Material 3 type scale
+- **Layout & Spacing** - Responsive grid system with iOS safe area support
+- **Components** - Reusable Blazor components (NavBar, ThemeToggle, Buttons, Cards)
+- **Dark Mode** - JavaScript-based theme manager with localStorage persistence
+- **Accessibility** - WCAG 2.1/2.2 compliance, screen reader support, keyboard navigation
+- **PWA Features** - Progressive Web App configuration with offline capabilities
+- **Implementation Guide** - Step-by-step setup instructions for developers
+
+### Key Design Features
+
+- ✨ **Material Design 3 Integration** - Generated from Material Theme Builder  
+- 🌗 **Dark Mode Support** - Automatic system preference detection + manual toggle  
+- ♿ **Accessibility First** - WCAG 2.1/2.2 compliance considerations  
+- 📱 **Mobile-First Design** - Fixed header/footer, bottom navigation, touch-optimized  
+- 🎨 **Tailwind CSS** - Utility-first framework with Material 3 color tokens  
+- 🔄 **Theme Persistence** - User preferences saved to localStorage  
+- 🎯 **iOS Safe Areas** - Proper padding for notch and home indicator
+
+---
 
 ## ✨ Key Features
 
@@ -60,7 +112,7 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 - **Profile Picture Upload**
   - User profile photos with automatic optimization
   - Resized to 400×400px, 80% JPEG quality
-  - ~50-100KB per image (10-50x smaller than originals)
+  - ~50-100KB per image
   - Stored in user-specific folders: `profile-pictures/{userId}/`
 - **Trail Photo Upload**
   - Community trail photos with visual previews
@@ -72,313 +124,40 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
   - Server-side processing with SixLabors.ImageSharp
   - Automatic resizing while maintaining aspect ratio
   - JPEG compression for reduced file sizes
-  - Significant bandwidth and storage savings
 - **Security Features**
   - Server-side upload validation (file size, type)
   - Firebase Security Rules for access control
   - Authenticated uploads only
-  - User identity verification
   - Path traversal protection via filename sanitization
-- **User Experience**
-  - Drag-and-drop upload interface
-  - Real-time upload progress indicators
-  - Image preview before upload
-  - Error handling with user-friendly messages
-  - Mobile-responsive design
 
-### 🔐 Authentication & Security
-- JWT Bearer token authentication with ASP.NET Core Identity
-- Role-based authorization (Admin Developer, Admin Editor, User Editor, User)
-- Secure user registration and login with comprehensive validation
-- **Email verification system with automated email sending**
-- **Password reset functionality with secure token-based flow**
-- Refresh token rotation for enhanced security (7-day expiry)
-- Custom authentication state provider for Blazor applications
-- Local storage integration for client-side token management
-- Automatic revocation of all sessions on password change
-- IP address tracking for security monitoring
+### 🔐 Authentication & Security ✨ ENHANCED
+- **JWT Bearer Token Authentication** with ASP.NET Core Identity
+  - 30-minute JWT token expiration
+  - 7-day refresh token validity
+  - Automatic token refresh on expiration
+  - Secure token rotation to prevent reuse
+- **Enhanced Token Management**
+  - Automatic refresh token handling in `AccountService`
+  - Transparent token refresh when JWT expires (401 Unauthorized)
+  - Authorization header management with proper cleanup
+- **Role-Based Authorization**
+  - Admin Developer, Admin Editor, User Editor, User roles
+- **User Authentication Features**
+  - Secure registration, email verification, password reset
+  - Session management with Blazored LocalStorage and custom auth provider
 
-### 👤 User Management ✨ NEW
+---
 
-#### **Unique Username System**
-- **Display Username** (different from email)
-  - 3-20 characters (letters, numbers, `_`, `-`, `.`)
-  - Must be unique across all users
-  - Can be changed once every 90 days
-  - Cannot contain offensive or profanity words
-  - Validated against LDNOOBW (List of Dirty, Naughty, Obscene, and Otherwise Bad Words)
-- **Username Validation**
-  - Real-time availability checking
-  - Server-side profanity filter
-  - Client-side format validation
-  - Automatic uniqueness enforcement via database index
-
-#### **Soft Delete System** ✨ NEW
-- **Account Deactivation** (instead of hard delete)
-  - Users marked as `IsDeleted` rather than removed from database
-  - Trails and content preserved when user account is deactivated
-  - User data anonymized for privacy compliance (GDPR-friendly)
-  - Audit trail maintained with deletion timestamp and reason
-- **Data Preservation**
-  - All user-created trails remain accessible
-  - Comments remain visible with `[Deleted User]` attribution
-  - Trail photos remain available
-  - Community contributions preserved
-- **Account Recovery**
-  - Soft-deleted accounts can be restored if needed
-  - Full audit history maintained
-  - Rollback capability for accidental deletions
-
-### 👍 Trail Likes Feature ✨ NEW
-- **Like/Unlike Trails**
-  - Users can like trails to show appreciation and bookmark favorites
-  - One like per user per trail (enforced by database constraint)
-  - Real-time like count updates
-  - Visual feedback on like status
-- **Database Implementation**
-  - Composite unique index on `(UserId, TrailId)` prevents duplicate likes
-  - Performance indexes on `TrailId`, `UserId`, and `LikedAt`
-  - Cascade deletion when user or trail is deleted
-  - Timestamp tracking for analytics
-- **API Endpoints**
-  - `POST /api/trails/{trailId}/like` - Like a trail
-  - `DELETE /api/trails/{trailId}/unlike` - Unlike a trail
-  - `GET /api/trails/{trailId}/likes` - Get like count
-  - `GET /api/trails/{trailId}/user-like-status` - Check if current user liked the trail
-
-### 👤 User Interface & Navigation
-- **User Menu Dropdown** with profile avatar
-  - Displays user profile picture or Material Symbol icon fallback
-  - Personalized greeting with user's first name or username
-  - Quick access to Profile, Settings, and Logout
-  - Smooth transitions and hover effects
-  - Mobile-responsive design
-  - Automatic close on navigation
-- **Enhanced Navigation Bar**
-  - Active link highlighting
-  - Dark mode support
-  - Mobile hamburger menu
-  - Tailwind CSS styling
-
-### 📝 User Registration Features
-- **Multi-step registration form** with comprehensive validation
-  - First name (3-30 characters, required)
-  - Email address with format validation and uniqueness check
-  - Password with confirmation (minimum 7 characters)
-  - Optional bio field (max 500 characters)
-  - Country code selection from predefined list
-- **Terms and Conditions Modal**
-  - Interactive modal dialog for terms acceptance
-  - JavaScript Interop for smooth modal interactions
-  - Accept/Decline functionality with navigation
-  - Backdrop click to close
-- **Registration Success Page** (`/account/identity/registration-success`)
-  - Dedicated success page with personalized email confirmation
-  - Email address displayed for user verification
-  - Step-by-step verification instructions
-  - Resend verification email functionality (planned)
-  - Quick navigation to login or home page
-  - Beautiful, responsive UI with step-by-step instructions
-- **Email Verification Page** (`/account/identity/verify-email`)
-  - Automatic email verification with token from URL query parameter
-  - Four distinct UI states: Loading, Success, Error, and Missing Token
-  - User-friendly error messages with troubleshooting tips
-  - Auto-redirect to login page after successful verification (3 seconds)
-  - Manual navigation options to login, register, or home
-  - Token validation via ASP.NET Identity
-  - Comprehensive logging for debugging
-- **Enhanced User Experience**
-  - Real-time form validation with visual feedback
-  - Loading states during submission
-  - Error message display
-  - Success message handling
-  - Query parameter support for email tracking
-  - Responsive design for all devices
-
-### 🔑 Password Reset Features
-- **Forgot Password Page** (`/account/identity/forgot-password`)
-  - Clean, user-friendly password reset request form
-  - Email address validation
-  - Generic success messages to prevent user enumeration attacks
-  - Loading states and error handling
-  - Navigation to login and home pages
-- **Reset Password Page** (`/account/identity/reset-password`)
-  - Secure password reset form with token validation
-  - Token extracted from URL query parameter
-  - Password strength validation with confirmation
-  - Real-time form validation feedback
-  - Four distinct UI states: Loading, Form, Success, and Error
-  - Auto-redirect to login page after successful reset (3 seconds)
-  - User-friendly error messages and troubleshooting tips
-- **Forgot Password Flow**
-  - Secure password reset request via email
-  - Token generation via ASP.NET Identity's `GeneratePasswordResetTokenAsync()`
-  - Generic responses to prevent user enumeration attacks
-  - Email confirmation required before reset allowed
-  - 24-hour token expiration (configurable via `DataProtectionTokenProviderOptions`)
-  - SMTP-based email delivery with branded templates
-- **Reset Password Process**
-  - Token validation via ASP.NET Identity's `ResetPasswordAsync()`
-  - Password strength validation
-  - Single-use tokens (automatically invalidated after use)
-  - All refresh tokens revoked on successful password reset for security
-  - Comprehensive logging for security monitoring
-- **Security Features**
-  - Tokens sent via email only (never exposed in API responses)
-  - Failed attempts logged for security monitoring with timestamps
-  - IP address tracking for reset operations
-  - Prevention of user enumeration attacks
-  - Session invalidation on password change
-  - Cryptographically secure token generation
-
-### 📧 Email Notifications
-- Automated email verification for new user registrations
-- **Password reset emails with secure tokens**
-- HTML email templates with responsive design
-- Personalized emails with user's first name
-- Branded templates with WheelyTrails theme (🦽🌲)
-- Support for multiple SMTP providers (Gmail, SendGrid, Outlook, Mailtrap, AWS SES, Mailgun)
-- Configurable email settings via User Secrets
-- 48-hour verification link expiration
-- 24-hour password reset link expiration
-- Email service abstraction via `IEmailService` interface
-
-### 📊 Monitoring & Observability ✨ NEW
-
-#### **Azure Application Insights Integration**
-- **Production Monitoring**
-  - Real-time performance metrics
-  - Request and response tracking
-  - Exception logging and alerting
-  - Dependency call monitoring (SQL, HTTP, etc.)
-  - Custom telemetry and events
-- **Configuration**
-  - Connection string configured via User Secrets or Azure Key Vault
-  - Automatic instrumentation for ASP.NET Core
-  - Configurable sampling for high-traffic scenarios
-- **Usage**
-  - Monitor application availability and responsiveness
-  - Track user interactions and feature usage
-  - Analyze performance bottlenecks and failures
-  - Monitor external dependency calls (e.g., SQL, API)
-  - Custom alerts for critical failures or performance issues
-
-#### **Health Checks** ✨ NEW
-- **API Health Monitoring**
-- Database connectivity check
-- API status check
-- Readiness and liveness probes for Kubernetes/Azure
-- **Endpoints**
-- `/health` - General health check
-- `/health/ready` - Readiness probe (tagged checks)
-- **Configuration**
-
-#### **Rate Limiting** ✨ NEW
-- **DDoS Protection**
-- Global rate limit: 100 requests/minute per IP
-- Auth endpoints limit: 10 requests/minute per IP
-- Queue management for burst traffic
-- Custom rejection responses
-- **Policies**
-- `AuthPolicy`: Strict limits for sensitive authenticationendpoints
-- Global limiter: Default protection for all endpoints
-- **Configuration**
-
-## 🛠️ Developer Tools
-- **Authentication Diagnostic Page** (`/auth-diagnostic`) 🔍
-- Real-time authentication state inspection
-- Local storage data viewer with JSON formatting
-- Claims viewer with all user claims
-- Configuration checker (API URL, LocalStorage key)
-- Full diagnostic report with error handling
-- Helps troubleshoot authentication issues during development
-
-## 🏗️ Architecture
-
-WheelyTrails follows **Clean Architecture** (Onion Architecture) principles, ensuring maintainability, testability, and separation of concerns.
-
-### Solution Structure
-
-```
-WT/
-├── WT.Domain/           # Core domain entities and business rules
-│   ├── Entity/             # Domain entities (ApplicationUser, RefreshToken)
-│   └── [No external dependencies]
-│
-├── WT.Application/       # Application business logic
-│   ├── Contracts/          # Service interfaces (IWTAccount)
-│   ├── DTO/              # Data Transfer Objects
-│   ├── Extensions/    # Helper classes and constants
-│   └── APIServiceLogs/     # Logging utilities
-│
-├── WT.Infrastructure/      # External concerns implementation
-│   ├── Data/# DbContext and migrations
-│   ├── Repositories/  # Repository implementations (WTAccount)
-│   └── DependencyInjection/ # Service registration
-│
-├── API/   # Web API presentation layer
-│ ├── Controllers/        # API endpoints
-│ └── Program.cs          # Application entry point
-│
-├── WT.Admin/  # Blazor Server admin panel
-│   └── Components/         # Admin UI components
-│
-└── WT.Client/    # Blazor WebAssembly client (PWA)
-    └── Pages/     # Client pages and components
-```
-
-### Dependency Flow
-```
-WT.Client/WT.Admin → API → WT.Infrastructure → WT.Application → WT.Domain
-```
-
-## 🛠️ Technology Stack
-
-### Backend
-- **Framework**: [ASP.NET Core Web API (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/apis)
-- **Database**: SQL Server with Entity Framework Core 9.0.11
-- **Authentication**: JWT Bearer Tokens with ASP.NET Core Identity
-- **Password Reset**: ASP.NET Identity Token Providers (configurable 24-hour expiry)
-- **Email Service**: SMTP-based email delivery (supports Gmail, SendGrid, Outlook, Mailtrap, AWS SES)
-- **File Storage**: Firebase Cloud Storage for images
-- **Monitoring**: Azure Application Insights for telemetry ✨ NEW
-- **Health Checks**: ASP.NET Core Health Checks with EF Core integration ✨ NEW
-- **Rate Limiting**: ASP.NET Core Rate Limiting middleware ✨ NEW
-- **Object Mapping**: [Mapster](https://github.com/MapsterMapper/Mapster)
-- **Logging**: [Serilog](https://serilog.net/)
-- **API Documentation**: [Scalar](https://guides.scalar.com/scalar/scalar-api-references/integrations/net-aspnet-core/integration)
-
-### Frontend
-- **Client App**: [Blazor WebAssembly (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
-- **Admin Panel**: [Blazor Server (.NET 9)](https://dotnet.microsoft.com/en-us/apps/aspnet/web-apps/blazor)
-- **UI Framework**: [Tailwind CSS](https://tailwindcss.com/)
-- **JavaScript Interop**: Custom modal helpers for enhanced UX
-- **Architecture**: [Progressive Web Application (PWA)](https://web.dev/explore/progressive-web-apps)
-- **LocalStorage**: For client-side storage [Blazored LocalStorage](https://github.com/Blazored/LocalStorage)
-
-### Cloud Services
-- **Firebase**: Cloud storage for user-uploaded images
-- **Azure Application Insights**: Performance monitoring and diagnostics ✨ NEW
-
-### Development Tools
-- **IDE**: Visual Studio 2022 / Visual Studio Code
-- **Version Control**: Git
-- **Package Manager**: NuGet
-
-## 🚀 Getting Started
+## 🛠️ Developer Tools & Getting Started
 
 ### Prerequisites
-
 - [.NET 9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Visual Studio 2022](https://visualstudio.microsoft.com/) (17.8 or later) or [Visual Studio Code](https://code.visualstudio.com/)
-- [SQL Server LocalDB](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/sql-server-express-localdb) (included with Visual Studio)
-- Modern web browser (Chrome, Edge, Firefox, Safari)
-- SMTP email service account (recommended: [Mailtrap](https://mailtrap.io) for development/testing)
-- **Firebase Project** with Cloud Storage enabled (see Firebase setup below) ✨ NEW
+- [Visual Studio 2022](https://visualstudio.microsoft.com/) (17.8+) or VS Code
+- [Node.js 18+](https://nodejs.org/) (for Tailwind CSS build)
+- Modern browser
 
-### Installation
-
-1. **Clone the repository**
+### Installation & Run
+1. Clone and change directory:
    ```bash
    git clone https://github.com/oppenheimerm/wheeltrails.git
    cd wheeltrails/src/WT
@@ -404,7 +183,7 @@ dotnet user-secrets set "ApplicationSettings:RefreshTokenTTL" "90"
 2. Click "Add project" and follow the wizard
 3. Enable Google Analytics (optional)
 
-**Step 2: Enable Cloud Storage**
+**Step 2: EnableCloud Storage**
 1. In the Firebase console, navigate to **Build** → **Storage**
 2. Click "Get Started"
 3. Choose production mode and select a storage location
@@ -443,11 +222,13 @@ Choose one of the following email service providers based on your needs:
 
 After configuration, access your captured emails at: [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes)
 
-**Option B: Gmail (Development/Testing)**
+5. **Build Tailwind CSS**
 
-**Option C: Outlook (Development/Testing)**
-
-5. **Install Required NuGet Packages** ✨ NEW
+````````bash
+cd WT.Client
+npm install
+npm run build
+````````
 
 6. **Run the application**
    ```bash
@@ -469,44 +250,59 @@ After configuration, access your captured emails at: [https://mailtrap.io/inboxe
 After starting the application:
 1. Navigate to the registration page (`/account/identity/register`)
 2. Fill out the registration form:
-   - First name (required, 3-30 characters)
-   - Email address (required, valid format)
-   - Bio (optional, max500 characters)
-   - Password (required, min 7 characters)
-   - Confirm password (must match)
-   - Country code (select from dropdown)
-   - Accept Terms and Conditions (click link to view modal)
+- First name (required, 3-30 characters)
+- Email address (required, valid format)
+- Bio (optional, max 500 characters)
+- Password (required, min 7 characters)
+- Confirm password (must match)
+- Country code (select from dropdown)
+- Accept Terms and Conditions (click link to view modal)
 3. Click "Create Account"
 4. You'll be redirected to the success page showing your email
 5. Check your email service:
-   - **Mailtrap**: Go to [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes) and view the captured email
-   - **Gmail**: Check your Gmail inbox
-6. Click the verification link in the email to verify your account
+- **Mailtrap**: Go to [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes) and view the captured email
+- **Gmail**: Check your Gmail inbox
+6. Click theverification link in the email to verify your account
 7. Return to login page and sign in
 
-9. **Test Password Reset Flow** ✨ NEW
+9. **Test Password Reset Flow**✨ NEW
 
 After registration:
 1. Navigate to the login page
-2. Click "Forgot Password?" link (when implemented)
+2. Click "Forgot Password?" link
 3. Enter your registered email address
 4. Check your email for password reset link
 5. Click the reset link and enter new password
 6. All existing sessions will be logged out
 7. Log in with your new password
 
-10. **Test Health Checks** ✨ NEW
+10. **Test Account Settings** ✨ NEW
+
+After logging in:
+1. Click on your profile avatar in the top-right corner
+2. Select "Settings" from the dropdown menu
+3. View your account information:
+- Profile picture
+- First name and profile username
+- Email address (view only)
+- Bio
+- Member since date
+- Country code
+4. Make changes and click "Save"
+5. If your JWT expires, the page will automatically refresh your token
+
+11. **Test Health Checks** ✨ NEW
  ```bash
- # Check API health
+ # Check APIhealth
  curl https://localhost:5001/health
  
- # Check readiness (forKubernetes/Azure)
+ # Check readiness (for Kubernetes/Azure)
  curl https://localhost:5001/health/ready
  ```
 
 ### Development URLs
 
-| Project | Purpose | HTTPS URL | HTTP URL |
+| Project | Purpose | HTTPS URL | HTTPURL |
 |---------|---------|-----------|----------|
 | API | Web API Backend | https://localhost:5001 | http://localhost:5000 |
 | WT.Admin | Admin Panel | https://localhost:7127 | http://localhost:5041 |
@@ -516,10 +312,9 @@ After registration:
 
 **GET** `/health`
 
-**Description:** General health status check
+**Description:** General health statuscheck
 
 **Response:**
-
 ```json
 {
   "status": "healthy",
@@ -601,9 +396,6 @@ For detailed API documentation, visit **[Scalar API Docs](https://localhost:5001
 - ✅ **FirstName** - Safe for public display in user interfaces
 - ✅ **UserId (Guid)** - Internal identifier, safe to expose in API responses
 
-**Examples of Correct Usage:**
-
-
 **When Email CAN Be Used:**
 - ✅ Authentication (login process)
 - ✅ Password reset emails
@@ -621,49 +413,6 @@ For detailed API documentation, visit **[Scalar API Docs](https://localhost:5001
 - ❌ Any public-facing UI component
 - ❌ Trail owner display (`Created by: {email}`)
 - ❌ Community leaderboards or user listings
-
-**ProfileUsername Implementation Details:**
-
-**Database Schema:**
-```sql
-CREATE TABLE ApplicationUser (
-    Id UNIQUEIDENTIFIER PRIMARY KEY,
-    UserName NVARCHAR(256) NOT NULL UNIQUE,
-    NormalizedUserName NVARCHAR(256) NOT NULL UNIQUE,
-    Email NVARCHAR(256) NOT NULL UNIQUE,
-    NormalizedEmail NVARCHAR(256) NOT NULL UNIQUE,
-    // ...
-    ProfileUsername NVARCHAR(20) NOT NULL UNIQUE,
-    CONSTRAINT CK_ProfileUsername_NoDirtyWords CHECK (ProfileUsername NOT LIKE '%badword1%' AND ProfileUsername NOT LIKE '%badword2%')
-);
-
-CREATE INDEX IX_ApplicationUser_ProfileUsername ON ApplicationUser(ProfileUsername);
-```
-
-**Registration Flow:**
-1. User provides ProfileUsername during registration (required field)
-2. Real-time availability check via API endpoint: `GET /api/account/profile-username/check/{profileUsername}`
-3. Server-side profanity validation using LDNOOBW word list
-4. Uniqueness enforced by database constraint
-5. ProfileUsername set once and cannot be changed (permanent)
-
-**Profile URL Structure:**
-- ✅ **Recommended:** `/user/{profileUsername}` or `/@{profileUsername}`
-- ✅ **Example:** `https://wheeltrails.com/@john_doe`
-- ✅ **Benefits:** SEO-friendly, shareable, memorable
-- ❌ **Never use:** `/user/{email}` or `/user/{userId}` for public profiles
-
-**API Endpoints for ProfileUsername:**
-- `GET /api/account/profile-username/check/{profileUsername}`: Check availability
-- `POST /api/account/profile-username`: Set or update ProfileUsername (admin only)
-
-**Security Notes:**
-- ProfileUsername is **permanent** - cannot be changed after registration
-- This prevents URL breaking and maintains profile link stability
-- Username changes (if ever implemented) should require admin approval
-- All usernames normalized to lowercase for consistency
-- Maximum length: 20 characters, minimum: 3 characters
-- Allowed characters: `a-z`, `A-Z`, `0-9`, `_`, `-`, `.`
 
 ### User Secrets
 The project uses .NET User Secrets for sensitive configuration during development. **Never commit secrets to source control.**
@@ -689,9 +438,6 @@ Required secrets for API and Infrastructure projects:
 - 10 requests per minute per IP address
 - Applied to sensitive authentication endpoints
 - Prevents brute force attacks
-
-**Override Rate Limits:**
-To adjust rate limits, modify `Program.cs`:
 
 ## 🧪 Testing
 
@@ -726,6 +472,26 @@ To adjust rate limits, modify `Program.cs`:
 - [ ] Confirm password reset successful
 - [ ] Verify all sessions logged out
 - [ ] Login with new password
+
+#### Account Settings ✨ NEW
+- [ ] Navigate to `/account/identity/settings` while logged in
+- [ ] Verify account information displays correctly:
+  - [ ] Profile picture (or fallback icon)
+  - [ ] First name and profile username
+  - [ ] Email address (display only)
+  - [ ] Bio content
+  - [ ] Member since date
+  - [ ] Country code
+- [ ] Test JWT expiration handling:
+  - [ ] Wait 30+ minutes (or manually invalidate JWT)
+  - [ ] Reload settings page
+  - [ ] Verify automatic token refresh occurs
+  - [ ] Confirm data loads successfully after refresh
+- [ ] Test error handling:
+  - [ ] Logout and try to access `/account/identity/settings`
+  - [ ] Verify redirect to login page
+  - [ ] Manually delete local storage data
+  - [ ] Verify "not authenticated" error message
 
 #### Trail Likes ✨ NEW
 - [ ] Navigate to a trail detail page
@@ -767,6 +533,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
+- **Material Design 3** - Google's design system for modern UIs
 - **LDNOOBW** - List of Dirty, Naughty, Obscene, and Otherwise Bad Words (profanity filter)
 - **Firebase** - Cloud storage for images
 - **Azure** - Application Insights for monitoring
