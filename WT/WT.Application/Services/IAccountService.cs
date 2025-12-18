@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Identity;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Domain.Entity;
@@ -28,6 +29,9 @@ namespace WT.Application.Services
         
         // ✅ Combined validation (availability + profanity check)
         Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername);
+        
+        // ✅ NEW: Get account settings for authenticated user (client-side calls API)
+        Task<APIResponseViewAccountSettings> GetAccountSettingsAsync();
     }
 
     public class UsernameValidationResult

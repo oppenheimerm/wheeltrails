@@ -32,8 +32,11 @@ namespace WT.Application.DependencyInjection
         /// </remarks>
         public static IServiceCollection AddApplicationServices(this IServiceCollection services)
         {
-            // Application Services
+            // ✅ Client-side services only (used by Blazor)
             services.AddScoped<Services.IAccountService, Services.AccountService>();
+            
+            // ❌ REMOVED: Server-side registration moved to Infrastructure
+            // services.AddScoped<IAccountRepository, WTAccount>(); 
             
             // Authorization
             services.AddAuthorizationCore();

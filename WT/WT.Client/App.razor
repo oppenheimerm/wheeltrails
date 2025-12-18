@@ -1,25 +1,44 @@
 ﻿@using WT.Client.Pages
 @inject NavigationManager Navigation
 
-@if (isLoading)
-{
-    <LoadingScreen Text="Loading your experience..." />
-}
-else
-{
-    <Router AppAssembly="@typeof(App).Assembly">
-        <Found Context="routeData">
-            <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-        </Found>
-        <NotFound>
-            @* ✅ Use your custom NotFound component *@
-            <LayoutView Layout="@typeof(MainLayout)">
-                <NotFound />
-            </LayoutView>
-        </NotFound>
-    </Router>
-}
+<CascadingAuthenticationState>
+    @if (isLoading)
+    {
+        <LoadingScreen Text="Loading your experience..." />
+    }
+    else
+    {
+        <Router AppAssembly="@typeof(App).Assembly">
+            <Found Context="routeData">
+                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                    <NotAuthorized>
+                        @if (context.User.Identity?.IsAuthenticated != true)
+                        {
+                            <RedirectToLogin />
+                        }
+                        else
+                        {
+                            <p role="alert">You are not authorized to access this resource.</p>
+                        }
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+            </Found>
+            <NotFound>
+                @* ✅ Use your custom NotFound component *@
+                <LayoutView Layout="@typeof(MainLayout)">
+                    <NotFound />
+                </LayoutView>
+            </NotFound>
+        </Router>
+    }
+</CascadingAuthenticationState>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
 
 @code {
     private bool isLoading = true;

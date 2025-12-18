@@ -1,5 +1,407 @@
-﻿<h3>Settings</h3>
+﻿@page "/account/settings"
+
+@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Linq.Expressions
+@using WT.Application.DTO.Response.Account
+@using WT.Application.Extensions
+
+<PageTitle>WheelyTrails - Account Settings</PageTitle>
 
 @code {
+    private ApplicationUserDTO? ModelDTO { get; set; }
+    private AuthenticatedLocalStorageDTO? LocalStorageDTO { get; set; }
+    private APIResponseUserSettingsDTO? AuthenticateUserQuery { get; set; }
+    private EditContext? editContext;
 
+    private bool isLoading = true;
+    private bool isSubmitting = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private List<CountryCode> countryCodes = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        countryCodes = StringHelpers.GetCountryCodes();
+        await LoadUserData();
+    }
+
+    private async Task LoadUserData()
+    {
+        try
+        {
+            isLoading = true;
+            //LocalStorageDTO = await AccountService.GetAuthenticatedLocalStorageAsync();
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (!user.Identity?.IsAuthenticated ?? true)
+            {
+                NavigationManager.NavigateTo("/account/identity/login");
+                return;
+            }
+
+            // Get user ID from claims
+            var userIdClaim = user.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                errorMessage = "Unable to identify user.";
+                return;
+            }
+
+
+            // TODO: Fetch user data from API
+            // For now, create from claims
+            ModelDTO = new ApplicationUserDTO
+            {
+                Id = userId,
+                FirstName = user.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value,
+                Email = user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
+                // TODO: Fetch from API: ProfileUsername, ProfileUsernameCreatedAt, Bio, CountryCode
+            };
+
+            // Fetch this authenticated user's account settings
+            var userQuery = await AccountService.GetAccountSettingsAsync();
+            // Success?
+            if (userQuery.Success)
+            {
+                AuthenticateUserQuery = userQuery.UserSettings;
+                Console.WriteLine("User authenticated");
+            }
+            else
+            {
+                // Write to consolde that authtnrtication failed
+                Console.WriteLine("Failed to fetch account settings");
+                //NavigationManager.NavigateTo("/account/identity/login", true);
+            }
+
+
+            editContext = new EditContext(ModelDTO);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading user data: {ex.Message}");
+            errorMessage = "Failed to load user settings.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (isSubmitting || ModelDTO == null) return;
+
+        try
+        {
+            isSubmitting = true;
+            errorMessage = null;
+            successMessage = null;
+            StateHasChanged();
+
+            // TODO: Implement update user endpoint
+            // var response = await AccountService.UpdateUserAsync(ModelDTO);
+
+            // if (response.Success)
+            // {
+            //     successMessage = "Settings updated successfully!";
+            // }
+            // else
+            // {
+            //     errorMessage = response.Message;
+            // }
+
+            // Temporary success message
+            await Task.Delay(500);
+            successMessage = "Settings updated successfully!";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating settings: {ex.Message}");
+            errorMessage = "Failed to update settings. Please try again.";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private void HandleInvalidSubmit()
+    {
+        Console.WriteLine("❌ HandleInvalidSubmit called - form has validation errors");
+
+        if (editContext != null)
+        {
+            var errors = editContext.GetValidationMessages();
+            foreach (var error in errors)
+            {
+                Console.WriteLine($"  - {error}");
+            }
+        }
+    }
+
+    private bool HasValidationErrors(Expression<Func<string?>> accessor)
+    {
+        if (editContext == null) return false;
+
+        var fieldIdentifier = FieldIdentifier.Create(accessor);
+        return editContext.GetValidationMessages(fieldIdentifier).Any();
+    }
+
+    private string GetInputClass(Expression<Func<string?>> accessor)
+    {
+        return HasValidationErrors(accessor) ? "wt-form-input-error" : "wt-form-input";
+    }
+
+    private string FormatJoinedDate(DateTime? date)
+    {
+        if (date == null) return "Unknown";
+        return date.Value.ToString("MMMM yyyy");
+    }
 }
+
+<div class="mt-[96.8px] min-h-screen bg-harp-50 dark:bg-harp-950">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        
+        @if (isLoading)
+        {
+            <div class="flex justify-center items-center py-20">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-harp-600"></div>
+            </div>
+        }
+        else if (ModelDTO == null)
+        {
+            <div class="bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 p-4 rounded-lg">
+                <p class="font-medium">Error loading user data. Please try refreshing the page.</p>
+            </div>
+        }
+        else
+        {
+            <!-- Header -->
+            <div class="mb-8">
+                <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white mb-2">Account Settings</h1>
+                <p class="text-gray-600 dark:text-gray-400">Manage your account information and preferences</p>
+            </div>
+
+            <!-- Success/Error Messages -->
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="mb-6 p-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg flex items-center">
+                    <span class="material-symbols-rounded mr-2">check_circle</span>
+                    @successMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded-lg flex items-center">
+                    <span class="material-symbols-rounded mr-2">error</span>
+                    @errorMessage
+                </div>
+            }
+
+            <!-- Settings Card -->
+            <div class="bg-white dark:bg-harp-900 rounded-2xl shadow-lg p-6 md:p-8">
+                <EditForm OnValidSubmit="HandleValidSubmit"
+                          OnInvalidSubmit="HandleInvalidSubmit"
+                          EditContext="editContext">
+                    <DataAnnotationsValidator />
+
+                    <div class="space-y-8">
+                        
+                        <!-- Personal Information Section -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-wt-black-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-harp-700">
+                                Personal Information
+                            </h2>
+
+                            <div class="grid md:grid-cols-2 gap-6">
+                                <!-- First Name (Editable) -->
+                                <div>
+                                    <label class="wt-form-lbl" for="firstName">First Name</label>
+                                    <div class="relative flex items-center">
+                                        <InputText @bind-Value="AuthenticateUserQuery!.FirstName"
+                                                   id="firstName"
+                                                   class="@GetInputClass(() => ModelDTO.FirstName)"
+                                                   placeholder="Enter your first name" />
+                                        <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
+                                            <span class="material-symbols-rounded text-[18px]">person</span>
+                                        </div>
+                                    </div>
+                                    <ValidationMessage For="@(() => AuthenticateUserQuery.FirstName)" class="wt-form-error-msg" />
+                                </div>
+
+                                <!-- Profile Username (Read-only) -->
+                                <div>
+                                    <label class="wt-form-lbl" for="profileUsername">
+                                        Username
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(Cannot be changed)</span>
+                                    </label>
+                                    <div class="relative flex items-center">
+                                        <InputText @bind-Value="AuthenticateUserQuery.ProfileUsername"
+                                                   id="profileUsername"
+                                                   class="wt-form-input opacity-60 cursor-not-allowed !pl-[28px]"
+                                                   placeholder="username"
+                                                   readonly="readonly"
+                                                   disabled="true" />
+                                        <span class="absolute left-3 top-3 text-gray-500 dark:text-gray-400">@@</span>
+                                        <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
+                                            <span class="material-symbols-rounded text-[18px]">alternate_email</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        Your unique username is permanent and cannot be modified.
+                                    </p>
+                                </div>
+
+                                <!-- Email (Read-only) -->
+                                <div>
+                                    <label class="wt-form-lbl" for="email">Email Address</label>
+                                    <div class="relative flex items-center">
+                                        <InputText @bind-Value="AuthenticateUserQuery.Email"
+                                                   id="email"
+                                                   class="wt-form-input opacity-60 cursor-not-allowed"
+                                                   placeholder="email@example.com"
+                                                   readonly="readonly"
+                                                   disabled="true" />
+                                        <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
+                                            <span class="material-symbols-rounded text-[18px]">mail</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Joined Date (Read-only) -->
+                                <div>
+                                    <label class="wt-form-lbl" for="joinedDate">Member Since</label>
+                                    <div class="relative flex items-center">
+                                        <input type="text"
+                                               id="joinedDate"
+                                               class="wt-form-input opacity-60 cursor-not-allowed"
+                                               value="@FormatJoinedDate(AuthenticateUserQuery.MemberSince)"
+                                               readonly="readonly"
+                                               disabled="true" />
+                                        <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
+                                            <span class="material-symbols-rounded text-[18px]">calendar_today</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Bio Section -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-wt-black-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-harp-700">
+                                About You
+                            </h2>
+
+                            <div>
+                                <label class="wt-form-lbl" for="bio">Bio (Optional)</label>
+                                <InputTextArea @bind-Value="AuthenticateUserQuery.Bio"
+                                               id="bio"
+                                               class="@GetInputClass(() => ModelDTO.Bio)"
+                                               placeholder="Tell us about yourself and your love for trails... (max 500 characters)"
+                                               rows="4" />
+                                <div class="flex justify-between items-center mt-1">
+                                    <ValidationMessage For="@(() => AuthenticateUserQuery.Bio)" class="wt-form-error-msg" />
+                                    <span class="text-xs text-gray-500 dark:text-gray-400">
+                                        @((ModelDTO.Bio?.Length ?? 0)) / 500 characters
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Section -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-wt-black-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-harp-700">
+                                Location
+                            </h2>
+
+                            <div>
+                                <label class="wt-form-lbl" for="countryCode">Country</label>
+                                <div class="relative flex items-center">
+                                    <InputSelect @bind-Value="AuthenticateUserQuery.CountryCode"
+                                                 id="countryCode"
+                                                 class="@(HasValidationErrors(() => AuthenticateUserQuery.CountryCode) ? "wt-form-input-dd-error" : "wt-form-input-dd")">
+                                        <option value="">Select your country</option>
+                                        @foreach (var countryCode in countryCodes)
+                                        {
+                                            <option value="@countryCode.Code">@countryCode.Name</option>
+                                        }
+                                    </InputSelect>
+                                    <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
+                                        <span class="material-symbols-rounded text-[18px]">public</span>
+                                    </div>
+                                </div>
+                                <ValidationMessage For="@(() => ModelDTO.CountryCode)" class="wt-form-error-msg" />
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="flex flex-col sm:flex-row gap-4 pt-6 border-t border-gray-200 dark:border-harp-700">
+                            <button type="submit"
+                                    class="flex-1 py-3 px-6 text-[15px] font-medium tracking-wide rounded-lg text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                                    disabled="@isSubmitting">
+                                @if (isSubmitting)
+                                {
+                                    <span class="animate-spin mr-2">⏳</span>
+                                    <span>Saving...</span>
+                                }
+                                else
+                                {
+                                    <span class="material-symbols-rounded mr-2 text-[20px]">save</span>
+                                    <span>Save Changes</span>
+                                }
+                            </button>
+
+                            <button type="button"
+                                    @onclick="LoadUserData"
+                                    class="flex-1 sm:flex-none py-3 px-6 text-[15px] font-medium tracking-wide rounded-lg text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-harp-800 hover:bg-gray-300 dark:hover:bg-harp-700 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 cursor-pointer transition-all flex items-center justify-center">
+                                <span class="material-symbols-rounded mr-2 text-[20px]">refresh</span>
+                                <span>Reset</span>
+                            </button>
+                        </div>
+
+                    </div>
+                </EditForm>
+            </div>
+
+            <!-- Additional Settings Links -->
+            <div class="mt-8 grid md:grid-cols-3 gap-4">
+                <a href="/account/change-password" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                    <div class="flex items-start">
+                        <span class="material-symbols-rounded text-[32px] text-harp-600 dark:text-harp-400 mr-4">lock</span>
+                        <div>
+                            <h3 class="font-semibold text-wt-black-900 dark:text-white mb-1">Change Password</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Update your password and security settings</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="/account/privacy" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                    <div class="flex items-start">
+                        <span class="material-symbols-rounded text-[32px] text-harp-600 dark:text-harp-400 mr-4">shield</span>
+                        <div>
+                            <h3 class="font-semibold text-wt-black-900 dark:text-white mb-1">Privacy Settings</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Manage your privacy and data preferences</p>
+                        </div>
+                    </div>
+                </a>
+
+                <a href="/account/notifications" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                    <div class="flex items-start">
+                        <span class="material-symbols-rounded text-[32px] text-harp-600 dark:text-harp-400 mr-4">notifications</span>
+                        <div>
+                            <h3 class="font-semibold text-wt-black-900 dark:text-white mb-1">Notifications</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Customize your notification preferences</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    </div>
+</div>

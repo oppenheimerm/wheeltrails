@@ -1,5 +1,60 @@
-﻿@page "/trails/discover"
+﻿@page "/trails"
+
+<!-- 🚧 Coming Soon Page - Material Design 3 -->
+<div class="flex items-center justify-center min-h-screen bg-[var(--md-sys-color-background)] px-4">
+    <div class="max-w-2xl w-full text-center">
+
+        <!-- 🎨 Icon/Illustration -->
+        <div class="mb-8 flex justify-center">
+            <div class="relative">
+                <!-- Background Circle -->
+                <div class="absolute inset-0 bg-[var(--md-sys-color-primary-container)] rounded-full blur-3xl opacity-30 animate-pulse"></div>
+
+                <!-- Material Symbol Icon -->
+                <div class="relative bg-[var(--md-sys-color-primary-container)] rounded-full p-2 shadow-elevation-3">
+                    <img src="./img/assets/logo-light.png" alt="WheelyTrails logo" class="h-[120px] [120px] object-contain block dark:hidden" />
+                    <img src="./img/assets/logo-dark.png" alt="WheelyTrails logo" class="h-[120px] w-[120px] object-contain hidden dark:block" />
+                </div>
+            </div>
+        </div>
+
+        <!-- 📝 Heading -->
+        <h1 class="text-display-small md:text-display-medium font-bold text-[var(--md-sys-color-on-background)] mb-4">
+            This Page Is Coming Soon
+        </h1>
+
+        <!-- 📄 Description -->
+        <p class="text-body-large md:text-title-large text-[var(--md-sys-color-on-surface-variant)] mb-8 max-w-xl mx-auto">
+            We're working hard to bring you the best wheelchair-accessible trails.
+            Discover amazing outdoor experiences tailored for the mobility-impaired community.
+        </p>
+
+       
+        <!-- 🔗 Quick Links -->
+        <div class="flex flex-wrap gap-4 justify-center">
+            <a href="/"
+               class="inline-flex items-center gap-2 px-6 py-3
+                      border border-[var(--md-sys-color-outline)]
+                      text-[var(--md-sys-color-primary)] rounded-full font-medium
+                      hover:bg-[var(--md-sys-color-surface-container-highest)]
+                      transition-colors">
+                <span class="material-symbols-rounded text-[20px]">home</span>
+                Back to Home
+            </a>
+
+            <a href="/trails/discover"
+               class="inline-flex items-center gap-2 px-6 py-3
+                      border border-[var(--md-sys-color-outline)]
+                      text-[var(--md-sys-color-primary)] rounded-full font-medium
+                      hover:bg-[var(--md-sys-color-surface-container-highest)]
+                      transition-colors">
+                <span class="material-symbols-rounded text-[20px]">explore</span>
+                Discover Trails
+            </a>
+        </div>
+
+    </div>
+</div>
 
 @code {
-
 }

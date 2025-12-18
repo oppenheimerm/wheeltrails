@@ -1,0 +1,43 @@
+﻿@inject NavigationManager Navigation
+
+<!-- 📱 Native-Style Bottom Navigation Tab Bar -->
+<nav class="flex justify-around items-center h-16 px-4">
+
+    <!-- Home Tab -->
+    <NavLink href="/" class="tab-item" Match="NavLinkMatch.All">
+        <span class="material-symbols-rounded text-2xl">home</span>
+        <span class="text-xs mt-1">Home</span>
+    </NavLink>
+
+    <!-- Trails Tab -->
+    <NavLink href="/trails" class="tab-item">
+        <span class="material-symbols-rounded text-2xl">hiking</span>
+        <span class="text-xs mt-1">Trails</span>
+    </NavLink>
+
+    <!-- Add Trail Tab (Highlighted, perfectly round) -->
+    <NavLink href="/trails/create" class="tab-item-primary" aria-label="Create trail">
+        <div class="relative -mt-8">
+            <div class="bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)]
+                        rounded-full w-14 h-14 flex items-center justify-center shadow-elevation-4
+                        ring-2 ring-[var(--md-sys-color-surface)] transition-transform duration-150
+                        hover:scale-105 focus-visible:outline-none focus-visible:ring-[var(--md-sys-color-primary)]">
+                <span class="material-symbols-rounded text-3xl">add</span>
+            </div>
+        </div>
+        <span class="text-xs mt-1">Add</span>
+    </NavLink>
+
+    <!-- Favorites Tab -->
+    <NavLink href="/favorites" class="tab-item">
+        <span class="material-symbols-rounded text-2xl">favorite</span>
+        <span class="text-xs mt-1">Favorites</span>
+    </NavLink>
+
+    <!-- Profile Tab -->
+    <NavLink href="/account/settings" class="tab-item">
+        <span class="material-symbols-rounded text-2xl">account_circle</span>
+        <span class="text-xs mt-1">Profile</span>
+    </NavLink>
+
+</nav>

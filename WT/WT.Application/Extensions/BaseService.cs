@@ -42,13 +42,23 @@ namespace WT.Application.Extensions
                 return null;
             }
 
-            var baseUrl = _configuration["ConnectionStrings:BaseApiUrl"];
-            
-            // ✅ FIX: Correct endpoint path
+            // ✅ FIX 1: Clear any existing Authorization header before refreshing
+            _httpClient.DefaultRequestHeaders.Authorization = null;
+
+            // ✅ FIX 2: Use relative URL (HttpClient.BaseAddress already set)
             var response = await _httpClient.PostAsJsonAsync(
-                $"{baseUrl}/api/account/identity/refresh-token", 
+                "api/account/identity/refresh-token",  // ✅ Relative URL
                 new RefreshTokenDTO() { Token = authLocalStorageDTO.RefreshToken });
             
+            // ✅ FIX 3: Check if response was successful
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"❌ Token refresh failed: {response.StatusCode}");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error details: {errorContent}");
+                return null;
+            }
+
             var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
             
             if (result is not null && result.Success == true)
@@ -60,15 +70,17 @@ namespace WT.Application.Extensions
                     TimeStamp = DateTime.UtcNow,
                     Id = result.User!.Id,
                     FirstName = result.User.FirstName,
+                    ProfileUsername = result.User.ProfileUsername,
                     Email = result.User.Email,
                     UserPhoto = result.User.ProfilePicture,
-                    Bio = result.User.Bio // ✅ Added missing Bio property
+                    Bio = result.User.Bio
                 };
                 
                 var jsonString = JsonSerializer.Serialize(authLocalStorage);
                 await _localStorageService.SetItemAsStringAsync(LocalStorageKey!, jsonString);
                 
-                return authLocalStorage; // ✅ Return the NEW token data, not old
+                Console.WriteLine($"✅ Token refreshed successfully for user: {result.User.Email}");
+                return authLocalStorage;
             }
 
             return null;

@@ -24,7 +24,7 @@
 }
 
 .wt-form-input-dd {
-    @apply w-full text-sm !text-gray-900 dark:!wt-black-950 border-b border-harp-300 dark:border-harp-600 focus:border-harp-950 dark:focus:border-harp-400 pr-8 px-2 py-3 outline-none bg-white dark:bg-harp-900! appearance-none cursor-pointer transition-colors;
+    @apply w-full text-sm !text-gray-900 dark:!text-gray-100 border-b border-harp-300 dark:border-harp-600 focus:border-harp-950 dark:focus:border-harp-400 pr-8 px-2 py-3 outline-none bg-white dark:bg-harp-900 appearance-none cursor-pointer transition-colors;
     color-scheme: light dark; /* ✅ Tells browser to use dark styling for form controls */
 }
 
@@ -76,4 +76,21 @@
 
 .wt-btn-outline-social {
     @apply w-full mb-2 flex items-center justify-center gap-4 py-2 px-4 text-[15px] font-medium tracking-wide text-wt-black-900 dark:text-white border border-harp-400 rounded-md bg-transparent hover:bg-harp-300 focus:outline-none cursor-pointer;
+}
+
+/* Base tab item styling */
+.tab-item {
+    @apply flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 transition-colors duration-200 hover:text-blue-600 dark:hover:text-blue-400;
+    min-width: 60px;
+}
+
+/* Active tab styling */
+.tab-item.active {
+    @apply text-blue-600 dark:text-blue-400 font-semibold;
+}
+
+/* Primary action tab (Add button) */
+.tab-item-primary {
+    @apply flex flex-col items-center justify-center text-gray-700 dark:text-gray-300;
+    min-width: 60px;
 }

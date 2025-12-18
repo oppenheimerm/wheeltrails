@@ -1,0 +1,217 @@
+﻿/* Import Material 3 Theme BEFORE Tailwind */
+@import './material-theme/theme.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   CUSTOM STYLES (Won't be overwritten)
+   ======================================== */
+
+/* iOS Safe Area Support for Notch & Home Indicator */
+@supports (padding: max(0px)) {
+    header {
+        padding-top: max(env(safe-area-inset-top), 0px);
+        padding-left: max(env(safe-area-inset-left), 0px);
+        padding-right: max(env(safe-area-inset-right), 0px);
+    }
+
+    footer {
+        padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+        padding-left: max(env(safe-area-inset-left), 0px);
+        padding-right: max(env(safe-area-inset-right), 0px);
+    }
+
+    main {
+        /* Account for safe areas on left/right (landscape mode) */
+        padding-left: max(env(safe-area-inset-left), 1rem);
+        padding-right: max(env(safe-area-inset-right), 1rem);
+    }
+}
+
+/* Prevent content from going under header/footer */
+html, body {
+    overscroll-behavior: none; /* Prevents pull-to-refresh bounce */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+}
+
+/* ========================================
+   NATIVE APP-STYLE SCROLLBAR HIDING
+   ======================================== */
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Alternative: Custom minimal scrollbar (iOS/macOS style) */
+.minimal-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
+}
+
+.minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+    .minimal-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* Fix for disappearing color scheme */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Remove hardcoded body background - use Material 3 variables instead */
+body {
+    background-color: var(--md-sys-color-background);
+    color: var(--md-sys-color-on-background);
+}
+
+/* ========================================
+   CUSTOM COMPONENTS (Layer)
+   ======================================== */
+
+@layer components {
+    /* Links */
+    .wt-link {
+        @apply px-3 font-semibold tracking-normal text-blue-600 hover:underline max-lg:py-3 whitespace-nowrap;
+    }
+
+    .wt-navbar-lnk {
+        @apply px-3 hover:text-blue-600 dark:text-harp-100 dark:hover:text-blue-700 max-lg:py-3;
+    }
+
+    .wt-navbar-lnk-active {
+        @apply px-3 text-blue-600 dark:text-blue-700 max-lg:py-3;
+    }
+
+    /* Forms */
+    .wt-form-lbl {
+        @apply block text-sm font-medium text-wt-black-900 dark:text-white mb-2;
+    }
+
+    .wt-form-input {
+        @apply w-full bg-transparent border-b border-harp-300 pl-2 pt-3 pb-3 pr-8 text-sm 
+               !text-gray-900 dark:!text-gray-100 
+               placeholder:text-gray-400 dark:placeholder:text-gray-500 
+               focus:outline-none focus:border-harp-950 dark:border-harp-600 dark:focus:border-harp-400;
+        caret-color: #111827;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        .wt-form-input {
+            caret-color: #f3f4f6;
+        }
+    }
+
+    .wt-form-input-dd {
+        @apply w-full cursor-pointer appearance-none border-b border-harp-300 bg-white pl-2 pt-3 pb-3 pr-8 text-sm 
+               !text-gray-900 dark:!text-gray-100 
+               focus:outline-none focus:border-harp-950 
+               dark:border-harp-600 dark:bg-harp-900 dark:focus:border-harp-400 transition-colors;
+        color-scheme: light dark;
+    }
+
+    .wt-form-input-dd option {
+        background-color: white !important;
+        color: #111827 !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .wt-form-input-dd option {
+            background-color: #293e2a !important;
+            color: #f3f4f6 !important;
+        }
+    }
+
+    .wt-form-input-dd-error {
+        @apply w-full cursor-pointer appearance-none border-b-2 border-red-500 bg-red-50 
+               dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm 
+               !text-gray-900 dark:!text-white 
+               focus:outline-none focus:border-red-600 transition-colors;
+        color-scheme: light dark;
+    }
+
+    .wt-form-input-dd-error option {
+        background-color: white !important;
+        color: #111827 !important;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .wt-form-input-dd-error option {
+            background-color: #293e2a !important;
+            color: #f3f4f6 !important;
+        }
+    }
+
+    .wt-form-input-error {
+        @apply w-full border-b-2 border-red-500 bg-red-50 dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm 
+               !text-gray-900 dark:!text-white 
+               focus:outline-none focus:border-red-600;
+    }
+
+    .wt-form-error-msg {
+        @apply block text-xs font-medium text-red-600 dark:text-red-400 mt-1;
+    }
+
+    /* Buttons */
+    .wt-btn {
+        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 
+               bg-transparent text-wt-black-950 dark:border-wt-black-600 dark:text-harp-100 
+               hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 
+               transition-all cursor-pointer;
+    }
+
+    .wt-btn-outline {
+        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 
+               bg-harp-400 text-harp-100 dark:border-wt-black-600 dark:bg-harp-200/80 dark:text-harp-100 
+               hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 
+               transition-all cursor-pointer;
+    }
+
+    .wt-btn-outline-social {
+        @apply flex items-center justify-center gap-4 w-full py-2 px-4 mb-2 text-[15px] font-medium 
+               tracking-wide rounded-md border border-harp-400 bg-transparent text-wt-black-900 
+               dark:text-white hover:bg-harp-300 focus:outline-none cursor-pointer;
+    }
+
+    /* Tab Bar Styling */
+    .tab-item {
+        @apply flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 
+               hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200;
+        min-width: 60px;
+    }
+
+    .tab-item.active {
+        @apply text-blue-600 dark:text-blue-400 font-semibold;
+    }
+
+    .tab-item-primary {
+        @apply flex flex-col items-center justify-center text-gray-700 dark:text-gray-300;
+        min-width: 60px;
+    }
+}

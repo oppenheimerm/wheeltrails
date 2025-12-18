@@ -1,4 +1,5 @@
 ﻿using Azure.Core;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -12,6 +13,7 @@ using WT.Application.APIServiceLogs;
 using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
+using WT.Application.DTO.Response.Account;
 using WT.Application.Extensions;
 using WT.Application.Services;
 using WT.Domain.Entity;
@@ -67,7 +69,7 @@ namespace WT.Infrastructure.Repositories
     /// <item><description>IP address tracking for all authentication operations</description></item>
     /// </list>
     /// </remarks>
-    public class WTAccount : IAccountService, IAccountRepository
+    public class WTAccount : IAccountRepository // Remove IAccountService
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly RoleManager<IdentityRole<Guid>> roleManager;
@@ -980,7 +982,7 @@ namespace WT.Infrastructure.Repositories
         /// <list type="bullet">
         /// <item><description>Algorithm: HS256 (HMAC-SHA256)</description></item>
         /// <item><description>Expiration: 30 minutes from creation</description></item>
-        /// <item><description>Issuer/Audience: Read from JwtSettings configuration</description></item>
+        /// <item><description>Issuer/Audience: Read from JwtSettings configuration</description></ item>
         /// <item><description>Signing Key: Read from JwtSettings:Secret configuration</description></item>
         /// </list>
         /// <para><strong>Included Claims:</strong></para>
@@ -1030,8 +1032,6 @@ namespace WT.Infrastructure.Repositories
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-
-
         public async Task<ApplicationUser?> FindUserByUserName(string username)
         {
             var user = await userManager.Users
@@ -1053,28 +1053,6 @@ namespace WT.Infrastructure.Repositories
             var user = await dbContext.Users
                 .FirstOrDefaultAsync(u => u.ProfileUsername == profileUsername.ToLower());
             return user;
-        }
-
-        // ✅ IAccountService implementation (client-side, returns DTO)
-        // Explicit interface implementation to avoid conflict
-        async Task<ApplicationUserDTO?> IAccountService.FindUserByProfileUsernameAsync(string profileUsername)
-        {
-            // Call the repository method and convert to DTO
-            var user = await FindUserByProfileUsernameAsync(profileUsername);
-
-            if (user == null)
-                return null;
-
-            return new ApplicationUserDTO
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                ProfileUsername = user.ProfileUsername,
-                Email = user.Email,
-                Bio = user.Bio,
-                ProfilePicture = user.ProfilePicture,
-                RegistrationDate = user.ProfileUsernameCreatedAt
-            };
         }
 
         /// <summary>
@@ -1500,9 +1478,187 @@ namespace WT.Infrastructure.Repositories
             }
         }
 
-        public Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername)
+        /// <summary>
+        /// Gets account settings for the authenticated user.
+        /// </summary>
+        /// <param name="userId">The user ID from JWT claims (NameIdentifier).</param>
+        /// <returns>Account settings response with user information.</returns>
+        public async Task<APIResponseViewAccountSettings> GetAccountSettingsAsync(string userId)
         {
-            throw new NotImplementedException();
+            try
+            {
+                // Validate userId
+                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+                {
+                    // log and return error
+                    LogException.LogToFile($"GetAccountSettingsAsync: Invalid user ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseViewAccountSettings
+                    {
+                        Success = false,
+                        Message = "Invalid user identifier."
+                    };
+                }
+
+                // Find user by ID
+                var user = await FindUserByIdAsync(userGuid);
+                
+                if (user == null || user.IsDeleted)
+                {
+                    // Log and return not found
+                    LogException.LogToFile($"GetAccountSettingsAsync: User not found or deleted for ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseViewAccountSettings
+                    {
+                        Success = false,
+                        Message = "User not found."
+                    };
+                }
+
+
+                // Map to settings DTO
+                var settings = new APIResponseUserSettingsDTO
+                {
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    ProfileUsername = user.ProfileUsername,
+                    MemberSince = user.ProfileUsernameCreatedAt,
+                    ProfilePicture = user.ProfilePicture,
+                    Bio = user.Bio,
+                    CountryCode = user.CountryCode
+                };
+
+                LogException.LogToFile($"Account settings retrieved for user {user.Email} at {DateTime.UtcNow}");
+
+                return new APIResponseViewAccountSettings
+                {
+                    Success = true,
+                    Message = "Account settings retrieved successfully.",
+                    UserSettings = settings
+                };
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new APIResponseViewAccountSettings
+                {
+                    Success = false,
+                    Message = "An error occurred while retrieving account settings."
+                };
+            }
+        }
+
+        /// <summary>
+        /// Validates profile username for availability and appropriate content.
+        /// Combines availability check and profanity filter validation.
+        /// </summary>
+        /// <param name="profileUsername">The profile username to validate.</param>
+        /// <returns>Validation result with success status and message.</returns>
+        /// <remarks>
+        /// <para><strong>Validation Steps:</strong></para>
+        /// <list type="number">
+        /// <item><description>Checks if the username is provided (not empty or whitespace).</description></item>
+        /// <item><description>Checks if the username meets the minimum length requirement (3 characters).</description></item>
+        /// <item><description>Checks if the username exceeds the maximum length limit (20 characters).</description></item>
+        /// <item><description>Checks if the username is available (not already taken by another user).</description></item>
+        /// <item><description>Checks if the username is allowed (does not contain profanity or inappropriate content).</description></item>
+        /// </list>
+        /// <para>
+        /// <strong>Returns:</strong>
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description><c>IsValid</c>: Overall validity of the username (true if passes all checks).</description></item>
+        /// <item><description><c>IsAvailable</c>: Availability status (true if not taken, false if already in use).</description></item>
+        /// <item><description><c>Message</c>: Detailed message indicating the result of the validation.</description></item>
+        /// </list>
+        /// <para><strong>Example Result:</strong></para>
+        /// <code>
+        /// new UsernameValidationResultDTO
+        /// {
+        ///     IsValid = true,
+        ///     IsAvailable = true,
+        ///     Message = "Username is available!"
+        /// }
+        /// </code>
+        /// </remarks>
+        public async Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername)
+        {
+            try
+            {
+                // Validate input
+                if (string.IsNullOrWhiteSpace(profileUsername))
+                {
+                    return new UsernameValidationResultDTO
+                    {
+                        IsValid = false,
+                        IsAvailable = false,
+                        Message = "Username is required"
+                    };
+                }
+
+                if (profileUsername.Length < 3)
+                {
+                    return new UsernameValidationResultDTO
+                    {
+                        IsValid = false,
+                        IsAvailable = false,
+                        Message = "Username must be at least 3 characters"
+                    };
+                }
+
+                if (profileUsername.Length > 20)
+                {
+                    return new UsernameValidationResultDTO
+                    {
+                        IsValid = false,
+                        IsAvailable = false,
+                        Message = "Username cannot exceed 20 characters"
+                    };
+                }
+
+                // Check if username is available (not taken)
+                var isAvailable = await IsProfileUsernameAvailableAsync(profileUsername);
+                
+                if (!isAvailable)
+                {
+                    return new UsernameValidationResultDTO
+                    { 
+                        IsValid = false, 
+                        IsAvailable = false,
+                        Message = "Username is already taken" 
+                    };
+                }
+                
+                // Check if username is allowed (no profanity)
+                var isAllowed = await _usernameValidator.IsUsernameValidAsync(profileUsername);
+                
+                if (!isAllowed)
+                {
+                    var reason = _usernameValidator.GetRejectionReason(profileUsername);
+                    return new UsernameValidationResultDTO
+                    { 
+                        IsValid = false, 
+                        IsAvailable = true,
+                        Message = reason ?? "Username contains inappropriate content" 
+                    };
+                }
+                
+                // Username is valid and available
+                return new UsernameValidationResultDTO
+                { 
+                    IsValid = true, 
+                    IsAvailable = true,
+                    Message = "Username is available!" 
+                };
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new UsernameValidationResultDTO
+                { 
+                    IsValid = false,
+                    IsAvailable = false,
+                    Message = "Unable to validate username" 
+                };
+            }
         }
     }
 }

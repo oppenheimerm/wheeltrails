@@ -58,16 +58,16 @@ namespace WT.Infrastructure.DependencyInjection
             //  Add authentication and authorization
             services.AddAuthentication();
             services.AddAuthorization();
-            
-            // ✅ Register WTAccount for BOTH interfaces
-            services.AddScoped<IAccountService, WTAccount>();
+
+            // ✅ Server-side only - used by API controllers
             services.AddScoped<IAccountRepository, WTAccount>();
+            
+            // ❌ REMOVE THIS LINE (client-side service, doesn't belong here):
+            // services.AddScoped<IAccountService, WTAccount>();
+            
             services.AddScoped<IEmailService, EmailService>();
-            // ✅ Add Firebase Storage Service
             services.AddScoped<IFileStorageService, FirebaseStorageService>();
-            // ✅ Register Username Validator (singleton - loaded once on startup)
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
-            // ✅ Register WTTrailRepository
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();
 
             return services;

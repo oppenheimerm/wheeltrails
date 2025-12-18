@@ -1,0 +1,130 @@
+﻿/**
+ * Material Design 3 Theme
+ * Generated from Material Theme Builder
+ * 
+ * Default contrast: Standard
+ * To enable high/medium contrast, add data-md-contrast attribute to <html>
+ */
+
+/* ========================================
+   LIGHT MODE (Default - Applied to :root)
+   ======================================== */
+:root {
+  --md-sys-color-primary: rgb(54 105 61);
+  --md-sys-color-surface-tint: rgb(54 105 61);
+  --md-sys-color-on-primary: rgb(255 255 255);
+  --md-sys-color-primary-container: rgb(184 241 185);
+  --md-sys-color-on-primary-container: rgb(30 81 40);
+  --md-sys-color-secondary: rgb(81 99 80);
+  --md-sys-color-on-secondary: rgb(255 255 255);
+  --md-sys-color-secondary-container: rgb(212 232 208);
+  --md-sys-color-on-secondary-container: rgb(58 75 58);
+  --md-sys-color-tertiary: rgb(57 101 108);
+  --md-sys-color-on-tertiary: rgb(255 255 255);
+  --md-sys-color-tertiary-container: rgb(189 234 243);
+  --md-sys-color-on-tertiary-container: rgb(31 77 84);
+  --md-sys-color-error: rgb(186 26 26);
+  --md-sys-color-on-error: rgb(255 255 255);
+  --md-sys-color-error-container: rgb(255 218 214);
+  --md-sys-color-on-error-container: rgb(147 0 10);
+  --md-sys-color-background: rgb(247 251 242);
+  --md-sys-color-on-background: rgb(24 29 24);
+  --md-sys-color-surface: rgb(247 251 242);
+  --md-sys-color-on-surface: rgb(24 29 24);
+  --md-sys-color-surface-variant: rgb(222 229 217);
+  --md-sys-color-on-surface-variant: rgb(66 73 64);
+  --md-sys-color-outline: rgb(114 121 112);
+  --md-sys-color-outline-variant: rgb(193 201 190);
+  --md-sys-color-shadow: rgb(0 0 0);
+  --md-sys-color-scrim: rgb(0 0 0);
+  --md-sys-color-inverse-surface: rgb(45 50 44);
+  --md-sys-color-inverse-on-surface: rgb(238 242 233);
+  --md-sys-color-inverse-primary: rgb(157 212 158);
+  --md-sys-color-surface-dim: rgb(215 219 211);
+  --md-sys-color-surface-bright: rgb(247 251 242);
+  --md-sys-color-surface-container-lowest: rgb(255 255 255);
+  --md-sys-color-surface-container-low: rgb(241 245 236);
+  --md-sys-color-surface-container: rgb(235 239 231);
+  --md-sys-color-surface-container-high: rgb(229 233 225);
+  --md-sys-color-surface-container-highest: rgb(224 228 219);
+}
+
+/* ========================================
+   DARK MODE (Overrides when .dark class present)
+   ======================================== */
+.dark {
+  --md-sys-color-primary: rgb(157 212 158);
+  --md-sys-color-surface-tint: rgb(157 212 158);
+  --md-sys-color-on-primary: rgb(1 57 19);
+  --md-sys-color-primary-container: rgb(30 81 40);
+  --md-sys-color-on-primary-container: rgb(184 241 185);
+  --md-sys-color-secondary: rgb(184 204 181);
+  --md-sys-color-on-secondary: rgb(36 52 36);
+  --md-sys-color-secondary-container: rgb(58 75 58);
+  --md-sys-color-on-secondary-container: rgb(212 232 208);
+  --md-sys-color-tertiary: rgb(161 206 214);
+  --md-sys-color-on-tertiary: rgb(0 54 61);
+  --md-sys-color-tertiary-container: rgb(31 77 84);
+  --md-sys-color-on-tertiary-container: rgb(189 234 243);
+  --md-sys-color-error: rgb(255 180 171);
+  --md-sys-color-on-error: rgb(105 0 5);
+  --md-sys-color-error-container: rgb(147 0 10);
+  --md-sys-color-on-error-container: rgb(255 218 214);
+  --md-sys-color-background: rgb(16 21 16);
+  --md-sys-color-on-background: rgb(224 228 219);
+  --md-sys-color-surface: rgb(16 21 16);
+  --md-sys-color-on-surface: rgb(224 228 219);
+  --md-sys-color-surface-variant: rgb(66 73 64);
+  --md-sys-color-on-surface-variant: rgb(193 201 190);
+  --md-sys-color-outline: rgb(140 147 137);
+  --md-sys-color-outline-variant: rgb(66 73 64);
+  --md-sys-color-shadow: rgb(0 0 0);
+  --md-sys-color-scrim: rgb(0 0 0);
+  --md-sys-color-inverse-surface: rgb(224 228 219);
+  --md-sys-color-inverse-on-surface: rgb(45 50 44);
+  --md-sys-color-inverse-primary: rgb(54 105 61);
+  --md-sys-color-surface-dim: rgb(16 21 16);
+  --md-sys-color-surface-bright: rgb(54 58 53);
+  --md-sys-color-surface-container-lowest: rgb(11 15 11);
+  --md-sys-color-surface-container-low: rgb(24 29 24);
+  --md-sys-color-surface-container: rgb(28 33 28);
+  --md-sys-color-surface-container-high: rgb(39 43 38);
+  --md-sys-color-surface-container-highest: rgb(49 54 48);
+}
+
+/* ========================================
+   LIGHT MODE - HIGH CONTRAST
+   ======================================== */
+@media (prefers-contrast: more) {
+    @import './light-hc.css' layer(material-light-hc);
+}
+
+/* Alternative: Manual activation via data attribute */
+html[data-md-contrast="high"]:not(.dark) {
+    @import './light-hc.css' layer(material-light-hc);
+}
+
+/* ========================================
+   LIGHT MODE - MEDIUM CONTRAST
+   ======================================== */
+html[data-md-contrast="medium"]:not(.dark) {
+    @import './light-mc.css' layer(material-light-mc);
+}
+
+/* ========================================
+   DARK MODE - HIGH CONTRAST
+   ======================================== */
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+    @import './dark-hc.css' layer(material-dark-hc);
+}
+
+html[data-md-contrast="high"].dark {
+    @import './dark-hc.css' layer(material-dark-hc);
+}
+
+/* ========================================
+   DARK MODE - MEDIUM CONTRAST
+   ======================================== */
+html[data-md-contrast="medium"].dark {
+    @import './dark-mc.css' layer(material-dark-mc);
+}

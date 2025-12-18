@@ -1,4 +1,5 @@
 ﻿@using Blazored.LocalStorage
+@using WT.Client.Components
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthStateProvider
@@ -8,6 +9,8 @@
     private bool isMenuOpen = false;
     private bool isUserMenuOpen = false;
     private string? userProfilePicture;
+    private string? userName;
+    private string? userTitle;
 
     private void ToggleMenu()
     {
@@ -32,19 +35,27 @@
         var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
 
         return isActive
-            ? "wt-navbar-lnk-active"
-            : "wt-navbar-lnk";
+            ? "text-[var(--md-sys-color-primary)] font-semibold border-b-2 border-[var(--md-sys-color-primary)]"
+            : "text-[var(--md-sys-color-on-surface)] hover:text-[var(--md-sys-color-primary)] transition-colors";
     }
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        Console.WriteLine($"NavBar: User authenticated = {authState.User.Identity?.IsAuthenticated}");
-        Console.WriteLine($"NavBar: User name = {authState.User.Identity?.Name}");
+        var user = authState.User;
 
-        // TODO: Load user profile picture from claims or API
-        // For now, userProfilePicture remains null and shows Material Symbol
-        // Example: userProfilePicture = authState.User.FindFirst("ProfilePicture")?.Value;
+        Console.WriteLine($"NavBar: User authenticated = {user.Identity?.IsAuthenticated}");
+        Console.WriteLine($"NavBar: User name = {user.Identity?.Name}");
+
+        // Set user information
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            userName = user.Identity.Name ?? "Guest User";
+            userTitle = "Member"; // You can fetch this from claims or API
+            // TODO: Load user profile picture from claims or API
+            // For now, use temporary avatar
+            userProfilePicture = "https://i.pravatar.cc/300";
+        }
     }
 
     /// <summary>
@@ -65,8 +76,9 @@
             var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
             await customAuthStateProvider.UpdateAuthenticatedState(null);
 
-            // Close the user menu
+            // Close the menus
             isUserMenuOpen = false;
+            isMenuOpen = false;
 
             // ✅ Use forceLoad: true to ensure clean slate
             Navigation.NavigateTo("/", forceLoad: true);
@@ -77,92 +89,239 @@
             Navigation.NavigateTo("/", forceLoad: true);
         }
     }
-
-    // Close dropdown when clicking outside
-    protected override void OnAfterRender(bool firstRender)
-    {
-        if (firstRender)
-        {
-            // You could add JavaScript interop here to detect clicks outside the dropdown
-            // For now, clicking menu items will close it via CloseUserMenu()
-        }
-    }
 }
 
-<!-- Fixed Header-->
-<div class="bg-harp-200 dark:bg-harp-950 fixed w-full z-20 top-0 start-0 border-b border-default dark:border-wt-black-400/50">
-    <header class="flex shadow-md py-4 px-4 sm:px-10 min-h-[70px] tracking-wide relative z-50">
+<!-- ✨ Material Design 3 Top App Bar (Fixed Header) -->
+<div class="bg-[var(--md-sys-color-surface-container)] fixed w-full z-20 top-0 start-0 border-b border-[var(--md-sys-color-outline-variant)] shadow-elevation-2">
+    <header class="flex py-4 px-4 sm:px-10 min-h-[64px] tracking-wide relative z-50
+               backdrop-blur-sm bg-[color:var(--md-sys-color-surface-container)/0.9]
+               shadow-elevation-3 border-b border-[var(--md-sys-color-outline-variant)]">
         <div class="flex flex-wrap items-center justify-between gap-5 w-full">
-            <!-- lhs - logo -->
+
+            <!-- 🏠 Left Side - Logo & Brand -->
             <div class="flex items-center space-x-3 rtl:space-x-reverse">
-                <a href="/" class="">
-                    <img src="./img/assets/logo-light.png" alt="logo" class="w-[4rem] block dark:hidden" />
-                    <img src="./img/assets/logo-dark.png" alt="logo" class="w-[4rem] hidden dark:block" />
+                <a href="/" class="flex items-center space-x-3">
+                    <img src="./img/assets/logo-light.png" alt="WheelyTrails logo" class="h-8 w-auto object-contain block dark:hidden" />
+                    <img src="./img/assets/logo-dark.png" alt="WheelyTrails logo" class="h-8 w-auto object-contain hidden dark:block" />
+                    <span class="max-sm:hidden text-2xl font-semibold tracking-tight text-[var(--md-sys-color-on-surface)]">
+                        WheelyTrails
+                    </span>
                 </a>
-                <span class="max-sm:hidden text-2xl font-semibold tracking-tight text-wt-black-900 dark:text-harp-200">
-                    WheelyTrails
-                </span>
             </div>
 
+            <!-- 📱 Navigation Menu (Desktop & Mobile) -->
             <div id="collapseMenu"
                  class="lg:block max-lg:before:fixed max-lg:before:bg-black max-lg:before:opacity-50
                         max-lg:before:inset-0 max-lg:before:z-50 @MobileMenuClass">
+
+                <!-- Close Button (Mobile Only) -->
                 <button id="toggleClose" @onclick="ToggleMenu"
-                        class="lg:hidden fixed top-2 right-4 z-[100] rounded-full bg-white w-9 h-9
-                               flex items-center justify-center border border-gray-200 cursor-pointer">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5 fill-black" viewBox="0 0 320.591 320.591">
-                        <path d="M30.391 318.583a30.37 30.37 0 0 1-21.56-7.288c-11.774-11.844-11.774-30.973 0-42.817L266.643 10.665c12.246-11.459 31.462-10.822 42.921 1.424 10.362 11.074 10.966 28.095 1.414 39.875L51.647 311.295a30.366 30.366 0 0 1-21.256 7.288z"
-                              data-original="#000000"></path>
-                        <path d="M287.9 318.583a30.37 30.37 0 0 1-21.257-8.806L8.83 51.963C-2.078 39.225-.595 20.055 12.143 9.146c11.369-9.736 28.136-9.736 39.504 0l259.331 257.813c12.243 11.462 12.876 30.679 1.414 42.922-.456.487-.927.958-1.414 1.414a30.368 30.368 0 0 1-23.078 7.288z"
-                              data-original="#000000"></path>
-                    </svg>
+                        class="lg:hidden fixed top-4 right-4 z-[100] rounded-full bg-[var(--md-sys-color-surface-container-highest)]
+                               w-10 h-10 flex items-center justify-center border border-[var(--md-sys-color-outline)]
+                               hover:bg-[var(--md-sys-color-surface-container)] transition-colors shadow-elevation-1">
+                    <span class="material-symbols-rounded text-[24px] text-[var(--md-sys-color-on-surface)]">
+                        close
+                    </span>
                 </button>
 
-                <ul class="lg:flex gap-x-4 max-lg:space-y-3 max-lg:fixed max-lg:bg-harp-200 dark:max-lg:bg-harp-900 max-lg:w-1/2 max-lg:min-w-[300px]
-                    max-lg:top-0 max-lg:left-0 max-lg:p-6 max-lg:h-full max-lg:shadow-md max-lg:overflow-auto z-50">
-                    <li class="mb-6 hidden max-lg:block">
-                        <a href="/">
-                            <img src="./img/assets/logo-light.png" alt="logo" class="w-[4rem] block dark:hidden" />
-                            <img src="./img/assets/logo-dark.png" alt="logo" class="w-[4rem] hidden dark:block" />
-                        </a>
-                    </li>
-                    <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/trails' class="@GetNavLinkClass("/trails")">Trails</a>
-                    </li>
-                    <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/trails/discover' class="@GetNavLinkClass("/trails/discover")">Discover</a>
-                    </li>
-                    <li class="wt-navbar-lnk max-lg:border-b max-lg:border-wt-black-300 dark:max-lg:border-harp-700/90">
-                        <a href='/shop' class="@GetNavLinkClass("/shop")">Shop</a>
-                    </li>
-                </ul>
+                <!-- 📱 Mobile Side Navigation Drawer -->
+                <div class="lg:flex gap-x-6
+                            max-lg:fixed max-lg:top-0 max-lg:left-0 max-lg:bottom-16 max-lg:w-[280px]
+                            max-lg:bg-[var(--md-sys-color-surface)] max-lg:shadow-elevation-3 max-lg:overflow-y-auto z-50
+                            max-lg:flex max-lg:flex-col" id="mobile-menu-side">
+
+                    <!-- 🎨 Mobile Menu Header with Profile (Mobile Only) -->
+                    <div class="hidden max-lg:block bg-[var(--md-sys-color-primary-container)] pt-12 pb-8 px-6"
+                         id="mobile-menu-side-header">
+                        <AuthorizeView>
+                            <Authorized>
+                                <!-- User Profile Section -->
+                                <div class="flex flex-col items-center text-center">
+                                    <!-- Profile Image -->
+                                    <div class="mb-4">
+                                        <img src="@(userProfilePicture ?? "https://i.pravatar.cc/300")"
+                                             alt="@userName profile picture"
+                                             class="w-24 h-24 rounded-full border-4 border-[var(--md-sys-color-on-primary-container)]
+                                                    object-cover shadow-elevation-2" />
+                                    </div>
+
+                                    <!-- User Name -->
+                                    <h2 class="text-lg font-semibold text-[var(--md-sys-color-on-primary-container)] mb-1">
+                                        @userName
+                                    </h2>
+
+                                    <!-- User Title/Role -->
+                                    <p class="text-sm text-[var(--md-sys-color-on-primary-container)] opacity-80">
+                                        @userTitle
+                                    </p>
+                                </div>
+                            </Authorized>
+                            <NotAuthorized>
+                                <!-- Guest User Section -->
+                                <div class="flex flex-col items-center text-center">
+                                    <!-- Default Avatar -->
+                                    <div class="mb-4">
+                                        <div class="w-24 h-24 rounded-full bg-[var(--md-sys-color-on-primary-container)]
+                                                    flex items-center justify-center border-4 border-[var(--md-sys-color-surface)]
+                                                    shadow-elevation-2">
+                                            <span class="material-symbols-rounded text-[48px] text-[var(--md-sys-color-primary-container)]">
+                                                account_circle
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Guest Name -->
+                                    <h2 class="text-lg font-semibold text-[var(--md-sys-color-on-primary-container)] mb-1">
+                                        Guest User
+                                    </h2>
+
+                                    <!-- Sign In Prompt -->
+                                    <a href="/account/identity/login"
+                                       class="text-sm text-[var(--md-sys-color-on-primary-container)] underline hover:opacity-80">
+                                        Sign in to your account
+                                    </a>
+                                </div>
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </div>
+
+                    <!-- 🔗 Navigation Links Container -->
+                    <nav class="lg:flex lg:gap-x-6 max-lg:flex-1 max-lg:overflow-y-auto max-lg:bg-[var(--md-sys-color-surface)]">
+                        <ul class="lg:flex lg:gap-x-6 max-lg:py-4">
+                            <!-- Desktop: Horizontal Links | Mobile: Vertical Links -->
+                            <li class="max-lg:border-b max-lg:border-[var(--md-sys-color-outline-variant)]">
+                                <a href='/trails'
+                                   class="@GetNavLinkClass("/trails/index") lg:block max-lg:flex max-lg:items-center max-lg:px-6 max-lg:py-4
+                                          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                   @onclick="() => isMenuOpen = false">
+                                    <span class="hidden max-lg:inline-block material-symbols-rounded text-[24px] mr-4 text-[var(--md-sys-color-on-surface-variant)]">
+                                        landscape
+                                    </span>
+                                    <span class="text-base lg:text-sm">Trails</span>
+                                </a>
+                            </li>
+                            <li class="max-lg:border-b max-lg:border-[var(--md-sys-color-outline-variant)]">
+                                <a href='/trails/discover'
+                                   class="@GetNavLinkClass("/trails/discover") lg:block max-lg:flex max-lg:items-center max-lg:px-6 max-lg:py-4
+                                          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                   @onclick="() => isMenuOpen = false">
+                                    <span class="hidden max-lg:inline-block material-symbols-rounded text-[24px] mr-4 text-[var(--md-sys-color-on-surface-variant)]">
+                                        explore
+                                    </span>
+                                    <span class="text-base lg:text-sm">Discover</span>
+                                </a>
+                            </li>
+                            <li class="max-lg:border-b max-lg:border-[var(--md-sys-color-outline-variant)]">
+                                <a href='/shop'
+                                   class="@GetNavLinkClass("/shop") lg:block max-lg:flex max-lg:items-center max-lg:px-6 max-lg:py-4
+                                          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                   @onclick="() => isMenuOpen = false">
+                                    <span class="hidden max-lg:inline-block material-symbols-rounded text-[24px] mr-4 text-[var(--md-sys-color-on-surface-variant)]">
+                                        shopping_bag
+                                    </span>
+                                    <span class="text-base lg:text-sm">Shop</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+
+                    <!-- 📱 Mobile Menu Footer (Mobile Only) -->
+                    <AuthorizeView>
+                        <Authorized>
+                            <div class="hidden max-lg:block border-t border-[var(--md-sys-color-outline-variant)] bg-[var(--md-sys-color-surface)]">
+                                <!-- Settings Link -->
+                                <a href="/account/identity/settings"
+                                   class="flex items-center px-6 py-4 text-[var(--md-sys-color-on-surface)]
+                                          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors border-b border-[var(--md-sys-color-outline-variant)]"
+                                   @onclick="() => isMenuOpen = false">
+                                    <span class="material-symbols-rounded text-[24px] mr-4 text-[var(--md-sys-color-on-surface-variant)]">
+                                        settings
+                                    </span>
+                                    <span class="text-base">Settings</span>
+                                </a>
+
+                                <!-- Logout Button -->
+                                <button @onclick="HandleLogout"
+                                        class="w-full flex items-center px-6 py-4 text-[var(--md-sys-color-error)]
+                                               hover:bg-[var(--md-sys-color-error-container)] transition-colors">
+                                    <span class="material-symbols-rounded text-[24px] mr-4">
+                                        logout
+                                    </span>
+                                    <span class="text-base">Logout</span>
+                                </button>
+                            </div>
+                        </Authorized>
+                        <NotAuthorized>
+                            <!-- Mobile Menu Footer (NotAuthorized) -->
+                            <div class="hidden max-lg:block border-t border-[var(--md-sys-color-outline-variant)]
+                                        bg-[var(--md-sys-color-surface)] p-6 pb-6" id="mobile-menu-buttons-wrap">
+                                <!-- Login & Register Buttons -->
+                                <a href="/account/identity/login"
+                                   class="block w-full mb-3 px-6 py-3 text-center bg-[var(--md-sys-color-primary)]
+                                          text-[var(--md-sys-color-on-primary)] rounded-full font-medium
+                                          hover:shadow-elevation-2 transition-shadow"
+                                   @onclick="() => isMenuOpen = false">
+                                    Login
+                                </a>
+                                <a href="/account/identity/register"
+                                   class="block w-full px-6 py-3 text-center border border-[var(--md-sys-color-outline)]
+                                          text-[var(--md-sys-color-primary)] rounded-full font-medium
+                                          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                   @onclick="() => isMenuOpen = false">
+                                    Sign Up
+                                </a>
+                            </div>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
             </div>
 
-            <div class="flex max-lg:ml-auto space-x-4 items-center">
+            <!-- 👤 Right Side - Theme Toggle, Auth & Mobile Menu -->
+            <div class="flex max-lg:ml-auto space-x-3 items-center">
+
+                <!-- ✨ Theme Toggle Component -->
+                <ThemeToggle />
+
+                <!-- 🔐 Authentication Section (Desktop Only) -->
                 <AuthorizeView>
                     <NotAuthorized>
-                        <!-- ✅ Show when NOT logged in -->
-                        <a href="/account/identity/login" class="wt-btn">Login</a>
-                        <a href="/account/identity/register" class="wt-btn-outline">Sign Up</a>
+                        <!-- Login & Sign Up Buttons (Not Logged In) -->
+                        <a href="/account/identity/login"
+                           class="hidden sm:inline-flex items-center px-6 py-2 bg-[var(--md-sys-color-primary)]
+                                  text-[var(--md-sys-color-on-primary)] rounded-full font-medium
+                                  hover:shadow-elevation-2 transition-shadow">
+                            Login
+                        </a>
+                        <a href="/account/identity/register"
+                           class="hidden sm:inline-flex items-center px-6 py-2 border border-[var(--md-sys-color-outline)]
+                                  text-[var(--md-sys-color-primary)] rounded-full font-medium
+                                  hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors">
+                            Sign Up
+                        </a>
                     </NotAuthorized>
+
                     <Authorized>
-                        <!-- ✅ Show when logged in - User Menu Dropdown -->
-                        <div class="relative">
+                        <!-- User Menu Dropdown (Logged In - Desktop Only) -->
+                        <div class="relative hidden lg:block">
                             <!-- User Avatar Button -->
                             <button @onclick="ToggleUserMenu"
-                                    class="flex items-center space-x-2 focus:outline-none"
-                                    type="button">
+                                    class="flex items-center space-x-2 focus:outline-none focus:ring-2
+                                           focus:ring-[var(--md-sys-color-primary)] focus:ring-offset-2 rounded-full"
+                                    type="button"
+                                    aria-label="User menu"
+                                    aria-expanded="@isUserMenuOpen">
                                 @if (!string.IsNullOrEmpty(userProfilePicture))
                                 {
-                                    <!-- User has profile picture -->
                                     <img src="@userProfilePicture"
-                                         alt="Profile"
-                                         class="w-10 h-10 rounded-full border-2 border-harp-400 dark:border-harp-600 object-cover hover:border-harp-600 dark:hover:border-harp-400 transition-colors cursor-pointer" />
+                                         alt="@userName profile picture"
+                                         class="w-10 h-10 rounded-full border-2 border-[var(--md-sys-color-primary)]
+                                                    object-cover hover:border-[var(--md-sys-color-on-primary-container)]
+                                                    transition-colors cursor-pointer" />
                                 }
                                 else
                                 {
-                                    <!-- Default Material Symbol Account Circle -->
-                                    <span class="material-symbols-rounded text-[40px] text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 transition-colors cursor-pointer">
+                                    <span class="material-symbols-rounded text-[40px] text-[var(--md-sys-color-primary)]
+                                                     hover:text-[var(--md-sys-color-on-primary-container)] transition-colors cursor-pointer">
                                         account_circle
                                     </span>
                                 }
@@ -171,41 +330,45 @@
                             <!-- Dropdown Menu -->
                             @if (isUserMenuOpen)
                             {
-                                <div class="absolute right-0 mt-2 w-64 bg-white dark:bg-harp-900 rounded-lg shadow-xl border border-gray-200 dark:border-harp-700 z-50"
+                                <div class="absolute right-0 mt-2 w-64 bg-[var(--md-sys-color-surface-container-high)]
+                                               rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] z-50"
                                      @onclick:stopPropagation="true">
 
-                                    <!-- Dropdown Header with Greeting -->
-                                    <div class="px-4 py-3 border-b border-gray-200 dark:border-harp-700">
-                                        <p class="text-sm text-gray-500 dark:text-harp-400">Signed in as</p>
-                                        <p class="text-base font-semibold text-gray-900 dark:text-white truncate">
-                                            Hi, @context.User.Identity?.Name
+                                    <!-- Dropdown Header -->
+                                    <div class="px-4 py-3 border-b border-[var(--md-sys-color-outline-variant)]">
+                                        <p class="text-sm text-[var(--md-sys-color-on-surface-variant)]">Signed in as</p>
+                                        <p class="text-base font-semibold text-[var(--md-sys-color-on-surface)] truncate">
+                                            Hi, @userName
                                         </p>
                                     </div>
 
                                     <!-- Dropdown Links -->
                                     <div class="py-2">
                                         <a href="/account/profile"
-                                           class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-harp-200 hover:bg-gray-100 dark:hover:bg-harp-800 transition-colors"
+                                           class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+                                                      hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
                                            @onclick="CloseUserMenu">
-                                            <span class="material-symbols-rounded text-[20px] mr-3">
+                                            <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
                                                 person
                                             </span>
                                             Profile
                                         </a>
 
                                         <a href="/account/settings"
-                                           class="flex items-center px-4 py-2 text-sm text-gray-700 dark:text-harp-200 hover:bg-gray-100 dark:hover:bg-harp-800 transition-colors"
+                                           class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+                                                      hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
                                            @onclick="CloseUserMenu">
-                                            <span class="material-symbols-rounded text-[20px] mr-3">
+                                            <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
                                                 settings
                                             </span>
                                             Settings
                                         </a>
 
-                                        <hr class="my-2 border-gray-200 dark:border-harp-700" />
+                                        <hr class="my-2 border-[var(--md-sys-color-outline-variant)]" />
 
                                         <button @onclick="HandleLogout"
-                                                class="w-full flex items-center px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left">
+                                                class="w-full flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-error)]
+                                                           hover:bg-[var(--md-sys-color-error-container)] transition-colors text-left rounded-b-xl">
                                             <span class="material-symbols-rounded text-[20px] mr-3">
                                                 logout
                                             </span>
@@ -218,12 +381,14 @@
                     </Authorized>
                 </AuthorizeView>
 
-                <button @onclick="ToggleMenu" id="toggleOpen" class="lg:hidden cursor-pointer">
-                    <svg class="w-7 h-7 fill-current text-gray-700 dark:text-gray-300" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path fill-rule="evenodd"
-                              d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 10a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM3 15a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                              clip-rule="evenodd"></path>
-                    </svg>
+                <!-- 📱 Mobile Menu Toggle Button -->
+                <button @onclick="ToggleMenu"
+                        id="toggleOpen"
+                        class="lg:hidden p-2 rounded-full hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                        aria-label="Toggle navigation menu">
+                    <span class="material-symbols-rounded text-[28px] text-[var(--md-sys-color-on-surface]">
+                        menu
+                    </span>
                 </button>
             </div>
         </div>

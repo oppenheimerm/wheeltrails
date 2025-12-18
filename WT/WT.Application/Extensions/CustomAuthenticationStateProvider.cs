@@ -339,7 +339,8 @@ namespace WT.Application.Extensions
                         UserPhoto = apiResponseAuthentication.User.ProfilePicture,
                         FirstName = apiResponseAuthentication.User.FirstName,
                         Bio = apiResponseAuthentication.User.Bio,
-                        Email = apiResponseAuthentication.User.Email
+                        Email = apiResponseAuthentication.User.Email,
+                        ProfileUsername = apiResponseAuthentication.User.ProfileUsername
                     };
 
                     var jsonString = JsonSerializer.Serialize(AuthenticatedLocalStorageDTO);

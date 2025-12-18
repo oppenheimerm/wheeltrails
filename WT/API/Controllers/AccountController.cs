@@ -82,10 +82,14 @@ namespace API.Controllers
         }
 
         [HttpPost("identity/refresh-token")]
+        [AllowAnonymous] // ✅ IMPORTANT: Must allow anonymous access
         public async Task<ActionResult<APIResponseAuthentication>> RefreshToken(RefreshTokenDTO model)
         {
+            Console.WriteLine($"🔄 Refresh token request received. Token: {model?.Token?.Substring(0, Math.Min(20, model?.Token?.Length ?? 0))}...");
+            
             if (string.IsNullOrEmpty(model.Token))
             {
+                Console.WriteLine("❌ Refresh token is empty");
                 return BadRequest(new APIResponseAuthentication()
                 {
                     JwtToken = string.Empty,
@@ -100,6 +104,7 @@ namespace API.Controllers
             var wtAccount = _accountRepository as WTAccount;
             if (wtAccount == null)
             {
+                Console.WriteLine("❌ Service configuration error");
                 return StatusCode(500, new APIResponseAuthentication 
                 { 
                     Success = false, 
@@ -108,20 +113,23 @@ namespace API.Controllers
             }
 
             var result = await wtAccount.RefreshTokenWithIpAsync(model.Token, ipAddress());
+            
             if (result.Success)
             {
+                Console.WriteLine($"✅ Token refreshed successfully for user: {result.User?.Email}");
                 SetTokenCookie(result.RefreshToken!);
                 return Ok(result);
             }
             else
             {
+                Console.WriteLine($"❌ Token refresh failed: {result.Message}");
                 return BadRequest(new APIResponseAuthentication()
                 {
                     JwtToken = string.Empty,
                     RefreshToken = null!,
                     Success = false,
                     User = null!,
-                    Message = "Refresh token request failed."
+                    Message = result.Message ?? "Refresh token request failed."
                 });
             }
         }
@@ -341,6 +349,25 @@ namespace API.Controllers
                     Message = "Unable to validate username" 
                 });
             }
+        }
+
+        // We need to set up an enpoint for "api/identiry/settings".  For security
+        // It should not take any parameters, but should use the JWT token to identify the user.
+        // It should return a APIResponseViewAccountSettings object.
+        [HttpGet("identity/settings")]
+        [Authorize]
+        public async Task<ActionResult<APIResponseViewAccountSettings>> GetAccountSettings()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new APIResponseViewAccountSettings
+                {
+                    Success = false,
+                    Message = "User not authorized."
+                });
+            }
+            return await _accountRepository.GetAccountSettingsAsync(userId);
         }
 
         #region Helpers
