@@ -26,6 +26,10 @@ namespace WT.Domain.Entity
         /// </summary>
         public DateTime ProfileUsernameCreatedAt { get; set; } = DateTime.UtcNow;
 
+        /// <summary>
+        /// Firebase Storage URL for the photo.
+        /// </summary>
+        [MaxLength(512, ErrorMessage = "ProfilePicture has a maximum length of 512 characters.")] // ✅ Increased for full URLs
         public string? ProfilePicture { get; set; }
 
         [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]

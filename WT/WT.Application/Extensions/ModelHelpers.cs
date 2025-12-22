@@ -1,6 +1,7 @@
 ﻿
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
+using WT.Application.DTO.Response.Account;
 using WT.Domain.Entity;
 
 namespace WT.Application.Extensions
@@ -19,6 +20,7 @@ namespace WT.Application.Extensions
                 ProfilePicture = entity.ProfilePicture,
                 Bio = entity.Bio,
                 CountryCode = entity.CountryCode,
+                RegistrationDate = entity.ProfileUsernameCreatedAt,
             };
 
             List<RoleDTO>? _userRoles;
@@ -36,6 +38,23 @@ namespace WT.Application.Extensions
             }
 
             return _user;
+        }
+
+
+        public static NavBarSettingsDTO ToDto(this APIResponseUserSettingsDTO entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
+            var _navBarSettings = new NavBarSettingsDTO()
+            {
+                RegistrationDate = entity.MemberSince,
+                FirstName = entity.FirstName,
+                ProfileUsername = entity.ProfileUsername!,
+                Bio = entity.Bio,
+                UserPhoto = entity.ProfilePicture
+            };
+
+            return _navBarSettings;
         }
     }
 }

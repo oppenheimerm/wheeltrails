@@ -15,6 +15,20 @@ window.themeManager = {
         localStorage.setItem('theme-contrast', level);
     },
 
+    // Toggle password visibility by element id. Returns the new state (true = visible/text).
+    togglePasswordVisibility: function (elementId) {
+        try {
+            const el = document.getElementById(elementId);
+            if (!el) return false;
+            const isText = el.type === 'text';
+            el.type = isText ? 'password' : 'text';
+            return !isText;
+        } catch (e) {
+            console.error('togglePasswordVisibility error', e);
+            return false;
+        }
+    },
+
     // Initialize theme from localStorage or system preference
     init: function () {
         const savedMode = localStorage.getItem('theme-mode');

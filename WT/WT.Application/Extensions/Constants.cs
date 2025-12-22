@@ -13,5 +13,14 @@ namespace WT.Application.Extensions
             public const string USER_EDITOR = "USER_EDITOR";
 
         }
+
+        public static class FirebaseUploadConstants
+        {
+            /// <summary>
+            /// Maximum allowed size for profile picture uploads in bytes.
+            /// </summary>
+            public const long MaxProfilePictureSize = 3 * 1024 * 1024; // 3MB
+        }
+
     }
 }

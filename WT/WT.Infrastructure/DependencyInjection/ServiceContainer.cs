@@ -28,13 +28,19 @@ namespace WT.Infrastructure.DependencyInjection
 
             //  Add our default connection string from secrets
             services.AddDbContext<AppDbContext>(o => o.UseSqlServer(config.GetConnectionString("WTConnectionString")));
-            
+
+            //You should register your custom ILookupNormalizer before or alongside your AddIdentity call.
+            services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();
+
             //  Register signin manager / Identity manager with custom WTRole
-            services.AddIdentityCore<ApplicationUser>()
-                .AddRoles<IdentityRole<Guid>>()
-                .AddEntityFrameworkStores<AppDbContext>()
-                .AddSignInManager()
-                .AddDefaultTokenProviders();
+            services.AddIdentityCore<ApplicationUser>(options => {
+                // By default, Identity restricts usernames to ASCII. You can override this behavior by setting
+                // AllowedUserNameCharacters to null or to a custom string of allowed characters.
+                options.User.AllowedUserNameCharacters = null;
+            }).AddRoles<IdentityRole<Guid>>()
+              .AddEntityFrameworkStores<AppDbContext>()
+              .AddSignInManager()
+              .AddDefaultTokenProviders();
             
             //  Since we're using JWT, we need to register authentication
             services.AddAuthentication(options =>

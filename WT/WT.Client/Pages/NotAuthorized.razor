@@ -1,0 +1,65 @@
+﻿@page "/notauthorized"
+@inject NavigationManager Navigation
+
+<PageTitle>Not Authorized | 401  - WheelyTrails</PageTitle>
+
+@code {
+
+    private void NavigateToLogin()
+    {
+        Navigation.NavigateTo("account/identity/login", forceLoad: false);
+    }
+
+    private void NavigateHome()
+    {
+        Navigation.NavigateTo("/", forceLoad: false);
+    }
+
+    protected override void OnInitialized()
+    {
+        // Log401 event for diagnostics
+        Console.WriteLine($"401 Error: User navigated to a required authenticated page at {DateTime.UtcNow:O}");
+    }
+}
+
+
+<!-- Material3 styled404 page following Design-Notes.md tokens and Tailwind utilities -->
+<section class="min-h-screen flex items-center justify-center bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface)] py-20">
+    <div class="w-full max-w-3xl px-6">
+        <div class="bg-[var(--md-sys-color-surface-container-high)] dark:bg-[var(--md-sys-color-surface-container-high)] rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] overflow-hidden">
+            <div class="p-10 text-center">
+
+                <!--401 Number -->
+                <div class="mb-6">
+                    <h1 class="text-[140px] md:text-[180px] lg:text-[220px] leading-none font-extrabold text-[var(--md-sys-color-on-surface-variant)] select-none">401</h1>
+                </div>
+
+                <!-- Icon and Heading -->
+                <div class="mb-6">
+                    <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-full bg-[var(--md-sys-color-primary-container)]">
+                        <span class="material-symbols-rounded  text-[36px] text-[var(--md-sys-color-on-primary-container)]">
+                            do_not_disturb_on
+                        </span>
+                    </div>
+
+                    <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--md-sys-color-on-surface)] mb-3">Not Authorized</h2>
+
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center mt-6 mb-6">
+                    <button @onclick="NavigateToLogin" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] font-semibold shadow-elevation-2 hover:shadow-elevation-4 transition-shadow duration-150 min-w-[160px] justify-center">
+                        <span class="material-symbols-rounded">login</span>
+                        Please Login
+                    </button>
+
+                    <button @onclick="NavigateHome" class="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[var(--md-sys-color-outline)] bg-[color:var(--md-sys-color-surface)/0.8] text-[var(--md-sys-color-primary)] font-semibold hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors duration-150 min-w-[160px] justify-center">
+                        <span class="material-symbols-rounded">home</span>
+                        Back to Home
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</section>

@@ -13,7 +13,7 @@ namespace WT.Application.DTO.Response.Account
         public string? Email { get; set; }
         public string? FirstName { get; set; }
         public string? ProfileUsername { get; set; }
-        public DateTime MemberSince { get; set; }
+        public DateTime? MemberSince { get; set; }
         public string? ProfilePicture { get; set; }
         public string? Bio { get; set; }
         public string? CountryCode { get; set; }

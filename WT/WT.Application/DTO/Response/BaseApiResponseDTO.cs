@@ -29,6 +29,18 @@ namespace WT.Application.DTO.Response
     string? RefreshToken = ""
     ) : BaseAPIResponseDTO(Success, Message);
 
+    /// <summary>
+    /// Handles the response for photo upload operations.
+    /// </summary>
+    /// <param name="Success"></param>
+    /// <param name="Message"></param>
+    /// <param name="PhotoUrl"></param>
+    public record APIResponseUploadPhoto(
+        bool Success = false,
+        string Message = null!,
+        string PhotoUrl = ""
+    ) : BaseAPIResponseDTO(Success, Message);
+
     // User Profile
     public record APIResponseViewAccountSettings(
         bool Success = false,

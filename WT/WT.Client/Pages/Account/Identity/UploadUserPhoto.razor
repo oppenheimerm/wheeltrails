@@ -1,0 +1,180 @@
+﻿@page "/account/identity/upload-photo"
+@using Microsoft.AspNetCore.Authorization
+@using static WT.Application.Extensions.Constants
+@inject IAccountService AccountService
+@inject IConfiguration Configuration
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>WheelyTrails - Upload Profile Photo</PageTitle>
+@attribute [Authorize(Roles = Constants.Role.USER)]
+
+@code {
+    private IBrowserFile? selectedFile;
+    private CancellationTokenSource? _uploadCts;
+    private string? previewUrl;
+    private string? errorMessage;
+    private bool isUploading = false;
+    private UpdateProfilePhotoDTO? updateProfilePhotoDTO { get; set; }
+
+    protected override void OnInitialized()
+    {
+        updateProfilePhotoDTO = new UpdateProfilePhotoDTO();
+    }
+
+    private async Task OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        if (selectedFile != null)
+        {
+            // Take from appsettings.json
+            //const long maxFileSize = 3 * 1024 * 1024;
+
+            //  Validate file size
+            if (selectedFile.Size > FirebaseUploadConstants.MaxProfilePictureSize)
+            {
+                errorMessage = "The selected file exceeds the maximum allowed size of 3 MB."; // Updated message to reflect new limit
+                selectedFile = null;
+                previewUrl = null;
+                return;
+            }
+
+
+            var buffer = new byte[selectedFile.Size];
+            await selectedFile.OpenReadStream().ReadAsync(buffer);
+            // Create instance of a new UpdateProfilePhotoDT
+            previewUrl = $"data:{selectedFile.ContentType};base64,{Convert.ToBase64String(buffer)}";
+
+            // updateProfilePhotoDTO.ProfilePhoto is of type IFormFile and e.File is of type IBrowserFile
+            // We need to convert IBrowserFile to IFormFile
+            var _newProfilePhoto = await FileHelpers.ConvertToIFormFileAsync(e.File, FirebaseUploadConstants.MaxProfilePictureSize);
+            updateProfilePhotoDTO = new UpdateProfilePhotoDTO
+            {
+                ProfilePhoto = _newProfilePhoto,
+                ContentType = selectedFile.ContentType
+            };
+
+            if(e.File != null)
+            {
+                if (e.File.ContentType != null)
+                {
+                    // handle valid content type case if needed
+                    updateProfilePhotoDTO.ContentType = e.File.ContentType;
+                    Console.WriteLine($"ContentType: {e.File.ContentType}");
+                }
+            }
+        }
+    }
+
+    private async Task UploadPhoto()
+    {
+        Console.WriteLine("✅ UploadPhoto CALLED!");
+
+        var _hasFile = updateProfilePhotoDTO?.ProfilePhoto != null;
+        Console.WriteLine($"Has file: {_hasFile}");
+
+        if (_hasFile && updateProfilePhotoDTO.ProfilePhoto != null)
+        {
+            if (!string.IsNullOrEmpty(updateProfilePhotoDTO!.ProfilePhoto.FileName))
+            {
+                Console.WriteLine($"FileName: {updateProfilePhotoDTO.ProfilePhoto.FileName}");
+            }            
+            
+        }
+       
+        //  Set the ContentType if ProfilePhoto is not null
+        //Console.WriteLine($"ContentType: {updateProfilePhotoDTO.ProfilePhoto.ContentType}");
+
+        if (selectedFile == null)
+        {
+            errorMessage = "Please select an image to upload.";
+            return;
+        }
+
+        isUploading = true;
+        errorMessage = null;
+
+        // dispose previous CTS if any
+        _uploadCts?.Cancel();
+        _uploadCts?.Dispose();
+        _uploadCts = new CancellationTokenSource();
+
+        try
+        {
+            // Validate selectedFile before attempting upload
+            if (updateProfilePhotoDTO?.ProfilePhoto == null)
+            {
+                errorMessage = "Please select an image to upload.";
+                return;
+            }
+
+            var result = await AccountService.UpdateProfilePictureUrlAsync(updateProfilePhotoDTO);
+            if (result.Success)
+            {
+                NavigationManager.NavigateTo("/account/identity/settings", forceLoad: false);
+            }
+            else
+            {
+                errorMessage = result.Message;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "Upload canceled.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Upload failed: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
+            // dispose token source after use
+            _uploadCts?.Dispose();
+            _uploadCts = null;
+        }
+    }
+
+    private void RemovePhoto()
+    {
+        selectedFile = null;
+        previewUrl = null;
+        errorMessage = null;
+    }
+}
+
+<div class="pt-16 px-4 max-w-xl mx-auto text-wt-black-950 dark:text-white">
+    <h1 class="text-3xl font-bold mb-6">Upload Avatar</h1>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
+            @errorMessage
+        </div>
+    }
+
+    <div class="space-y-6">
+        <div class="flex flex-col items-center gap-4">
+            @if (!string.IsNullOrEmpty(previewUrl))
+            {
+                <img src="@previewUrl" alt="Avatar preview" class="w-[160px] h-[160px] rounded-full object-cover shadow-elevation-2 ring-2 ring-[var(--md-sys-color-outline-variant)]" />
+            }
+            else
+            {
+                <div class="w-[160px] h-[160px] rounded-full bg-harp-100 dark:bg-harp-900 flex items-center justify-center text-gray-400">
+                    <span class="material-symbols-rounded text-5xl">person</span>
+                </div>
+            }
+
+            <InputFile OnChange="OnFileSelected" accept=".jpg,.jpeg,.png,.svg" class="wt-btn-outline" />
+            <p class="text-sm text-gray-500 dark:text-gray-400">Accepted formats: .jpg, .png, .svg — 400×400px recommended</p>
+
+            <div class="flex gap-4 mt-4">
+                <button class="wt-btn-primary" @onclick="UploadPhoto" disabled="@isUploading">
+                    @(isUploading ? "Uploading..." : "Upload Avatar")
+                </button>
+                <button class="wt-btn-outline-error" @onclick="RemovePhoto">Remove</button>
+            </div>
+        </div>
+    </div>
+</div>
