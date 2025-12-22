@@ -76,6 +76,9 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();
 
+            // In-memory cache for per-user navbar data and other short-lived caching
+            services.AddMemoryCache();
+
             return services;
         }
     }
