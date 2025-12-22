@@ -1,15 +1,17 @@
-﻿@page "/account/settings"
+﻿@page "/account/identity/settings"
 
 @inject IAccountService AccountService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
 
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Linq.Expressions
 @using WT.Application.DTO.Response.Account
 @using WT.Application.Extensions
 
 <PageTitle>WheelyTrails - Account Settings</PageTitle>
+@attribute [Authorize(Roles = Constants.Role.USER)]
 
 @code {
     private ApplicationUserDTO? ModelDTO { get; set; }
@@ -372,7 +374,7 @@
 
             <!-- Additional Settings Links -->
             <div class="mt-8 grid md:grid-cols-3 gap-4">
-                <a href="/account/change-password" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                <a href="/account/identity/reset-password" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
                     <div class="flex items-start">
                         <span class="material-symbols-rounded text-[32px] text-harp-600 dark:text-harp-400 mr-4">lock</span>
                         <div>

@@ -16,6 +16,7 @@ namespace WT.Application.Services
         Task<BaseAPIResponseDTO> RegisterAsync(RegisterDTO model);
         Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model);
         Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model);
+        Task<BaseAPIResponseDTO> AuthenticatedResetPasswordAsync(AuthenticatedResetPasswordDTO model);
         Task<APIResponseAuthentication> LoginAsync(LoginDTO model);
         Task<BaseAPIResponseDTO> CreateRoleASync(CreateRoleDTO model);
         Task<IEnumerable<RoleDTO>> GetRolesAsync();
@@ -32,6 +33,15 @@ namespace WT.Application.Services
         
         // ✅ NEW: Get account settings for authenticated user (client-side calls API)
         Task<APIResponseViewAccountSettings> GetAccountSettingsAsync();
+
+        // ✅ NEW: Update profile photo for authenticated user (client-side calls API)
+        Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(UpdateProfilePhotoDTO updateProfilePhotoDTO, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Method to get navbar authentication data for the currently authenticated user.
+        /// </summary>
+        /// <returns></returns>
+        Task SetNavBarAuthDataAsync();
     }
 
     public class UsernameValidationResult

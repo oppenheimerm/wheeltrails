@@ -18,6 +18,16 @@ namespace WT.Application.Contracts
         Task<BaseAPIResponseDTO> VerifyEmailAsync(string token);
         Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model);
         Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model);
+
+        /// <summary>
+        /// Password reset for an <see cref="ApplicationUser"/> who is already authenticated.  Front-end client
+        /// must make user re-login after password change.
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="userId"></param>
+        /// <param name="IpAddress"></param>
+        /// <returns></returns>
+        Task<BaseAPIResponseDTO> AuthenticatedResetPasswordAsync(AuthenticatedResetPasswordDTO model, string userId, string IpAddress);
         Task<BaseAPIResponseDTO> SoftDeleteUserAsync(Guid userId, string? reason = null);
 
         // Server-side methods with IP address parameters (internal)
@@ -35,5 +45,15 @@ namespace WT.Application.Contracts
 
         // ✅ NEW: Get account settings for authenticated user
         Task<APIResponseViewAccountSettings> GetAccountSettingsAsync(string userId);
+
+        /// <summary>
+        /// Method to update the profile picture URL of a <see cref="ApplicationUser"/>.
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="profilePhotoUrl"></param>
+        /// <returns></returns>
+        Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(Guid userId, string profilePhotoUrl);
+
+        Task<APIResponseViewAccountSettings?> GetNavbarUserInfoAsync(Guid userId);
     }
 }

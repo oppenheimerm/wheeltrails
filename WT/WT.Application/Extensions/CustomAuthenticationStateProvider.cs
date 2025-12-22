@@ -355,6 +355,8 @@ namespace WT.Application.Extensions
                     Console.WriteLine($"✅ ClaimsPrincipal created with {claimsPrincipal.Claims.Count()} claims");
                     Console.WriteLine($"👤 Identity name: {claimsPrincipal.Identity?.Name}");
                     Console.WriteLine($"👤 Is authenticated: {claimsPrincipal.Identity?.IsAuthenticated}");
+                    // loge Claims.ProfilePicture if exists
+                    var profilePictureClaim = claimsPrincipal.Claims.FirstOrDefault(c => c.Type == "ProfilePicture");
                 }
                 else
                 {

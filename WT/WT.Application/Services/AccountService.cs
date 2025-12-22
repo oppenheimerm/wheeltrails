@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net.Mime;
+using System.Text;
 using System.Text.Json;
 using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Account;
@@ -25,6 +27,7 @@ namespace WT.Application.Services
         private readonly HttpClient _httpClient;
         private readonly ILocalStorageService _localStorage;
         private readonly IConfiguration _configuration;
+
 
         public AccountService(HttpClient httpClient, IConfiguration config, ILocalStorageService localStorage) : base(httpClient, config,localStorage)
         {
@@ -217,7 +220,8 @@ namespace WT.Application.Services
             {
                 Console.WriteLine($"🔥 Unexpected exception in GetAccountSettingsAsync: {ex.Message}");
                 Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                
+                LogException.LogExceptions(ex);
+
                 return new APIResponseViewAccountSettings
                 {
                     Success = false,
@@ -341,6 +345,393 @@ namespace WT.Application.Services
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to reset password" };
         }
 
+        /// <summary>
+        /// Method to reset password for an authenticated user. Frontend service implementation. On success
+        /// user must login again with the new password.
+        /// </summary>
+        /// <param name="model"></param>
+        /// <returns></returns>
+        public async Task<BaseAPIResponseDTO> AuthenticatedResetPasswordAsync(AuthenticatedResetPasswordDTO model)
+        {
+            const int maxRetries = 3; // For transient errors only
+            int currentAttempt = 0;
+
+            try {
+                // Get JWT token from local storage
+                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
+
+                if (string.IsNullOrEmpty(authData))
+                {
+                    Console.WriteLine("❌ No authentication data in local storage");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "User is not authenticated"
+                    };
+                }
+
+                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
+
+                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
+                {
+                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
+                    return new APIResponseViewAccountSettings
+                    {
+                        Success = false,
+                        Message = "User is not authenticated"
+                    };
+                }
+
+                // Set the JWT token in the Authorization header
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
+
+                Console.WriteLine($"🔑 Atempting to reset password for user: (Attempt 1/{maxRetries})");
+                LogException.LogToConsole($"🔑 Attempting to reset password in AuthenticatedResetPasswordAsync (Attempt 1/{maxRetries})");
+
+                HttpResponseMessage? response = null;
+                bool tokenWasRefreshed = false;
+
+                // Retry loop for transient errors
+                while (currentAttempt < maxRetries)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        response = await _httpClient.PostAsJsonAsync("api/account/authenticated-reset-password", model);
+                        Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+                        LogException.LogToConsole($"📡 Response status in AuthenticatedResetPasswordAsync (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+
+                        // ✅ SUCCESS - return immediately
+                        if (response.IsSuccessStatusCode)
+                        {
+                            break;
+                        }
+
+                        // ❌ UNAUTHORIZED - Try token refresh (only once)
+                        if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
+                        {
+                            Console.WriteLine("⚠️ Token expired, attempting refresh...");
+                            LogException.LogToConsole("⚠️ Token expired in AuthenticatedResetPasswordAsync, attempting refresh...");
+
+                            var refreshedToken = await GetRefreshTokenAsync();
+
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            {
+                                Console.WriteLine("✅ Token refreshed, retrying request...");
+                                LogException.LogToConsole("✅ Token refreshed in AuthenticatedResetPasswordAsync, retrying request.");
+                                tokenWasRefreshed = true;
+
+                                // Update Authorization header with new token
+                                _httpClient.DefaultRequestHeaders.Authorization =
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+
+                                // Don't increment attempt counter for auth retry
+                                currentAttempt--;
+                                continue; // Retry immediately
+                            }
+                            else
+                            {
+                                Console.WriteLine("❌ Token refresh failed - user needs to re-login");
+                                LogException.LogToConsole("❌ Token refresh failed in AuthenticatedResetPasswordAsync - user needs to re-login.");
+                                return new BaseAPIResponseDTO
+                                {
+                                    Success = false,
+                                    Message = "Session expired. Please log in again."
+                                };
+                            }
+                        }
+                        // ❌ UNAUTHORIZED after token refresh - authentication problem, stop retrying
+                        else if (CheckIfUnauthorized(response) && tokenWasRefreshed)
+                        {
+                            Console.WriteLine("❌ Still unauthorized after token refresh - stopping retries");
+                            LogException.LogToConsole("❌ Still unauthorized after token refresh in AuthenticatedResetPasswordAsync - stopping retries.");
+                            return new BaseAPIResponseDTO
+                            {
+                                Success = false,
+                                Message = "Authentication failed. Please log in again."
+                            };
+                        }
+                        // ⚠️ SERVER ERROR (5xx) or other transient error - retry with backoff
+                        else if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        {
+                            if (currentAttempt < maxRetries)
+                            {
+                                var delayMs = currentAttempt * 1000; // Progressive backoff: 1s, 2s, 3s
+                                Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
+                                LogException.LogToConsole($"⚠️ Server error {response.StatusCode} in AuthenticatedResetPasswordAsync, retrying in {delayMs}ms...");
+                                await Task.Delay(delayMs);
+                                continue; // Retry
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Max retries ({maxRetries}) reached for server error");
+                                break; // Exit retry loop
+                            }
+                        }
+                        // ❌ CLIENT ERROR (4xx other than 401) - don't retry
+                        else
+                        {
+                            Console.WriteLine($"❌ Client error {response.StatusCode} - not retrying");
+                            LogException.LogToConsole($"❌ Client error {response.StatusCode} in AuthenticatedResetPasswordAsync - not retrying.");
+                            break; // Exit retry loop
+                        }
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        Console.WriteLine($"⚠️ Network error on attempt {currentAttempt}/{maxRetries}: {ex.Message}");
+                        LogException.LogToConsole($"⚠️ Network error on attempt {currentAttempt}/{maxRetries} in AuthenticatedResetPasswordAsync: {ex.Message}");
+
+                        if (currentAttempt < maxRetries)
+                        {
+                            var delayMs = currentAttempt * 1000;
+                            Console.WriteLine($"Retrying in {delayMs}ms...");
+                            await Task.Delay(delayMs);
+                            continue; // Retry
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Max retries ({maxRetries}) reached for network error");
+                            LogException.LogToConsole($"❌ Max retries ({maxRetries}) reached for network error in AuthenticatedResetPasswordAsync.");
+                            return new BaseAPIResponseDTO
+                            {
+                                Success = false,
+                                Message = "Network error. Please check your connection and try again."
+                            };
+                        }
+                    }
+                }
+
+                // Check final response status
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    var errorContent = response != null
+                        ? await response.Content.ReadAsStringAsync()
+                        : "No response received";
+
+                    Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
+                    LogException.LogToConsole($"❌ Final response failed: {response?.StatusCode}");
+                    Console.WriteLine($"Error details: {errorContent}");
+                    LogException.LogToConsole($"Error details: {errorContent}");
+
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = $"Unable to reset passwrod at this time. Status: {response?.StatusCode}"
+                    };
+                }
+
+
+                // Deserialize successful response
+                var result = await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>();
+
+                if (result == null)
+                {
+                    Console.WriteLine("❌ Failed to deserialize response");
+                    LogException.LogToConsole("❌ Failed to deserialize response in AuthenticatedResetPasswordAsync.");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "Failed to process server response"
+                    };
+                }
+
+                Console.WriteLine($"✅ Password reset successfully, (took {currentAttempt} attempt(s))");
+                LogException.LogToConsole("✅ Password reset successfully.");
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 Unexpected exception in AuthenticatedResetPasswordAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred. Please try again later."
+                };
+            }
+        }
+
+        /// <summary>
+        /// Method to get navbar authentication data for the currently authenticated user.
+        /// </summary>
+        /// <returns></returns>
+        public async Task SetNavBarAuthDataAsync()
+        {
+            const int maxRetries = 3; // For transient errors only
+            int currentAttempt = 0;
+            NavBarSettingsDTO? navBarSettingsDTO;
+            Console.WriteLine("✅ AccountService:SetNavBarAuthDataAsync CALLED!");
+
+            try {
+                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
+
+                if (string.IsNullOrEmpty(authData))
+                {
+                    Console.WriteLine("❌ No authentication data in local storage");
+                }
+
+                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
+
+                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
+                {
+                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
+                }
+
+                // Set the JWT token in the Authorization header
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
+
+                Console.WriteLine($"🔑 Fetching navbar settings (Attempt 1/{maxRetries})");
+
+                HttpResponseMessage? response = null;
+                bool tokenWasRefreshed = false;
+
+                // Retry loop for transient errors
+                while (currentAttempt < maxRetries)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        response = await _httpClient.GetAsync("api/account/identity/navbar-info");
+                        Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+
+                        // ✅ SUCCESS - return immediately
+                        if (response.IsSuccessStatusCode)
+                        {
+                            break;
+                        }
+
+                        // ❌ UNAUTHORIZED - Try token refresh (only once)
+                        if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
+                        {
+                            Console.WriteLine("⚠️ Token expired, attempting refresh...");
+
+                            var refreshedToken = await GetRefreshTokenAsync();
+
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            {
+                                Console.WriteLine("✅ Token refreshed, retrying request...");
+                                tokenWasRefreshed = true;
+
+                                // Update Authorization header with new token
+                                _httpClient.DefaultRequestHeaders.Authorization =
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+
+                                // Don't increment attempt counter for auth retry
+                                currentAttempt--;
+                                continue; // Retry immediately
+                            }
+                            else
+                            {
+                                Console.WriteLine("❌ Token refresh failed - user needs to re-login");
+                            }
+                        }
+                        // ❌ UNAUTHORIZED after token refresh - authentication problem, stop retrying
+                        else if (CheckIfUnauthorized(response) && tokenWasRefreshed)
+                        {
+                            Console.WriteLine("❌ Still unauthorized after token refresh - stopping retries.  Please relogin");
+                        }
+                        // ⚠️ SERVER ERROR (5xx) or other transient error - retry with backoff
+                        else if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        {
+                            if (currentAttempt < maxRetries)
+                            {
+                                var delayMs = currentAttempt * 1000; // Progressive backoff: 1s, 2s, 3s
+                                Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
+                                await Task.Delay(delayMs);
+                                continue; // Retry
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Max retries ({maxRetries}) reached for server error");
+                                break; // Exit retry loop
+                            }
+                        }
+                        // ❌ CLIENT ERROR (4xx other than 401) - don't retry
+                        else
+                        {
+                            Console.WriteLine($"❌ Client error {response.StatusCode} - not retrying");
+                            break; // Exit retry loop
+                        }
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        Console.WriteLine($"⚠️ Network error on attempt {currentAttempt}/{maxRetries}: {ex.Message}");
+
+                        if (currentAttempt < maxRetries)
+                        {
+                            var delayMs = currentAttempt * 1000;
+                            Console.WriteLine($"Retrying in {delayMs}ms...");
+                            await Task.Delay(delayMs);
+                            continue; // Retry
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Max retries ({maxRetries}) reached for network error");
+                        }
+                    }
+                }
+
+                // Check final response status
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    var errorContent = response != null
+                        ? await response.Content.ReadAsStringAsync()
+                        : "No response received";
+
+                    Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
+                    Console.WriteLine($"Error details: {errorContent}");
+                    Console.WriteLine($"Unable to retrieve navbar settings. Status: {response?.StatusCode}");
+                }
+
+                // Deserialize successful response
+                var result = await response.Content.ReadFromJsonAsync<APIResponseViewAccountSettings>();
+
+                if (result == null)
+                {
+                    Console.WriteLine("❌ Failed to deserialize response");
+                }
+
+                Console.WriteLine($"✅ Account settings retrieved successfully (took {currentAttempt} attempt(s))");
+                Console.WriteLine("✅ Successfully updated local storage with account settings.");
+
+                // Update local storage with latest navbar info
+                if(result != null)
+                {
+                    if (result.UserSettings != null)
+                    {
+                        navBarSettingsDTO = result.UserSettings.ToDto();
+
+                        // At this point navBarSettingsDTO should be initialized with data
+                        // Serialize ready to store to local strorage
+
+                        var jsonString = JsonSerializer.Serialize(navBarSettingsDTO);
+                        Console.WriteLine($"NavBarSettings:Key {_configuration["ApplicationSettings:NavBarSettings"]}");
+                        await _localStorage.SetItemAsStringAsync(_configuration["ApplicationSettings:NavBarSettings"]!, jsonString);
+                    }
+                }               
+                
+
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"⚠️ Network error in GetNavBarAuthDataAsync: {ex.Message}");
+                LogException.LogExceptions(ex);
+                
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 Unexpected exception in GetNavBarAuthDataAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                LogException.LogExceptions(ex);
+
+            }
+        }
+
         // ✅ IAccountService implementation (client-side, calls API and returns DTO)
         public async Task<ApplicationUserDTO?> FindUserByProfileUsernameAsync(string profileUsername)
         {
@@ -402,6 +793,245 @@ namespace WT.Application.Services
             {
                 Console.WriteLine($"Error validating username: {ex.Message}");
                 return new UsernameValidationResultDTO { IsValid = false, Message = "Unable to validate username" };
+            }
+        }
+
+
+        /// <summary>
+        ///  Client-side method to update the profile picture URL of the currently authenticated user.
+        /// </summary>
+        /// <param name="updateProfilePhotoDTO"></param>
+        /// <returns></returns>
+        public async Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(UpdateProfilePhotoDTO updateProfilePhotoDTO, CancellationToken cancellationToken = default)
+        {
+            const int maxRetries = 3; // For transient errors only
+            int currentAttempt = 0;
+            APIResponseUploadPhoto? _operationResponse;
+
+            // Make sure a file is provided
+            if (updateProfilePhotoDTO.ProfilePhoto == null)
+            {
+                return new APIResponseUploadPhoto
+                {
+                    Success = false,
+                    Message = "No profile photo provided"
+                };
+            }
+
+            try
+            {
+                // Get JWT token from local storage
+                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
+
+                if (string.IsNullOrEmpty(authData))
+                {
+                    Console.WriteLine("❌ No authentication data in local storage");
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = false,
+                        Message = "User is not authenticated"
+                    };
+                }
+
+                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
+
+                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
+                {
+                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = false,
+                        Message = "User is not authenticated"
+                    };
+                }
+
+                // Set the JWT token in the Authorization header
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
+
+                Console.WriteLine($"🔑 Atempting to upload profile photo for user: (Attempt 1/{maxRetries})");
+                LogException.LogToConsole($"🔑 Attempting to upload profile photo in UpdateProfilePictureUrlAsync (Attempt 1/{maxRetries})");
+
+                
+                // Prepare multipart form data content
+                var content = new MultipartFormDataContent();
+                var fileContent = new StreamContent(updateProfilePhotoDTO.ProfilePhoto!.OpenReadStream());
+
+                // Set content headers, must match the UpdateProfilePhotoDTO properties!
+                //content.Add(new StringContent(dto.ContentType, Encoding.UTF8, MediaTypeNames.Text.Plain), "ContentType");
+                content.Add(new StringContent(updateProfilePhotoDTO.ContentType!, Encoding.UTF8, MediaTypeNames.Text.Plain), "ContentType");
+                //  Actual file content to match ProfilePhoto property
+                content.Add(fileContent, "ProfilePhoto", updateProfilePhotoDTO.ProfilePhoto.FileName);
+
+                HttpResponseMessage? response = null;
+                bool tokenWasRefreshed = false;
+
+                // Retry loop for transient errors
+                while (currentAttempt < maxRetries)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        // ✅ Use relative URL - HttpClient.BaseAddress already set
+                        // POST multipart/form-data requires a PostAsync call with MultipartFormDataContent not PostAsJsonAsync
+                        response = await _httpClient.PostAsync("api/account/upload-profile-picture", content, cancellationToken);
+                        Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+                        LogException.LogToConsole($"📡 Response status in UpdateProfilePictureUrlAsync (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+
+                        // ✅ SUCCESS - return immediately
+                        if (response.IsSuccessStatusCode)
+                        {
+                            break;
+                        }
+
+                        // ❌ UNAUTHORIZED - Try token refresh (only once)
+                        if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
+                        {
+                            Console.WriteLine("⚠️ Token expired, attempting refresh...");
+                            LogException.LogToConsole("⚠️ Token expired in UpdateProfilePictureUrlAsync, attempting refresh...");
+
+                            var refreshedToken = await GetRefreshTokenAsync();
+
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            {
+                                Console.WriteLine("✅ Token refreshed, retrying request...");
+                                LogException.LogToConsole("✅ Token refreshed in UpdateProfilePictureUrlAsync, retrying request.");
+                                tokenWasRefreshed = true;
+
+                                // Update Authorization header with new token
+                                _httpClient.DefaultRequestHeaders.Authorization =
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+
+                                // Don't increment attempt counter for auth retry
+                                currentAttempt--;
+                                continue; // Retry immediately
+                            }
+                            else
+                            {
+                                Console.WriteLine("❌ Token refresh failed - user needs to re-login");
+                                LogException.LogToConsole("❌ Token refresh failed in UpdateProfilePictureUrlAsync - user needs to re-login.");
+                                return new APIResponseUploadPhoto
+                                {
+                                    Success = false,
+                                    Message = "Session expired. Please log in again."
+                                };
+                            }
+                        }
+
+                        // ❌ UNAUTHORIZED after token refresh - authentication problem, stop retrying
+                        else if (CheckIfUnauthorized(response) && tokenWasRefreshed)
+                        {
+                            Console.WriteLine("❌ Still unauthorized after token refresh - stopping retries");
+                            LogException.LogToConsole("❌ Still unauthorized after token refresh in UpdateProfilePictureUrlAsync - stopping retries.");
+                            return new APIResponseUploadPhoto
+                            {
+                                Success = false,
+                                Message = "Authentication failed. Please log in again."
+                            };
+                        }
+
+                        // ⚠️ SERVER ERROR (5xx) or other transient error - retry with backoff
+                        else if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        {
+                            if (currentAttempt < maxRetries)
+                            {
+                                var delayMs = currentAttempt * 1000; // Progressive backoff: 1s, 2s, 3s
+                                Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
+                                LogException.LogToConsole($"⚠️ Server error {response.StatusCode} in UpdateProfilePictureUrlAsync, retrying in {delayMs}ms...");
+                                await Task.Delay(delayMs);
+                                continue; // Retry
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Max retries ({maxRetries}) reached for server error");
+                                break; // Exit retry loop
+                            }
+                        }
+                        // ❌ CLIENT ERROR (4xx other than 401) - don't retry
+                        else
+                        {
+                            Console.WriteLine($"❌ Client error {response.StatusCode} - not retrying");
+                            LogException.LogToConsole($"❌ Client error {response.StatusCode} in UpdateProfilePictureUrlAsync - not retrying.");
+                            break; // Exit retry loop
+                        }
+
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        Console.WriteLine($"⚠️ Network error on attempt {currentAttempt}/{maxRetries}: {ex.Message}");
+                        LogException.LogToConsole($"⚠️ Network error on attempt {currentAttempt}/{maxRetries} in UpdateProfilePictureUrlAsync: {ex.Message}");
+
+                        if (currentAttempt < maxRetries)
+                        {
+                            var delayMs = currentAttempt * 1000;
+                            Console.WriteLine($"Retrying in {delayMs}ms...");
+                            await Task.Delay(delayMs);
+                            continue; // Retry
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Max retries ({maxRetries}) reached for network error");
+                            LogException.LogToConsole($"❌ Max retries ({maxRetries}) reached for network error in UpdateProfilePictureUrlAsync.");
+                            return new APIResponseUploadPhoto
+                            {
+                                Success = false,
+                                Message = "Network error. Please check your connection and try again."
+                            };
+                        }
+                    }
+                }
+
+                // Check final response status
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    var errorContent = response != null
+                        ? await response.Content.ReadAsStringAsync()
+                        : "No response received";
+
+                    Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
+                    LogException.LogToConsole($"❌ Final response failed: {response?.StatusCode}");
+                    Console.WriteLine($"Error details: {errorContent}");
+                    LogException.LogToConsole($"Error details: {errorContent}");
+
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = false,
+                        Message = $"Unable to uplaod profile photo at this time. Status: {response?.StatusCode}"
+                    };
+                }
+
+                // Deserialize successful response
+                //_operationResponse = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
+                var result = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
+
+                if (result == null)
+                {
+                    Console.WriteLine("❌ Failed to deserialize response");
+                    LogException.LogToConsole("❌ Failed to deserialize response in UpdateProfilePictureUrlAsync.");
+                    return new APIResponseUploadPhoto   
+                    {
+                        Success = false,
+                        Message = "Failed to process server response"
+                    };
+                }
+
+                Console.WriteLine($"✅ Password reset successfully, (took {currentAttempt} attempt(s))");
+                LogException.LogToConsole("✅ Password reset successfully.");
+                return result;
+
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 Unexpected exception in UpdateProfilePictureUrlAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                LogException.LogExceptions(ex);
+                // Return failure response
+                return new APIResponseUploadPhoto
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred. Please try again later."
+                };
             }
         }
 

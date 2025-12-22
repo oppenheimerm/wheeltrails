@@ -831,6 +831,111 @@ namespace WT.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// Password reset for an <see cref="ApplicationUser"/> who is already authenticated.  Front-end client
+        /// must make user re-login after password change.
+        /// </summary>
+        /// <param name="model"></param>
+        /// <param name="userId"></param>
+        /// <param name="IpAddress"></param>
+        /// <returns></returns>
+        public async Task<BaseAPIResponseDTO> AuthenticatedResetPasswordAsync(AuthenticatedResetPasswordDTO model, string userId, string IpAddress)
+        {
+            try { 
+                
+                // Validate required fields
+                if (string.IsNullOrWhiteSpace(model.NewPassword) || 
+                    string.IsNullOrWhiteSpace(model.ConfirmPassword))
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "All fields are required."
+                    };
+                }
+
+                //  Make sure mode.UserId is valid and try convert to Guid
+                Guid parsedUserId;
+                if (!Guid.TryParse(userId, out parsedUserId))
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "Invalid user ID."
+                    };
+                }
+
+
+                if (model.NewPassword != model.ConfirmPassword)
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "New password and confirmation do not match."
+                    };
+                }
+
+                // Find user by ID
+                var user = await FindUserByIdAsync(parsedUserId);
+                if (user == null)
+                {
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = "User not found."
+                    };
+                }
+
+                // Change password
+                var result = await userManager.ChangePasswordAsync(user, model.CurrentPassword, model.NewPassword);
+                if (result.Succeeded)
+                {
+                    // ✅ SECURITY: Revoke all refresh tokens when password is reset
+                    if (user.RefreshTokens != null && user.RefreshTokens.Any())
+                    {
+                        foreach (var token in user.RefreshTokens.Where(t => t.IsActive))
+                        {
+                            RevokeRefreshToken(token, IpAddress, "Password reset");
+                        }
+
+                        await dbContext.SaveChangesAsync();
+                    }
+
+                    LogException.LogToFile($"Password reset successful for {user.Id} at {DateTime.UtcNow}");
+
+                    // Return success response
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = true,
+                        Message = "Your password has been reset successfully. Please log in with your new password."
+                    };
+                }
+                // Reset password failed, handle error
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    LogException.LogToFile($"Password reset failed for {user.Id} at {DateTime.UtcNow}. Errors: {errors}");
+                    return new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = $"Password reset failed: {errors}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "An error occurred while resetting your password. Please try again later."
+                };
+            }
+        }
+
+
+
+
 
         // ✅ IAccountRepository implementation (already exists, just make it public)
         public async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
@@ -838,6 +943,65 @@ namespace WT.Infrastructure.Repositories
             var user = await userManager.FindByIdAsync(id.ToString());
             return user;
         }
+
+
+        /// <summary>
+        /// Method to update the profile picture URL of a <see cref="ApplicationUser"/>.
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="profilePhotoUrl"></param>
+        /// <returns></returns>
+        public async Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(Guid userId, string profilePhotoUrl) { 
+            try
+            {
+                var user = await FindUserByIdAsync(userId);
+                if (user == null)
+                {
+                    // Log user not found
+                    LogException.LogToFile($"UpdateProfilePictureUrlAsync: User not found for ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = false,
+                        Message = "User not found."
+                    };
+                }
+
+                user.ProfilePicture = profilePhotoUrl;
+                var result = await userManager.UpdateAsync(user);
+                if (result.Succeeded)
+                {
+                    // Log successful update
+                    LogException.LogToFile($"Profile picture updated for user ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = true,
+                        Message = "Profile picture updated successfully.",
+                        PhotoUrl = profilePhotoUrl
+                    };
+                }
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    // Log update failure
+                    LogException.LogToFile($"UpdateProfilePictureUrlAsync failed for user ID {userId} at {DateTime.UtcNow}. Errors: {errors}");
+                    return new APIResponseUploadPhoto
+                    {
+                        Success = false,
+                        Message = $"Failed to update profile picture: {errors}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new APIResponseUploadPhoto
+                {
+                    Success = false,
+                    Message = "An error occurred while updating profile picture. Please try again later."
+                };
+            }
+        }
+
 
         #region Helpers
 
@@ -1030,6 +1194,40 @@ namespace WT.Infrastructure.Repositories
             );
             
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+
+        /// <summary>
+        /// Helper method to get user info for navbar(WT.Client) display.
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <returns></returns>
+        public async Task<APIResponseViewAccountSettings?> GetNavbarUserInfoAsync(Guid userId)
+        {
+            var user = await FindUserByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            // return instance of APIResponseViewAccountSettings
+            var userDto = user.ToDto();
+            var response = new APIResponseViewAccountSettings
+            {
+                Success = true,
+                UserSettings = new APIResponseUserSettingsDTO
+                {
+                    Email = userDto.Email,
+                    FirstName = userDto.FirstName,
+                    ProfileUsername = userDto.ProfileUsername,
+                    MemberSince = userDto.RegistrationDate,
+                    ProfilePicture = userDto.ProfilePicture,
+                    Bio = userDto.Bio,
+                    CountryCode = userDto.CountryCode
+                }
+            };
+
+            return response;
         }
 
         public async Task<ApplicationUser?> FindUserByUserName(string username)

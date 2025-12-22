@@ -3,107 +3,74 @@
 
 <PageTitle>Page Not Found - WheelyTrails</PageTitle>
 
-<!-- 404 Error Page Section - Simplified Design -->
-<section class="relative min-h-screen flex items-center justify-center bg-white dark:bg-harp-950 py-20">
-    
-    <div class="container mx-auto px-4 relative z-10">
-        <div class="max-w-3xl mx-auto text-center">
-            
-            <!-- Simple 404 Number -->
-            <div class="mb-8">
-                <h1 class="text-[140px] md:text-[200px] lg:text-[240px] font-black leading-none text-gray-100 dark:text-harp-900 select-none">
-                    404
-                </h1>
-            </div>
+<!-- Material3 styled404 page following Design-Notes.md tokens and Tailwind utilities -->
+<section class="min-h-screen flex items-center justify-center bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface)] py-20">
+    <div class="w-full max-w-3xl px-6">
+         <div class="bg-[var(--md-sys-color-surface-container-high)] dark:bg-[var(--md-sys-color-surface-container-high)] rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] overflow-hidden">
+             <div class="p-10 text-center">
 
-            <!-- Icon and Heading -->
-            <div class="mb-8">
-                <!-- Wheelchair Icon -->
-                <div class="inline-flex items-center justify-center w-20 h-20 mb-6 bg-harp-100 dark:bg-harp-900 rounded-full">
-                    <svg class="w-10 h-10 text-harp-600 dark:text-harp-400" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4zm6.5 7.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm-13 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM12 6c-3.31 0-6 2.69-6 6 0 3.31 2.69 6 6 6s6-2.69 6-6c0-3.31-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/>
-                        <circle cx="12" cy="12" r="2"/>
-                    </svg>
+                 <!--404 Number -->
+                 <div class="mb-6">
+                    <h1 class="text-[140px] md:text-[180px] lg:text-[220px] leading-none font-extrabold text-[var(--md-sys-color-on-surface-variant)] select-none">404</h1>
+                 </div>
+
+                 <!-- Icon and Heading -->
+                 <div class="mb-6">
+                     <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-full bg-[var(--md-sys-color-primary-container)]">
+                        <span class="material-symbols-rounded text-[36px] text-[var(--md-sys-color-on-primary-container)]">directions_walk</span>
+                     </div>
+
+                    <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--md-sys-color-on-surface)] mb-3">Page Not Found</h2>
+
+                    <p class="text-base md:text-lg text-[var(--md-sys-color-on-surface-variant)] max-w-2xl mx-auto">Sorry — the page you’re looking for can’t be found. It may have been removed, had its name changed, or is temporarily unavailable.</p>
                 </div>
-                
-                <!-- Heading -->
-                <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-harp-100 mb-4">
-                    Page Not Found
-                </h2>
-                
-                <!-- Description -->
-                <p class="text-lg md:text-xl text-gray-600 dark:text-harp-300 max-w-2xl mx-auto">
-                    Sorry, we couldn't find the page you're looking for. 
-                    The trail you're searching for might have been moved or doesn't exist.
-                </p>
-            </div>
 
-            <!-- Action Buttons -->
-            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-                <!-- Primary Button - Go Home -->
-                <button @onclick="NavigateHome"
-                        class="px-8 py-3 bg-harp-600 hover:bg-harp-700 text-white font-semibold rounded-lg 
-                               shadow-sm hover:shadow-md transition-all duration-200 
-                               flex items-center gap-2 min-w-[180px] justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                    </svg>
-                    Back to Home
-                </button>
+                 <!-- Action Buttons -->
+                 <div class="flex flex-col sm:flex-row gap-3 justify-center items-center mt-6 mb-6">
+                     <button @onclick="NavigateHome" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] font-semibold shadow-elevation-2 hover:shadow-elevation-4 transition-shadow duration-150 min-w-[160px] justify-center">
+                     <span class="material-symbols-rounded">home</span>
+                     Back to Home
+                     </button>
 
-                <!-- Secondary Button - Browse Trails -->
-                <button @onclick="NavigateToTrails"
-                        class="px-8 py-3 bg-white dark:bg-harp-900 text-gray-900 dark:text-harp-200 font-semibold rounded-lg 
-                               border border-gray-300 dark:border-harp-700 hover:border-gray-400 dark:hover:border-harp-600 
-                               shadow-sm hover:shadow-md transition-all duration-200 
-                               flex items-center gap-2 min-w-[180px] justify-center">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path>
-                    </svg>
-                    Browse Trails
-                </button>
-            </div>
+                     <button @onclick="NavigateToTrails" class="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[var(--md-sys-color-outline)] bg-[color:var(--md-sys-color-surface)/0.8] text-[var(--md-sys-color-primary)] font-semibold hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors duration-150 min-w-[160px] justify-center">
+                     <span class="material-symbols-rounded">map</span>
+                     Browse Trails
+                     </button>
+                 </div>
 
-            <!-- Helpful Links -->
-            <div class="pt-8 border-t border-gray-200 dark:border-harp-800">
-                <p class="text-sm text-gray-500 dark:text-harp-400 mb-4">You might be looking for:</p>
-                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3">
-                    <a href="/" class="text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 font-medium text-sm hover:underline">
-                        Home
-                    </a>
-                    <a href="/trails" class="text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 font-medium text-sm hover:underline">
-                        Trails
-                    </a>
-                    <a href="/trails/discover" class="text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 font-medium text-sm hover:underline">
-                        Discover
-                    </a>
-                    <a href="/account/identity/login" class="text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 font-medium text-sm hover:underline">
-                        Login
-                    </a>
-                    <a href="/account/identity/register" class="text-harp-600 dark:text-harp-400 hover:text-harp-700 dark:hover:text-harp-300 font-medium text-sm hover:underline">
-                        Sign Up
-                    </a>
-                </div>
-            </div>
+                 <hr class="my-4 border-[var(--md-sys-color-outline-variant)]" />
 
-        </div>
-    </div>
+                 <!-- Helpful Links -->
+                 <div class="pt-4">
+                     <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mb-3">You might be looking for:</p>
+                     <div class="flex flex-wrap justify-center gap-4">
+                     <a href="/" class="text-[var(--md-sys-color-primary)] hover:underline">Home</a>
+                     <a href="/trails" class="text-[var(--md-sys-color-primary)] hover:underline">Trails</a>
+                     <a href="/trails/discover" class="text-[var(--md-sys-color-primary)] hover:underline">Discover</a>
+                     <a href="/account/identity/login" class="text-[var(--md-sys-color-primary)] hover:underline">Login</a>
+                     <a href="/account/identity/register" class="text-[var(--md-sys-color-primary)] hover:underline">Sign Up</a>
+                     <a href="/contact" class="text-[var(--md-sys-color-primary)] hover:underline">Contact Us</a>
+                     </div>
+                 </div>
+                 </div>
+         </div>
+     </div>
 </section>
 
 @code {
-    private void NavigateHome()
-    {
-        Navigation.NavigateTo("/", forceLoad: false);
-    }
+ private void NavigateHome()
+ {
+    Navigation.NavigateTo("/", forceLoad: false);
+ }
 
-    private void NavigateToTrails()
-    {
-        Navigation.NavigateTo("/trails", forceLoad: false);
-    }
+ private void NavigateToTrails()
+ {
+    Navigation.NavigateTo("/trails", forceLoad: false);
+ }
 
-    protected override void OnInitialized()
-    {
-        // Log 404 error for analytics/debugging
-        Console.WriteLine($"404 Error: User navigated to non-existent page at {DateTime.UtcNow}");
-    }
+ protected override void OnInitialized()
+ {
+     // Log404 event for diagnostics
+     Console.WriteLine($"404 Error: User navigated to non-existent page at {DateTime.UtcNow:O}");
+ }
 }

@@ -90,5 +90,25 @@ namespace WT.Application.Extensions
         {
             return httpResponseMessage.StatusCode == System.Net.HttpStatusCode.Unauthorized;
         }
+
+        // Methos to get the AuthenticatedLocalStorageDTO for authenticated users
+        /*public async Task<AuthenticatedLocalStorageDTO?> GetAuthenticatedUserAsync()
+        {
+            var authData = await _localStorageService.GetItemAsStringAsync(LocalStorageKey!);
+            if (string.IsNullOrEmpty(authData))
+            {
+                return null;
+            }
+            var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
+            return authLocalStorageDTO;
+        }*/
+
+        // Method to update the AuthenticatedLocalStorageDTO in local storage, when we need to update user info
+        // On logout, we clear the entire local storage key, so no need for a separate method
+        /*public async Task UpdateAuthenticatedUserAsync(AuthenticatedLocalStorageDTO authenticatedUser)
+        {
+            var jsonString = JsonSerializer.Serialize(authenticatedUser);
+            await _localStorageService.SetItemAsStringAsync(LocalStorageKey!, jsonString);
+        }*/
     }
 }

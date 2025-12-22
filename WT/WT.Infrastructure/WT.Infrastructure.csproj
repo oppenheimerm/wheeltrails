@@ -5,6 +5,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>WT.Infrastructure</RootNamespace>
+    <UserSecretsId>434ce5bd-2ce4-4e7b-add9-cbfeb70b1c45</UserSecretsId>
   </PropertyGroup>
 
   <!-- ✅ STEP 1: Remove the file from default compilation -->

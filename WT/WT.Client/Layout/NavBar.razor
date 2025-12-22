@@ -1,9 +1,12 @@
 ﻿@using Blazored.LocalStorage
+@using System.Security.Claims
 @using WT.Client.Components
+
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IConfiguration Configuration
+@inject IAccountService AccountService
 
 @code {
     private bool isMenuOpen = false;
@@ -11,6 +14,7 @@
     private string? userProfilePicture;
     private string? userName;
     private string? userTitle;
+    readonly string? LocalStorageKey;
 
     private void ToggleMenu()
     {
@@ -41,21 +45,50 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // initial populate
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
+        ApplyAuthState(authState.User);
 
-        Console.WriteLine($"NavBar: User authenticated = {user.Identity?.IsAuthenticated}");
-        Console.WriteLine($"NavBar: User name = {user.Identity?.Name}");
+        // subscribe to changes
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
 
-        // Set user information
-        if (user.Identity?.IsAuthenticated == true)
+    private async Task ApplyAuthState(ClaimsPrincipal user)
+    {
+        if (user?.Identity?.IsAuthenticated == true)
         {
-            userName = user.Identity.Name ?? "Guest User";
-            userTitle = "Member"; // You can fetch this from claims or API
-            // TODO: Load user profile picture from claims or API
-            // For now, use temporary avatar
-            userProfilePicture = "https://i.pravatar.cc/300";
+            userName = user.Identity?.Name ?? "User";
+            userTitle = user.FindFirst("role")?.Value ?? "Member";
+
+            // We need to get the profile picture from local storage,
+            await AccountService.SetNavBarAuthDataAsync();
+
+            // Get nav bar auth data from local storage
+            var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+            var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+            userProfilePicture = navBarAuthData?.UserPhoto ?? "https://i.pravatar.cc/300";
+            //  Set our propert UserProfilePicture from AuthenticatedLocalStorageDTO.UserPhoto, 
+            // Get LocalStorage Profile Picture URL
+            //BaseService.CheckIfUnauthorized
+            //userProfilePicture = user.FindFirst("profile_picture")?.Value ?? "https://i.pravatar.cc/300";
         }
+        else
+        {
+            userName = null;
+            userTitle = null;
+            userProfilePicture = null;
+        }
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            var state = await task;
+            await ApplyAuthState(state.User);
+            InvokeAsync(StateHasChanged);
+        }
+        catch { /* ignore or log */ }
     }
 
     /// <summary>
@@ -67,9 +100,17 @@
         {
             // Clear local storage
             var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
+            
+            var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
             if (!string.IsNullOrEmpty(localStorageKey))
             {
                 await LocalStorage.RemoveItemAsync(localStorageKey);
+            }
+
+            // Remove NavBarSettings from local storage
+            if (!string.IsNullOrEmpty(navBarLocalStorageKey))
+            {
+                await LocalStorage.RemoveItemAsync(navBarLocalStorageKey);
             }
 
             // Update authentication state to anonymous
@@ -88,6 +129,11 @@
             Console.WriteLine($"Logout error: {ex.Message}");
             Navigation.NavigateTo("/", forceLoad: true);
         }
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }
 
@@ -167,6 +213,7 @@
                                             <span class="material-symbols-rounded text-[48px] text-[var(--md-sys-color-primary-container)]">
                                                 account_circle
                                             </span>
+                                            <h1>Hello World!</h1>
                                         </div>
                                     </div>
 
@@ -200,7 +247,7 @@
                                     <span class="text-base lg:text-sm">Trails</span>
                                 </a>
                             </li>
-                            <li class="max-lg:border-b max-lg:border-[var(--md-sys-color-outline-variant)]">
+                            <li class="max-lg:border-b max-lg:border-[var(--md-sys-color-outline-variant]">
                                 <a href='/trails/discover'
                                    class="@GetNavLinkClass("/trails/discover") lg:block max-lg:flex max-lg:items-center max-lg:px-6 max-lg:py-4
                                           hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
@@ -258,7 +305,7 @@
                                 <!-- Login & Register Buttons -->
                                 <a href="/account/identity/login"
                                    class="block w-full mb-3 px-6 py-3 text-center bg-[var(--md-sys-color-primary)]
-                                          text-[var(--md-sys-color-on-primary)] rounded-full font-medium
+                                          text-[var(--md-sys-color-on-primary] rounded-full font-medium
                                           hover:shadow-elevation-2 transition-shadow"
                                    @onclick="() => isMenuOpen = false">
                                     Login
@@ -336,7 +383,7 @@
 
                                     <!-- Dropdown Header -->
                                     <div class="px-4 py-3 border-b border-[var(--md-sys-color-outline-variant)]">
-                                        <p class="text-sm text-[var(--md-sys-color-on-surface-variant)]">Signed in as</p>
+                                        <p class="text-sm text-[var(--md-sys-color-on-surface-variant]">Signed in as</p>
                                         <p class="text-base font-semibold text-[var(--md-sys-color-on-surface)] truncate">
                                             Hi, @userName
                                         </p>
@@ -354,7 +401,7 @@
                                             Profile
                                         </a>
 
-                                        <a href="/account/settings"
+                                        <a href="/account/identity/settings"
                                            class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
                                                       hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
                                            @onclick="CloseUserMenu">
@@ -368,7 +415,7 @@
 
                                         <button @onclick="HandleLogout"
                                                 class="w-full flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-error)]
-                                                           hover:bg-[var(--md-sys-color-error-container)] transition-colors text-left rounded-b-xl">
+                                                           hover:bg-[var(--md-sys-color-error-container] transition-colors text-left rounded-b-xl">
                                             <span class="material-symbols-rounded text-[20px] mr-3">
                                                 logout
                                             </span>

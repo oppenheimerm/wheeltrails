@@ -1,38 +1,37 @@
-﻿@inject IAccountService AccountService
-@inject AuthenticationStateProvider AuthStateProvider
-@inject NavigationManager NavigationManager
+﻿@page "/account/identity/login"
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Linq.Expressions
 @using WT.Application.Extensions
-
-@page "/account/identity/login"
+@inject IAccountService AccountService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JS
 
 <PageTitle>WheelyTrails - Login</PageTitle>
 
 @code {
     private LoginDTO ModelDTO { get; set; } = new();
     private EditContext? editContext;
+    private ValidationMessageStore? messageStore;
 
     private bool isSubmitting = false;
     private string? errorMessage;
-    private ValidationMessageStore? messageStore;
 
+    // Password visibility state (used to render the correct icon)
+    private bool isPasswordVisible = false;
 
     protected override void OnInitialized()
     {
         editContext = new EditContext(ModelDTO);
+        messageStore = new ValidationMessageStore(editContext);
 
-        // Add debug logging to verify initialization
+        // Debug logging (safe for dev)
         Console.WriteLine("Login page initialized");
     }
 
     private async Task HandleValidSubmit()
     {
-        Console.WriteLine("✅ HandleValidSubmit CALLED!");
-        Console.WriteLine($"Email: {ModelDTO.Email}");
-        Console.WriteLine($"Password length: {ModelDTO.Password?.Length ?? 0}");
-
         if (isSubmitting) return;
 
         try
@@ -43,27 +42,17 @@
 
             var response = await AccountService.LoginAsync(ModelDTO);
 
-            Console.WriteLine($"Response received. Success: {response.Success}");
-
             if (response.Success)
             {
-                Console.WriteLine("🔐 Updating authentication state...");
-                
                 var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
                 await customAuthStateProvider.UpdateAuthenticatedState(response);
-                
-                // ✅ Verify it was saved
-                var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-                Console.WriteLine($"✅ Auth state after update - IsAuthenticated: {authState.User.Identity?.IsAuthenticated}");
-                
-                // We set forceLoad to false to avoid a full page reload
-                // because the authentication state has already been updated
+                await AccountService.SetNavBarAuthDataAsync();
+
                 NavigationManager.NavigateTo("/", forceLoad: false);
             }
             else
             {
                 errorMessage = response.Message;
-                Console.WriteLine($"Login failed: {errorMessage}");
 
                 if (editContext != null && messageStore != null)
                 {
@@ -75,35 +64,23 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"❌ Exception: {ex.Message}");
-            Console.WriteLine($"Stack trace: {ex.StackTrace}");
-            errorMessage = $"Error: {ex.Message}";
+            Console.WriteLine($"Login exception: {ex}");
+            errorMessage = "An unexpected error occurred. Please try again later.";
         }
-        finally 
+        finally
         {
             isSubmitting = false;
         }
     }
 
-
     private void HandleInvalidSubmit()
     {
-        Console.WriteLine("❌ HandleInvalidSubmit called - form has validation errors");
-
-        if (editContext != null)
-        {
-            var errors = editContext.GetValidationMessages();
-            foreach (var error in errors)
-            {
-                Console.WriteLine($"  - {error}");
-            }
-        }
+        Console.WriteLine("HandleInvalidSubmit called - form invalid");
     }
 
     private bool HasValidationErrors(Expression<Func<string?>> accessor)
     {
         if (editContext == null) return false;
-
         var fieldIdentifier = FieldIdentifier.Create(accessor);
         return editContext.GetValidationMessages(fieldIdentifier).Any();
     }
@@ -112,140 +89,176 @@
     {
         return HasValidationErrors(accessor) ? "wt-form-input-error" : "wt-form-input";
     }
+
+    // Invoked from the UI to toggle the password input type via JS interop.
+    private async Task TogglePasswordVisibility()
+    {
+        try
+        {
+            // Element id for the password input in the markup
+            var elementId = "password";
+            // Call the JS function we added to themeManager
+            var result = await JS.InvokeAsync<bool>("themeManager.togglePasswordVisibility", elementId);
+            isPasswordVisible = result;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"TogglePasswordVisibility error: {ex}");
+        }
+    }
 }
+<!-- Page layout: respect Top App Bar offset (pt-16), Material 3 color tokens and Tailwind utilities -->
+<div class="min-h-screen pt-16 bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]">
+    <div class="max-w-6xl mx-auto px-4 py-12">
+        <div class="grid md:grid-cols-2 gap-8 items-center">
 
+            <!-- Illustration / image (hidden on small screens) -->
+            <div class="hidden md:block rounded-xl overflow-hidden shadow-elevation-2">
+                <img src="https://readymadeui.com/image-3.webp"
+                     alt="Outdoor trails"
+                     class="w-full h-[520px] object-cover bg-[var(--md-sys-color-surface-container-lowest)]" />
+            </div>
 
-<div class="mt-[96.8px]">
-    <div class="grid lg:grid-cols-2 md:grid-cols-2 items-center gap-4 bg-harp-200 dark:bg-harp-950">
-        <!--lhs side background image -->
-        <div class="max-md:order-1 h-screen min-h-full">
-            <img src="https://readymadeui.com/image-3.webp" class="w-full h-full object-cover" alt="login-image" />
-        </div>
+            <!-- Form card -->
+            <div class="w-full max-w-xl mx-auto">
+                <div class="bg-[var(--md-sys-color-surface-container-lowest)] dark:bg-[var(--md-sys-color-surface)] rounded-xl shadow-elevation-2 p-8">
+                    <EditForm EditContext="editContext" OnValidSubmit="HandleValidSubmit" OnInvalidSubmit="HandleInvalidSubmit">
+                        <DataAnnotationsValidator />
 
-        <!-- rhs form-->
-        <div class="max-w-xl w-full p-6 mx-auto text-wt-black-950 dark:text-white">
-            <!-- The use of property Model and EditContext are mutually exclusive.  You can only use
-                one or the other not both, as the form will not render in the browser
-            -->
-            <EditForm OnValidSubmit="HandleValidSubmit"
-                      OnInvalidSubmit="HandleInvalidSubmit"
-                      EditContext="editContext">
-                <DataAnnotationsValidator />
+                        <!-- Error banner -->
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">
+                                @errorMessage
+                            </div>
+                        }
 
-                <!-- Error Display -->
-                @if (!string.IsNullOrEmpty(errorMessage))
-                {
-                    <div class="mb-4 p-3 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 rounded">
-                        @errorMessage
-                    </div>
-                }
+                        <div class="mb-8">
+                            <h1 class="text-3xl font-semibold text-[var(--md-sys-color-on-surface)]">Sign in</h1>
+                            <p class="mt-2 text-sm text-[var(--md-sys-color-on-surface-variant)]">
+                                Don't have an account?
+                                <a href="/account/identity/register" class="wt-link">Register here</a>
+                            </p>
+                        </div>
 
-                <div class="mb-12">
-                    <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white">Sign in</h1>
-                    <p class="text-base mt-6 font-medium">Don't have an account <a href="/account/identity/register" class="wt-link">Register here</a></p>
-                </div>
+                        <div class="space-y-6">
+                            <div>
+                                <label class="wt-form-lbl" for="email">Email</label>
+                                <div class="relative">
+                                    <InputText id="email"
+                                               class="@GetInputClass(() => ModelDTO.Email)"
+                                               placeholder="Email address"
+                                               @bind-Value="ModelDTO.Email" />
+                                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                                        <span class="material-symbols-rounded text-[18px] text-[var(--md-sys-color-on-surface-variant)]">mail</span>
+                                    </div>
+                                </div>
+                                <ValidationMessage For="@(() => ModelDTO.Email)" class="wt-form-error-msg" />
+                            </div>
 
-                <div class="space-y-6">
-                    <div>
-                        <label class="wt-form-lbl" for="email">Email</label>
-                        <div class="relative flex items-center">
-                            <InputText @bind-Value="ModelDTO.Email"
-                                       id="email"
-                                       class="@GetInputClass(() => ModelDTO.Email)"
-                                       placeholder="Email address" />
+                            <div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="wt-form-lbl" for="password">Password</label>
+                                    <a href="/account/identity/forgot-password"
+                                       class="text-sm font-medium text-[var(--md-sys-color-primary)] hover:underline">
+                                        Forgot Password?
+                                    </a>
+                                </div>
 
-                            <!-- icon wrap -->
-                            <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    mail
-                                </span>
+                                <div class="relative">
+                                    <!-- keep id="password" so JS can find it -->
+                                    <!-- 
+                                        Razor treats text after @GetInputClass(...) as code unless the expression is 
+                                        wrapped. The safe, idiomatic:
+                                        @($"{GetInputClass(() => ModelDTO.Password)} pr-10")
+                                    -->
+                                    <InputText id="password"
+                                               type="password"                                               
+                                               class="@($"{GetInputClass(() => ModelDTO.Password)} pr-10")"
+                                               placeholder="Enter password"
+                                               @bind-Value="ModelDTO.Password" />
+
+                                    <!-- Show/Hide toggle button (calls JS interop) -->
+                                    <button type="button"
+                                            @onclick="TogglePasswordVisibility"
+                                            class="absolute inset-y-0 right-0 pr-2 flex items-center text-[var(--md-sys-color-on-surface-variant)]
+                                                   bg-transparent rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--md-sys-color-primary)]"
+                                            aria-label="Toggle password visibility">
+                                        <span class="material-symbols-rounded text-[18px]">
+                                            @(isPasswordVisible ? "visibility_off" : "visibility")
+                                        </span>
+                                    </button>
+                                </div>
+                                <ValidationMessage For="@(() => ModelDTO.Password)" class="wt-form-error-msg" />
                             </div>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.Email)" class="wt-form-error-msg" />
-                    </div>
 
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <label class="wt-form-lbl" for="password">Password</label>
-                            <a href="/account/identity/forgot-password" 
-                               class="text-sm font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline">
-                                Forgot Password?
-                            </a>
+                        <div class="mt-8">
+                            <button type="submit"
+                                    class="w-full py-3 px-4 rounded-full text-[var(--md-sys-color-on-primary)] bg-[var(--md-sys-color-primary)]
+                                           shadow-elevation-2 hover:shadow-elevation-3 transition transform active:scale-[.995]
+                                           focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--md-sys-color-primary)]"
+                                    disabled="@isSubmitting">
+                                @(isSubmitting ? "Signing in..." : "Sign in")
+                            </button>
                         </div>
-                        <div class="relative flex items-center">
-                            <InputText @bind-Value="ModelDTO.Password"
-                                       type="password"
-                                       id="password"
-                                       class="@GetInputClass(() => ModelDTO.Password)"
-                                       placeholder="Enter password" />
 
-                            <!-- icon wrap -->
-                            <div class="w-[18px] h-[18px] absolute right-2 pointer-events-none">
-                                <span class="material-symbols-rounded text-[18px]">
-                                    visibility
+                        <!-- Social providers -->
+                        <div class="my-6 flex items-center gap-4">
+                            <hr class="flex-1 border-[var(--md-sys-color-outline)]" />
+                            <p class="text-sm text-[var(--md-sys-color-on-surface-variant)]">or</p>
+                            <hr class="flex-1 border-[var(--md-sys-color-outline)]" />
+                        </div>
+
+                        <div class="grid gap-3">
+                            <button type="button" class="wt-btn-outline-social">
+                                <span class="inline-flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" viewBox="0 0 512 512" aria-hidden="true">
+                                        <path fill="#fbbd00"
+                                              d="M120 256c0-25.367 6.989-49.13 19.131-69.477v-86.308H52.823C18.568 144.703 0 198.922 0 256s18.568 111.297 52.823 155.785h86.308v-86.308C126.989 305.13 120 281.367 120 256z"
+                                              data-original="#fbbd00" />
+                                        <path fill="#0f9d58"
+                                              d="m256 392-60 60 60 60c57.079 0 111.297-18.568 155.785-52.823v-86.216h-86.216C305.044 385.147 281.181 392 256 392z"
+                                              data-original="#0f9d58" />
+                                        <path fill="#31aa52"
+                                              d="m139.131 325.477-86.308 86.308a260.085 260.085 0 0 0 22.158 25.235C123.333 485.371 187.62 512 256 512V392c-49.624 0-93.117-26.72-116.869-66.523z"
+                                              data-original="#31aa52" />
+                                        <path fill="#3c79e6"
+                                              d="M512 256a258.24 258.24 0 0 0-4.192-46.377l-2.251-12.299H256v120h121.452a135.385 135.385 0 0 1-51.884 55.638l86.216 86.216a260.085 260.085 0 0 0 25.235-22.158C485.371 388.667 512 324.38 512 256z"
+                                              data-original="#3c79e6" />
+                                        <path fill="#cf2d48"
+                                              d="m352.167 159.833 10.606 10.606 84.853-84.852-10.606-10.606C388.668 26.629 324.381 0 256 0l-60 60 60 60c36.326 0 70.479 14.146 96.167 39.833z"
+                                              data-original="#cf2d48" />
+                                        <path fill="#eb4132"
+                                              d="M256 120V0C187.62 0 123.333 26.629 74.98 74.98a259.849 259.849 0 0 0-22.158 25.235l86.308 86.308C162.883 146.72 206.376 120 256 120z"
+                                              data-original="#eb4132" />
+                                    </svg>
+                                    Continue with Google
                                 </span>
-                            </div>
+                            </button>
+
+                            <button type="button" class="wt-btn-outline-social">
+                                <span class="inline-flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" viewBox="0 0 22.773 22.773" aria-hidden="true">
+                                        <path d="M15.769 0h.162c.13 1.606-.483 2.806-1.228 3.675-.731.863-1.732 1.7-3.351 1.573-.108-1.583.506-2.694 1.25-3.561C13.292.879 14.557.16 15.769 0zm4.901 16.716v.045c-.455 1.378-1.104 2.559-1.896 3.655-.723.995-1.609 2.334-3.191 2.334-1.367 0-2.275-.879-3.676-.903-1.482-.024-2.297.735-3.652.926h-.462c-.995-.144-1.798-.932-2.383-1.642-1.725-2.098-3.058-4.808-3.306-8.276v-1.019c.105-2.482 1.311-4.5 2.914-5.478.846-.52 2.009-.963 3.304-.765.555.086 1.122.276 1.619.464.471.181 1.06.502 1.618.485.378-.011.754-.208 1.135-.347 1.116-.403 2.21-.865 3.652-.648 1.733.262 2.963 1.032 3.723 2.22-1.466.933-2.625 2.339-2.427 4.74.176 2.181 1.444 3.457 3.028 4.209z" data-original="#000000"></path>
+                                </svg>
+                                    Continue with Apple
+                                </span>
+                            </button>
+
+                            <button type="button" class="wt-btn-outline-social">
+                                <span class="inline-flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" viewBox="0 0 167.657 167.657" aria-hidden="true">
+                                        <path d="M83.829.349C37.532.349 0 37.881 0 84.178c0 41.523 30.222 75.911 69.848 82.57v-65.081H49.626v-23.42h20.222V60.978c0-20.037 12.238-30.956 30.115-30.956 8.562 0 15.92.638 18.056.919v20.944l-12.399.006c-9.72 0-11.594 4.618-11.594 11.397v14.947h23.193l-3.025 23.42H94.026v65.653c41.476-5.048 73.631-40.312 73.631-83.154 0-46.273-37.532-83.805-83.828-83.805z" data-original="#010002"></path>
+                                    </svg>
+                                    Continue with Facebook
+                                </span>
+                            </button>
                         </div>
-                        <ValidationMessage For="@(() => ModelDTO.Password)" class="wt-form-error-msg" />
-                    </div>
+                    </EditForm>
                 </div>
-
-                <div class="mt-12">
-                    <button type="submit" class="w-full py-2 px-4 text-[15px] font-medium tracking-wide rounded-md 
-                        text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer" 
-                        disabled="@isSubmitting">
-                        @(isSubmitting ? "Signing in..." : "Sign in")
-                    </button>
-                </div>
-
-                <!-- Social login -->
-
-                <div class="my-4 flex items-center gap-4">
-                    <hr class="w-full border-slate-300 dark:border-slate-600" />
-                    <p class="text-sm text-slate-900 dark:text-white text-center">or</p>
-                    <hr class="w-full border-slate-300 dark:border-slate-600" />
-                </div>
-                
-
-                <button type="button" class="wt-btn-outline-social">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" class="inline" viewBox="0 0 512 512">
-                        <path fill="#fbbd00"
-                              d="M120 256c0-25.367 6.989-49.13 19.131-69.477v-86.308H52.823C18.568 144.703 0 198.922 0 256s18.568 111.297 52.823 155.785h86.308v-86.308C126.989 305.13 120 281.367 120 256z"
-                              data-original="#fbbd00" />
-                        <path fill="#0f9d58"
-                              d="m256 392-60 60 60 60c57.079 0 111.297-18.568 155.785-52.823v-86.216h-86.216C305.044 385.147 281.181 392 256 392z"
-                              data-original="#0f9d58" />
-                        <path fill="#31aa52"
-                              d="m139.131 325.477-86.308 86.308a260.085 260.085 0 0 0 22.158 25.235C123.333 485.371 187.62 512 256 512V392c-49.624 0-93.117-26.72-116.869-66.523z"
-                              data-original="#31aa52" />
-                        <path fill="#3c79e6"
-                              d="M512 256a258.24 258.24 0 0 0-4.192-46.377l-2.251-12.299H256v120h121.452a135.385 135.385 0 0 1-51.884 55.638l86.216 86.216a260.085 260.085 0 0 0 25.235-22.158C485.371 388.667 512 324.38 512 256z"
-                              data-original="#3c79e6" />
-                        <path fill="#cf2d48"
-                              d="m352.167 159.833 10.606 10.606 84.853-84.852-10.606-10.606C388.668 26.629 324.381 0 256 0l-60 60 60 60c36.326 0 70.479 14.146 96.167 39.833z"
-                              data-original="#cf2d48" />
-                        <path fill="#eb4132"
-                              d="M256 120V0C187.62 0 123.333 26.629 74.98 74.98a259.849 259.849 0 0 0-22.158 25.235l86.308 86.308C162.883 146.72 206.376 120 256 120z"
-                              data-original="#eb4132" />
-                    </svg>
-                    Continue with google
-                </button>
-
-                <button type="button" class="wt-btn-outline-social">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" fill="#000" viewBox="0 0 22.773 22.773">
-                        <path d="M15.769 0h.162c.13 1.606-.483 2.806-1.228 3.675-.731.863-1.732 1.7-3.351 1.573-.108-1.583.506-2.694 1.25-3.561C13.292.879 14.557.16 15.769 0zm4.901 16.716v.045c-.455 1.378-1.104 2.559-1.896 3.655-.723.995-1.609 2.334-3.191 2.334-1.367 0-2.275-.879-3.676-.903-1.482-.024-2.297.735-3.652.926h-.462c-.995-.144-1.798-.932-2.383-1.642-1.725-2.098-3.058-4.808-3.306-8.276v-1.019c.105-2.482 1.311-4.5 2.914-5.478.846-.52 2.009-.963 3.304-.765.555.086 1.122.276 1.619.464.471.181 1.06.502 1.618.485.378-.011.754-.208 1.135-.347 1.116-.403 2.21-.865 3.652-.648 1.733.262 2.963 1.032 3.723 2.22-1.466.933-2.625 2.339-2.427 4.74.176 2.181 1.444 3.457 3.028 4.209z" data-original="#000000"></path>
-                    </svg>
-                    Continue with Apple
-                </button>
-
-                <button type="button" class="wt-btn-outline-social">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20px" fill="#007bff" viewBox="0 0 167.657 167.657">
-                        <path d="M83.829.349C37.532.349 0 37.881 0 84.178c0 41.523 30.222 75.911 69.848 82.57v-65.081H49.626v-23.42h20.222V60.978c0-20.037 12.238-30.956 30.115-30.956 8.562 0 15.92.638 18.056.919v20.944l-12.399.006c-9.72 0-11.594 4.618-11.594 11.397v14.947h23.193l-3.025 23.42H94.026v65.653c41.476-5.048 73.631-40.312 73.631-83.154 0-46.273-37.532-83.805-83.828-83.805z" data-original="#010002"></path>
-                    </svg>
-                    Continue with Facebook
-                </button>
-
-            </EditForm>
+            </div>
         </div>
     </div>
 </div>
