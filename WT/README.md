@@ -36,6 +36,7 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 - Theme and contrast:
  - Dark mode toggle persists via `localStorage`. Contrast selector remains in the UI but is non-destructive until `themeManager.setContrast` + contrast CSS files are implemented.
 - Other: Application Insights integration and health check endpoints added for monitoring.
+- Profile photo UX: Settings now shows the user's profile photo (or a `Material account_circleMaterial account_circle` fallback) with a ***"Change Photo"*** button that navigates to `/account/identity/upload-photo`. Uploaded profile photos are saved to Firebase and the client stores a small navbar DTO in localStorage under the key configured by `ApplicationSettings:NavBarSettings` for fast navbar rendering.
 
 For full component and implementation notes see the design system: `Design-Notes.md` (updated to v1.3).
 
@@ -451,6 +452,10 @@ The API now uses an in-memory cache for lightweight, per-user navbar data (displ
  - Log cache hits, misses, and invalidations at debug/trace level for troubleshooting.
  - Avoid logging entire cached DTOs containing PII.
 
+- NavBar render fix: 
+ - `NavBar.razor` now awaits `ApplyAuthState(...)` in `OnInitializedAsync` and the method calls:
+	- `await InvokeAsync(StateHasChanged);` This ensures async-loaded ***userProfilePicture*** is applied to the UI before the first meaningful render so the avatar appears immediately.
+
 - Example flow (current implementation)
 1. `GET api/account/identity/navbar-info` checks `IMemoryCache` for `navbarinfo:{userId}`.
 2. If cache hit → return cached `APIResponseViewAccountSettings`.
@@ -506,7 +511,11 @@ This flow is implemented in `API.Controllers.AccountController.UploadProfilePict
 
 > **Why?** Blazor WASM runs entirely in the browser. All files in `wwwroot` are downloaded to the client and can be inspected using browser DevTools. User Secrets only work for server-side .NET projects.
 
-
+##### Local Storage Guidence ✨ NEW
+The client uses `ApplicationSettings:NavBarSettings` (configured in `wwwroot/appsettings.json`) to 
+persist a small navbar DTO that contains UserPhoto. The NavBar reads 
+this value at startup; call `AccountService.SetNavBarAuthDataAsync()` 
+after profile changes to refresh the stored DTO.
 
 ### Privacy Protection ✨ NEW
 

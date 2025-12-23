@@ -190,7 +190,7 @@ namespace API.Controllers
         }
 
         // method to reset password for authenticated users
-        [HttpPost("reset-password-authenticated")]
+        [HttpPost("identity/reset-password-authenticated")]
         [Authorize]
         public async Task<IActionResult> AuthenticatedResetPassword([FromBody] AuthenticatedResetPasswordDTO model)
         {

@@ -3,6 +3,9 @@
 @inject IAccountService AccountService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavigationManager
+@inject IConfiguration Configuration
+@using Blazored.LocalStorage
+@inject ILocalStorageService LocalStorage
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -24,6 +27,9 @@
     private string? errorMessage;
     private string? successMessage;
     private List<CountryCode> countryCodes = [];
+
+    // New: profile photo url loaded from local storage (NavBarSettings)
+    private string? profilePhotoUrl;
 
     protected override async Task OnInitializedAsync()
     {
@@ -80,6 +86,23 @@
                 //NavigationManager.NavigateTo("/account/identity/login", true);
             }
 
+            // Load profile photo from local storage (NavBarSettings)
+            try
+            {
+                var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+                if (!string.IsNullOrEmpty(navBarLocalStorageKey))
+                {
+                    // Ensure navbar auth data is refreshed (same approach as NavBar)
+                    await AccountService.SetNavBarAuthDataAsync();
+
+                    var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+                    profilePhotoUrl = navBarAuthData?.UserPhoto;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed to load profile photo from local storage: {ex.Message}");
+            }
 
             editContext = new EditContext(ModelDTO);
         }
@@ -165,6 +188,12 @@
         if (date == null) return "Unknown";
         return date.Value.ToString("MMMM yyyy");
     }
+
+    // Navigation helper for change photo button
+    private void GoToUploadPhoto()
+    {
+        NavigationManager.NavigateTo("/account/identity/upload-photo");
+    }
 }
 
 <div class="mt-[96.8px] min-h-screen bg-harp-50 dark:bg-harp-950">
@@ -189,6 +218,34 @@
                 <h1 class="text-4xl font-bold text-wt-black-900 dark:text-white mb-2">Account Settings</h1>
                 <p class="text-gray-600 dark:text-gray-400">Manage your account information and preferences</p>
             </div>
+
+            <!-- Profile Photo & Action (outside EditForm) -->
+            <AuthorizeView>
+                <Authorized>
+                    <div class="mb-6 flex items-center gap-6">
+                        <div>
+                            @if (!string.IsNullOrEmpty(profilePhotoUrl))
+                            {
+                                <img src="@profilePhotoUrl" alt="Profile photo" class="w-28 h-28 rounded-full object-cover border-4 border-[var(--md-sys-color-outline-variant)] shadow-elevation-2" />
+                            }
+                            else
+                            {
+                                <div class="w-28 h-28 rounded-full bg-harp-100 dark:bg-harp-900 flex items-center justify-center text-gray-400 border-2">
+                                    <span class="material-symbols-rounded text-5xl">account_circle</span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="flex flex-col">
+                            <button @onclick="GoToUploadPhoto" class="wt-btn-primary flex items-center gap-2">
+                                <span class="material-symbols-rounded">photo_camera</span>
+                                <span>Change Photo</span>
+                            </button>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Accepted formats: .jpg, .png, .svg —200×200px recommended. Max3 MB.</p>
+                        </div>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
 
             <!-- Success/Error Messages -->
             @if (!string.IsNullOrEmpty(successMessage))
@@ -374,7 +431,7 @@
 
             <!-- Additional Settings Links -->
             <div class="mt-8 grid md:grid-cols-3 gap-4">
-                <a href="/account/identity/reset-password" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
+                <a href="/account/identity/change-password" class="block p-6 bg-white dark:bg-harp-900 rounded-xl shadow-md hover:shadow-lg transition-shadow">
                     <div class="flex items-start">
                         <span class="material-symbols-rounded text-[32px] text-harp-600 dark:text-harp-400 mr-4">lock</span>
                         <div>
