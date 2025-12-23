@@ -399,7 +399,7 @@ namespace WT.Application.Services
 
                     try
                     {
-                        response = await _httpClient.PostAsJsonAsync("api/account/authenticated-reset-password", model);
+                        response = await _httpClient.PostAsJsonAsync("api/account/identity/reset-password-authenticated", model);
                         Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
                         LogException.LogToConsole($"📡 Response status in AuthenticatedResetPasswordAsync (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
 

@@ -47,7 +47,8 @@
     {
         // initial populate
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        ApplyAuthState(authState.User);
+        // Make sure to await ApplyAuthState, so profile data is loaded before rendering
+        await ApplyAuthState(authState.User); // Awaiting here to ensure data is loaded before rendering
 
         // subscribe to changes
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
@@ -66,11 +67,10 @@
             // Get nav bar auth data from local storage
             var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
             var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+            Console.WriteLine("✅ LocalStorage.GetItemAsync CALLED!");
+            Console.WriteLine($"Navbar Profile picture: {navBarAuthData?.UserPhoto}");
             userProfilePicture = navBarAuthData?.UserPhoto ?? "https://i.pravatar.cc/300";
-            //  Set our propert UserProfilePicture from AuthenticatedLocalStorageDTO.UserPhoto, 
-            // Get LocalStorage Profile Picture URL
-            //BaseService.CheckIfUnauthorized
-            //userProfilePicture = user.FindFirst("profile_picture")?.Value ?? "https://i.pravatar.cc/300";
+ 
         }
         else
         {
@@ -78,6 +78,9 @@
             userTitle = null;
             userProfilePicture = null;
         }
+
+        // Ensure any async data updates trigger a UI re-render on the Blazor UI thread
+        await InvokeAsync(StateHasChanged);
     }
 
     private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
@@ -137,7 +140,7 @@
     }
 }
 
-<!-- ✨ Material Design 3 Top App Bar (Fixed Header) -->
+<!-- ✨ Material Design3 Top App Bar (Fixed Header) -->
 <div class="bg-[var(--md-sys-color-surface-container)] fixed w-full z-20 top-0 start-0 border-b border-[var(--md-sys-color-outline-variant)] shadow-elevation-2">
     <header class="flex py-4 px-4 sm:px-10 min-h-[64px] tracking-wide relative z-50
                backdrop-blur-sm bg-[color:var(--md-sys-color-surface-container)/0.9]
@@ -185,7 +188,7 @@
                                 <div class="flex flex-col items-center text-center">
                                     <!-- Profile Image -->
                                     <div class="mb-4">
-                                        <img src="@(userProfilePicture ?? "https://i.pravatar.cc/300")"
+                                        <img id="navbar-profile-image" src="@(userProfilePicture ?? "https://i.pravatar.cc/300")"
                                              alt="@userName profile picture"
                                              class="w-24 h-24 rounded-full border-4 border-[var(--md-sys-color-on-primary-container)]
                                                     object-cover shadow-elevation-2" />
@@ -359,7 +362,7 @@
                                     aria-expanded="@isUserMenuOpen">
                                 @if (!string.IsNullOrEmpty(userProfilePicture))
                                 {
-                                    <img src="@userProfilePicture"
+                                    <img id="navabr-dd-profile-image" src="@userProfilePicture"
                                          alt="@userName profile picture"
                                          class="w-10 h-10 rounded-full border-2 border-[var(--md-sys-color-primary)]
                                                     object-cover hover:border-[var(--md-sys-color-on-primary-container)]
