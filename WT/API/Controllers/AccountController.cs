@@ -349,65 +349,6 @@ namespace API.Controllers
             }
         }
 
-        /*[HttpPost("set-username")]
-        [Authorize] // Must be logged in
-        public async Task<IActionResult> SetUsername(
-            [FromBody] SetUsernameDTO model,
-            [FromServices] IUsernameValidator usernameValidator)
-        {
-            try
-            {
-                // Get current user
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
-                {
-                    return Unauthorized();
-                }
-
-                var user = await _userManager.FindByIdAsync(userId);
-                if (user == null)
-                {
-                    return NotFound(new { success = false, message = "User not found" });
-                }
-
-
-                // Validate username
-                if (!usernameValidator.IsUsernameAllowed(model.Username))
-                {
-                    var reason = usernameValidator.GetRejectionReason(model.Username);
-                    return BadRequest(new { success = false, message = reason ?? "Invalid username" });
-                }
-
-                // Check if username is already taken
-                var existingUser = await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == model.Username);
-                if (existingUser != null)
-                {
-                    return BadRequest(new { success = false, message = "Username is already taken" });
-                }
-
-                // Set username (one-time only)
-                user.Username = model.Username;
-                user.UsernameIsSet = true;
-
-                var result = await _userManager.UpdateAsync(user);
-
-                if (result.Succeeded)
-                {
-                    LogException.LogToFile($"Username set for user {user.Email}: {model.Username} at {DateTime.UtcNow}");
-                    return Ok(new { success = true, message = "Username set successfully", username = user.Username });
-                }
-                else
-                {
-                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
-                    return BadRequest(new { success = false, message = $"Failed to set username: {errors}" });
-                }
-            }
-            catch (Exception ex)
-            {
-                LogException.LogExceptions(ex);
-                return StatusCode(500, new { success = false, message = "An error occurred while setting username" });
-            }
-        }*/
 
         /// <summary>
         /// Check if a profile username is available
@@ -428,31 +369,56 @@ namespace API.Controllers
         }
 
         /// <summary>
-        /// Get user profile by ProfileUsername (for profile URLs)
+        /// Get user profile by ProfileUsername (for profile URLs).  This is public info metadata. To
+        /// keep the response ligth, we only return profile meta + counts (i.e. follower count, trail count, etc).
+        /// The user's navigation properties (e.g., Trails, Comments) will be handled in other endpoints as needed.
         /// </summary>
         [HttpGet("user/{profileUsername}")]
         [AllowAnonymous]
-        public async Task<IActionResult> GetUserByProfileUsername(string profileUsername)
+        public async Task<IActionResult> GetUserByProfileUsername(string profileUsername, CancellationToken cancellationToken)
         {
-            // ✅ Call IAccountRepository method
-            var user = await _accountRepository.FindUserByProfileUsernameAsync(profileUsername);
-            
-            if (user == null || user.IsDeleted)
+            try 
+            { 
+                // Cancellation token: prefer the explicit token from the client, but also observe HttpContext.RequestAborted
+                var ct = cancellationToken.CanBeCanceled ? cancellationToken : HttpContext.RequestAborted;
+
+                // ✅ Call IAccountRepository method
+                var user = await _accountRepository.GetUserProfileByUsernameAsync(profileUsername, ct);
+
+                if (user == null)
+                {
+                    return NotFound(new BaseAPIResponseDTO { Success = false, Message = "User not found" });
+                }
+
+                if (user.FailuerCode.HasValue)
+                {
+                    if (user.FailuerCode == 404)
+                    {
+                        return NotFound(new BaseAPIResponseDTO { Success = false, Message = "User not found" });
+                    }
+                }
+
+                // handle operations cancellation
+                if (user.FailuerCode.HasValue) {
+                    if (user.FailuerCode == 499)
+                    {
+                        return StatusCode(499, new BaseAPIResponseDTO { Success = false, Message = "Request canceled" });
+                    }
+                }
+
+                return Ok(user);
+
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                return NotFound(new BaseAPIResponseDTO { Success = false, Message = "User not found" });
+                return StatusCode(499, new BaseAPIResponseDTO { Success = false, Message = "Request canceled" });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new BaseAPIResponseDTO { Success = false, Message = "An error occurred while retrieving user profile" });
             }
 
-            var userDto = new ApplicationUserDTO
-            {
-                Id = user.Id,
-                FirstName = user.FirstName,
-                ProfileUsername = user.ProfileUsername,
-                Bio = user.Bio,
-                ProfilePicture = user.ProfilePicture,
-                RegistrationDate = user.ProfileUsernameCreatedAt
-            };
-
-            return Ok(new { Success = true, User = userDto });
         }
 
         /// <summary>

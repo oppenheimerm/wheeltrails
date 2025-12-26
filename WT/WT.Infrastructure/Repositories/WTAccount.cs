@@ -1253,6 +1253,98 @@ namespace WT.Infrastructure.Repositories
             return user;
         }
 
+        
+
+        /// <summary>
+        /// Method to get a public user profile by profile username.  Only public info is returned.
+        /// We also handle cancellation tokens to abort processing if client disconnects.
+        /// </summary>
+        /// <param name="profileUsername"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<APIResponsePublicViewProfile?> GetUserProfileByUsernameAsync(string profileUsername, CancellationToken cancellationToken)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(profileUsername))
+                {
+                    return new APIResponsePublicViewProfile(false, "Profile username is required", null, null);
+                }
+
+                var normalized = profileUsername.ToLower().Trim();
+
+                // Read-only query for user
+                var user = await dbContext.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.ProfileUsername == normalized, cancellationToken);
+
+                if (user == null || user.IsDeleted)
+                {
+                    return new APIResponsePublicViewProfile(false, "User not found", null, 404);
+                }
+
+                //•	EF Core DbContext does not support multiple concurrent operations on the same context instance.
+                // Start count tasks in parallel - pass cancellationToken so client disconnects are honored
+                /*var trailsCountTask = dbContext.Trails
+                .AsNoTracking()
+                .CountAsync(t => t.UserId == user.Id, cancellationToken);
+
+                var commentsCountTask = dbContext.Comments
+                .AsNoTracking()
+                .CountAsync(c => c.UserId == user.Id, cancellationToken);
+
+                var likesCountTask = dbContext.TrailLikes
+                .AsNoTracking()
+                .CountAsync(l => l.UserId == user.Id, cancellationToken);
+
+                await Task.WhenAll(trailsCountTask, commentsCountTask, likesCountTask);*/
+
+                //  Compute all counts in a single server-side query/projection so EF
+                //  executes one SQL statement:
+
+                var counts = await dbContext.Users
+                    .Where(u => u.Id == user.Id)
+                    .Select(u => new
+                    {
+                        Trails = dbContext.Trails.Count(t => t.UserId == u.Id),
+                        Comments = dbContext.Comments.Count(c => c.UserId == u.Id),
+                        Likes = dbContext.TrailLikes.Count(l => l.UserId == u.Id)
+                    })
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                var trailsCount = counts?.Trails ?? 0;
+                var commentsCount = counts?.Comments ?? 0;
+                var likesCount = counts?.Likes ?? 0;
+
+                var publicProfileDto = new PublicViewProfileDTO
+                {
+                    ProfileUsername = user.ProfileUsername,
+                    FirstName = user.FirstName,
+                    ProfilePicture = user.ProfilePicture,
+                    Bio = user.Bio,
+                    CountryCode = user.CountryCode,
+                    MemberSince = user.ProfileUsernameCreatedAt,
+                    TrailsCount = trailsCount,
+                    CommentsCount = commentsCount,
+                    LikesCount = likesCount
+                };
+
+                var response = new APIResponsePublicViewProfile(true, string.Empty, publicProfileDto, null);
+                return response;
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected or request was cancelled
+                return new APIResponsePublicViewProfile(false, "Request canceled", null, 499);
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new APIResponsePublicViewProfile(false, "Unable to retrieve profile", null, 500);
+            }
+        }
+
         /// <summary>
         /// Check if the profile username is available
         /// </summary>

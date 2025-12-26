@@ -754,6 +754,167 @@ namespace WT.Application.Services
             }
         }
 
+        /// <summary>
+        /// Client side method to view public profile by username.
+        /// </summary>
+        /// <param name="profileUsername"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<APIResponsePublicViewProfile?> ViewProfileByUsernameAsync(string profileUsername, CancellationToken cancellationToken)
+        {
+            const int maxRetries = 3; // For transient errors only
+            int currentAttempt = 0;
+            APIResponsePublicViewProfile? _operationResponse;
+
+            if (string.IsNullOrEmpty(profileUsername))
+            {
+                Console.WriteLine("❌ Profile username is null or empty in ViewProfileByUsernameAsync");
+                return new APIResponsePublicViewProfile
+                {
+                    Success = false,
+                    Message = "Profile username cannot be empty."
+                };
+            }
+
+            try
+            {
+                Console.WriteLine($"🔑 Atempting to retrieve profile metadata for user: {profileUsername} (Attempt 1/{maxRetries})");
+                LogException.LogToConsole($"🔑 Atempting to retrieve profile metadata for user: {profileUsername} (Attempt 1/{maxRetries})");
+
+                HttpResponseMessage? response = null;
+
+                // Retry loop for transient errors
+                while (currentAttempt < maxRetries)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        // ✅ Use relative URL - HttpClient.BaseAddress already set
+                        response = await _httpClient.GetAsync($"/api/account/user/{Uri.EscapeDataString(profileUsername)}");;
+                        Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+                        LogException.LogToConsole($"📡 Response status in ViewProfileByUsernameAsync (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
+
+                        // ✅ SUCCESS - return immediately
+                        if (response.IsSuccessStatusCode)
+                        {
+                            break;
+                        }
+
+                        // ⚠️ SERVER ERROR (5xx) or other transient error - retry with backoff
+                        else if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        {
+                            if (currentAttempt < maxRetries)
+                            {
+                                var delayMs = currentAttempt * 1000; // Progressive backoff: 1s, 2s, 3s
+                                Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
+                                LogException.LogToConsole($"⚠️ Server error {response.StatusCode} in ViewProfileByUsernameAsync, retrying in {delayMs}ms...");
+                                await Task.Delay(delayMs);
+                                continue; // Retry
+                            }
+                            else
+                            {
+                                Console.WriteLine($"❌ Max retries ({maxRetries}) reached for server error");
+                                break; // Exit retry loop
+                            }
+                        }
+                        // ❌ CLIENT ERROR (4xx other than 401) - don't retry
+                        else
+                        {
+                            Console.WriteLine($"❌ Client error {response.StatusCode} - not retrying");
+                            LogException.LogToConsole($"❌ Client error {response.StatusCode} in ViewProfileByUsernameAsync - not retrying.");
+                            break; // Exit retry loop
+                        }
+
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        Console.WriteLine($"⚠️ Network error on attempt {currentAttempt}/{maxRetries}: {ex.Message}");
+                        LogException.LogToConsole($"⚠️ Network error on attempt {currentAttempt}/{maxRetries} in ViewProfileByUsernameAsync: {ex.Message}");
+
+                        if (currentAttempt < maxRetries)
+                        {
+                            var delayMs = currentAttempt * 1000;
+                            Console.WriteLine($"Retrying in {delayMs}ms...");
+                            await Task.Delay(delayMs);
+                            continue; // Retry
+                        }
+                        else
+                        {
+                            Console.WriteLine($"❌ Max retries ({maxRetries}) reached for network error");
+                            LogException.LogToConsole($"❌ Max retries ({maxRetries}) reached for network error in ViewProfileByUsernameAsync.");
+                            return new APIResponsePublicViewProfile
+                            {
+                                Success = false,
+                                Message = "Network error. Please check your connection and try again."
+                            };
+                        }
+                    }
+                }
+
+                // Check final response status
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    var errorContent = response != null
+                        ? await response.Content.ReadAsStringAsync()
+                        : "No response received";
+
+                    Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
+                    LogException.LogToConsole($"❌ Final response failed: {response?.StatusCode}");
+                    Console.WriteLine($"Error details: {errorContent}");
+                    LogException.LogToConsole($"Error details: {errorContent}");
+
+                    return new APIResponsePublicViewProfile
+                    {
+                        Success = false,
+                        Message = $"Unable to retrieve profile at this time. Status: {response?.StatusCode}"
+                    };
+                }
+
+                // Deserialize successful response
+                //_operationResponse = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
+                var result = await response.Content.ReadFromJsonAsync<APIResponsePublicViewProfile>();
+
+                if (result == null)
+                {
+                    Console.WriteLine("❌ Failed to deserialize response");
+                    LogException.LogToConsole("❌ Failed to deserialize response in ViewProfileByUsernameAsync.");
+
+                    return new APIResponsePublicViewProfile
+                    {
+                        Success = false,
+                        Message = "Failed to process server response"
+                    };
+                }
+
+
+                Console.WriteLine($"✅ Profile for user: {profileUsername} retrieved successfully, (took {currentAttempt} attempt(s))");
+                LogException.LogToConsole("✅ Profile for user: {profileUsername} retrieved successfully.");
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                // Client disconnected or request was cancelled
+                Console.WriteLine("⚠️ Operation cancelled in ViewProfileByUsernameAsync");
+                return new APIResponsePublicViewProfile
+                {
+                    Success = false,
+                    Message = "The operation was cancelled."
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 Unexpected exception in ViewProfileByUsernameAsync: {ex.Message}");
+                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                LogException.LogExceptions(ex);
+                return new APIResponsePublicViewProfile
+                {
+                    Success = false,
+                    Message = "An unexpected error occurred. Please try again later."
+                };
+            }
+        }
+
         public async Task<bool> IsProfileUsernameAvailableAsync(string profileUsername)
         {
             try
@@ -1016,8 +1177,8 @@ namespace WT.Application.Services
                     };
                 }
 
-                Console.WriteLine($"✅ Password reset successfully, (took {currentAttempt} attempt(s))");
-                LogException.LogToConsole("✅ Password reset successfully.");
+                Console.WriteLine($"✅ Updated profile picture for user: {authLocalStorageDTO.ProfileUsername} successfully, (took {currentAttempt} attempt(s))");
+                LogException.LogToConsole("✅ Updated profile picture for user: {authLocalStorageDTO.ProfileUsername} successfully, (took {currentAttempt} attempt(s))");
                 return result;
 
             }

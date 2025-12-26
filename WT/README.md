@@ -17,8 +17,13 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
-## 🔄 Latest updates (v1.3 — Dec18,2025)
+## 🔄 Latest updates (v1.3 — Dec26,2025)
 
+- New public profile endpoint: `GET api/account/user/{profileUsername}` returns `APIResponsePublicViewProfile` (lightweight public profile DTO).
+- Server: `WTAccount.GetUserProfileByUsernameAsync(string profileUsername, CancellationToken ct)` added — returns `PublicViewProfileDTO` + counts, honors cancellation tokens.
+- Client: `IAccountService.ViewProfileByUsernameAsync(string profileUsername, CancellationToken ct)` added; `WT.Client` pages use this with a `CancellationTokenSource` per navigation.
+- UI: `WT.Client/Pages/Account/ViewProfile.razor` updated to Material 3 / Tailwind styles, stat cards include hover-lift microinteraction.
+- Important: Avoid parallel EF Core operations on the same `DbContext`. See recommended fixes below.
 - Visual & UX polish for the client app:
  - Top App Bar (NavBar) standardized to Material3 recommended height:64px (`min-h-[64px]`).
  - Subtle backdrop blur + translucent surface and increased elevation (`shadow-elevation-3`) for a layered, native-app feel.
@@ -335,6 +340,12 @@ After logging in:
  # Check readiness (for Kubernetes/Azure)
  curl https://localhost:5001/health/ready
  ```
+
+ ### Notes / checklist
+- Ensure `AppDbContext` is registered as `Scoped` (not singleton).
+- Ensure `AccountService` forwards `CancellationToken` into HttpClient calls (e.g., `GetAsync(..., cancellationToken)`).
+- Rebuild Tailwind CSS if you added new utility classes for hover/elevation.
+- Consider caching the small profile DTO (short TTL) if profile summary is requested frequently.
 
 ### Development URLs
 
