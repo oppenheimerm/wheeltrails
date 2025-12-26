@@ -1,0 +1,87 @@
+﻿@page "/error"
+@page "/error/{errorMessage}"
+
+@inject NavigationManager Navigation
+
+@code {
+    [Parameter] public string? errorMessage { get; set; }
+
+
+    private void NavigateHome()
+    {
+        Navigation.NavigateTo("/", forceLoad: false);
+    }
+
+    private void ContactSupport()
+    {
+        Navigation.NavigateTo("/contact", forceLoad: false);
+    }
+
+    protected override void OnInitialized()
+    {
+        // Log server error event for diagnostics
+        Console.WriteLine($"500 Error: Server error page displayed at {DateTime.UtcNow:O}");
+        if (errorMessage != null)
+        {
+            Console.WriteLine(errorMessage);
+        }
+    }
+}
+
+<!-- Material3 / Tailwind styled500 page following Design-Notes.md tokens and inspired by Creative-Tim layout -->
+<section class="min-h-screen flex items-center justify-center bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface)] py-20">
+    <div class="w-full max-w-3xl px-6">
+        <div class="bg-[var(--md-sys-color-surface-container-high)] dark:bg-[var(--md-sys-color-surface-container-high)] rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] overflow-hidden">
+            <div class="p-10 text-center">
+
+                <!--500 Number -->
+                <div class="mb-6">
+                    <h1 class="text-[140px] md:text-[180px] lg:text-[220px] leading-none font-extrabold text-[var(--md-sys-color-on-surface-variant)] select-none">500</h1>
+                </div>
+
+                <!-- Icon and Heading -->
+                <div class="mb-6">
+                    <div class="inline-flex items-center justify-center w-20 h-20 mb-4 rounded-full bg-[var(--md-sys-color-primary-container)]">
+                        <span class="material-symbols-rounded text-[36px] text-[var(--md-sys-color-on-primary-container)]">report_problem</span>
+                    </div>
+
+                    <h2 class="text-3xl md:text-4xl lg:text-5xl font-bold text-[var(--md-sys-color-on-surface)] mb-3">Server Error</h2>
+
+                    <p class="text-base md:text-lg text-[var(--md-sys-color-on-surface-variant)] max-w-2xl mx-auto">Sorry — something went wrong on our end. Please try refreshing, or come back later. If the problem persists, contact support.</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center mt-6 mb-6">
+                    <button @onclick="() => Navigation.NavigateTo(Navigation.Uri, forceLoad: true)" class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] font-semibold shadow-elevation-2 hover:shadow-elevation-4 transition-shadow duration-150 min-w-[160px] justify-center">
+                        <span class="material-symbols-rounded">refresh</span>
+                        Refresh
+                    </button>
+
+                    <button @onclick="NavigateHome" class="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-[var(--md-sys-color-outline)] bg-[color:var(--md-sys-color-surface)/0.8] text-[var(--md-sys-color-primary)] font-semibold hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors duration-150 min-w-[160px] justify-center">
+                        <span class="material-symbols-rounded">home</span>
+                        Back to Home
+                    </button>
+
+                    <button @onclick="ContactSupport" class="inline-flex items-center gap-2 px-6 py-3 rounded-full border border-transparent bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)] font-semibold shadow-elevation-1 hover:shadow-elevation-3 transition-shadow duration-150 min-w-[180px] justify-center">
+                        <span class="material-symbols-rounded">headset_mic</span>
+                        Contact Support
+                    </button>
+                </div>
+
+                <hr class="my-4 border-[var(--md-sys-color-outline-variant)]" />
+
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="text-left max-w-2xl mx-auto mt-4 p-4 rounded-lg bg-[var(--md-sys-color-surface)] border border-[var(--md-sys-color-outline-variant)] text-[var(--md-sys-color-on-surface-variant)] overflow-auto">
+                        <details class="whitespace-pre-wrap">
+                            <summary class="cursor-pointer font-medium mb-2">Technical details (expand)</summary>
+                            <pre class="text-xs">@errorMessage</pre>
+                        </details>
+                    </div>
+                }
+
+            </div>
+        </div>
+    </div>
+</section>
+

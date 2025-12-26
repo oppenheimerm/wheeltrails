@@ -8,22 +8,31 @@
     }
     else
     {
-        <Router AppAssembly="@typeof(App).Assembly">
-            <Found Context="routeData">
-                <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
-                    <NotAuthorized>
-                        <NotAuthorized />
-                    </NotAuthorized>
-                </AuthorizeRouteView>
-                <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-            </Found>
-            <NotFound>
-                @* ✅ Use your custom NotFound component *@
-                <LayoutView Layout="@typeof(MainLayout)">
-                    <NotFound />
-                </LayoutView>
-            </NotFound>
-        </Router>
+        <ErrorBoundary>
+            <ErrorContent>
+                <CustomError Error="context" />
+            </ErrorContent>
+
+            <ChildContent>
+                <Router AppAssembly="@typeof(App).Assembly">
+                    <Found Context="routeData">
+                        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                            <NotAuthorized>
+                                <NotAuthorized />
+                            </NotAuthorized>
+                        </AuthorizeRouteView>
+                        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                    </Found>
+                    <NotFound>
+                        @* ✅ Use your custom NotFound component *@
+                        <LayoutView Layout="@typeof(MainLayout)">
+                            <NotFound />
+                        </LayoutView>
+                    </NotFound>
+                </Router>
+            </ChildContent>
+        </ErrorBoundary>
+
     }
 </CascadingAuthenticationState>
 

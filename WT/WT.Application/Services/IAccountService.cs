@@ -27,6 +27,13 @@ namespace WT.Application.Services
         // ✅ ProfileUsername methods
         Task<bool> IsProfileUsernameAvailableAsync(string profileUsername);
         Task<ApplicationUserDTO?> FindUserByProfileUsernameAsync(string profileUsername);
+        /// <summary>
+        /// Client side method to view public profile by username.
+        /// </summary>
+        /// <param name="profileUsername"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task<APIResponsePublicViewProfile?> ViewProfileByUsernameAsync(string profileUsername, CancellationToken cancellationToken);
         
         // ✅ Combined validation (availability + profanity check)
         Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername);

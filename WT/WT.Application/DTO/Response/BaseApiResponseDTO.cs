@@ -48,6 +48,21 @@ namespace WT.Application.DTO.Response
         APIResponseUserSettingsDTO? UserSettings = null!
     ) : BaseAPIResponseDTO(Success, Message);
 
+    /// <summary>
+    /// Public view profile response DTO. Returns lightweight public profile information.
+    /// </summary>
+    /// <param name="Success"></param>
+    /// <param name="Message"></param>
+    /// <param name="PublicProfile"></param>
+    /// <param name="FailuerCode"></param>
+    public record APIResponsePublicViewProfile(
+        bool Success = false,
+        string Message = null!,
+        PublicViewProfileDTO? PublicProfile = null!,
+        // Handle OperationCancelledExceptions
+        int? FailuerCode = null!
+    ) : BaseAPIResponseDTO(Success, Message);
+
 
     /// <summary>
     /// Handles the response for trail creation operations.  Returns trail ID and title upon success.

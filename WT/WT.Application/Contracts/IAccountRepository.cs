@@ -38,6 +38,15 @@ namespace WT.Application.Contracts
         Task<ApplicationUser?> FindUserByIdAsync(Guid id);
         Task<ApplicationUser?> FindUserByEmailAsync(string email);
         Task<ApplicationUser?> FindUserByProfileUsernameAsync(string profileUsername);
+
+        /// <summary>
+        /// Method to get a public user profile by profile username.  Only public info is returned.
+        /// We also handle cancellation tokens to abort processing if client disconnects.
+        /// </summary>
+        /// <param name="profileUsername"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task<APIResponsePublicViewProfile?> GetUserProfileByUsernameAsync(string profileUsername, CancellationToken cancellationToken);
         Task<bool> IsProfileUsernameAvailableAsync(string profileUsername);
 
         // JWT token generation
