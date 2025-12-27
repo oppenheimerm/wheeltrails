@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "build:css": "npx tailwindcss -i ./wwwroot/css/input.css -o ./wwwroot/css/app.css --minify",
-    "watch:css": "npx tailwindcss -i ./wwwroot/css/input.css -o ./wwwroot/css/app.css --watch"
+    "watch:css": "npx tailwindcss -i ./wwwroot/css/input.css -o ./wwwroot/css/app.css --watch",
+    "inject-key": "node ../scripts/inject-google-key.js",
+    "build:with-key": "npm run inject-key && npm run build"
   },
   "keywords": [],
   "author": "",

@@ -495,3 +495,7 @@ $RECYCLE.BIN/
 *firebase-adminsdk*.json
 wheelytrails-firebase*.json
 firebase-keys/
+
+echo "WT.Client/wwwroot/index.html" >> .gitignore
+git rm --cached WT.Client/wwwroot/index.html
+git commit -m "Stop tracking built index.html (will be generated from template)"
