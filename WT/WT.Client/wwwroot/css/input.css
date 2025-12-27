@@ -47,8 +47,8 @@ html, body {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .hide-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
 }
 
 /* Alternative: Custom minimal scrollbar (iOS/macOS style) */
@@ -65,9 +65,9 @@ html, body {
     border-radius: 2px;
 }
 
-.minimal-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 0, 0, 0.3);
-}
+    .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 0, 0, 0.3);
+    }
 
 /* Dark mode scrollbar */
 @media (prefers-color-scheme: dark) {
@@ -75,9 +75,9 @@ html, body {
         background: rgba(255, 255, 255, 0.2);
     }
 
-    .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.3);
-    }
+        .minimal-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
 }
 
 /* Fix for disappearing color scheme */
@@ -115,13 +115,10 @@ body {
     }
 
     .wt-form-input {
-        @apply w-full bg-transparent border-b border-harp-300 pl-2 pt-3 pb-3 pr-8 text-sm 
-               !text-gray-900 dark:!text-gray-100 
-               placeholder:text-gray-400 dark:placeholder:text-gray-500 
-               focus:outline-none focus:border-harp-950 dark:border-harp-600 dark:focus:border-harp-400;
+        @apply w-full bg-transparent border-b border-harp-300 pl-2 pt-3 pb-3 pr-8 text-sm !text-gray-900 dark:!text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:border-harp-950 dark:border-harp-600 dark:focus:border-harp-400;
         caret-color: #111827;
     }
-    
+
     @media (prefers-color-scheme: dark) {
         .wt-form-input {
             caret-color: #f3f4f6;
@@ -129,17 +126,14 @@ body {
     }
 
     .wt-form-input-dd {
-        @apply w-full cursor-pointer appearance-none border-b border-harp-300 bg-white pl-2 pt-3 pb-3 pr-8 text-sm 
-               !text-gray-900 dark:!text-gray-100 
-               focus:outline-none focus:border-harp-950 
-               dark:border-harp-600 dark:bg-harp-900 dark:focus:border-harp-400 transition-colors;
+        @apply w-full cursor-pointer appearance-none border-b border-harp-300 bg-white pl-2 pt-3 pb-3 pr-8 text-sm !text-gray-900 dark:!text-gray-100 focus:outline-none focus:border-harp-950 dark:border-harp-600 dark:bg-harp-900 dark:focus:border-harp-400 transition-colors;
         color-scheme: light dark;
     }
 
-    .wt-form-input-dd option {
-        background-color: white !important;
-        color: #111827 !important;
-    }
+        .wt-form-input-dd option {
+            background-color: white !important;
+            color: #111827 !important;
+        }
 
     @media (prefers-color-scheme: dark) {
         .wt-form-input-dd option {
@@ -149,17 +143,14 @@ body {
     }
 
     .wt-form-input-dd-error {
-        @apply w-full cursor-pointer appearance-none border-b-2 border-red-500 bg-red-50 
-               dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm 
-               !text-gray-900 dark:!text-white 
-               focus:outline-none focus:border-red-600 transition-colors;
+        @apply w-full cursor-pointer appearance-none border-b-2 border-red-500 bg-red-50 dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm !text-gray-900 dark:!text-white focus:outline-none focus:border-red-600 transition-colors;
         color-scheme: light dark;
     }
 
-    .wt-form-input-dd-error option {
-        background-color: white !important;
-        color: #111827 !important;
-    }
+        .wt-form-input-dd-error option {
+            background-color: white !important;
+            color: #111827 !important;
+        }
 
     @media (prefers-color-scheme: dark) {
         .wt-form-input-dd-error option {
@@ -169,9 +160,7 @@ body {
     }
 
     .wt-form-input-error {
-        @apply w-full border-b-2 border-red-500 bg-red-50 dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm 
-               !text-gray-900 dark:!text-white 
-               focus:outline-none focus:border-red-600;
+        @apply w-full border-b-2 border-red-500 bg-red-50 dark:bg-red-900/20 pl-2 pt-3 pb-3 pr-8 text-sm !text-gray-900 dark:!text-white focus:outline-none focus:border-red-600;
     }
 
     .wt-form-error-msg {
@@ -180,38 +169,151 @@ body {
 
     /* Buttons */
     .wt-btn {
-        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 
-               bg-transparent text-wt-black-950 dark:border-wt-black-600 dark:text-harp-100 
-               hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 
-               transition-all cursor-pointer;
+        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 bg-transparent text-wt-black-950 dark:border-wt-black-600 dark:text-harp-100 hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 transition-all cursor-pointer;
     }
 
     .wt-btn-outline {
-        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 
-               bg-harp-400 text-harp-100 dark:border-wt-black-600 dark:bg-harp-200/80 dark:text-harp-100 
-               hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 
-               transition-all cursor-pointer;
+        @apply px-4 py-2 text-sm font-medium tracking-wide rounded-full border border-harp-400 bg-harp-400 text-harp-100 dark:border-wt-black-600 dark:bg-harp-200/80 dark:text-harp-100 hover:bg-harp-700 dark:hover:bg-harp-200 dark:hover:text-wt-black-950 transition-all cursor-pointer;
     }
 
     .wt-btn-outline-social {
-        @apply flex items-center justify-center gap-4 w-full py-2 px-4 mb-2 text-[15px] font-medium 
-               tracking-wide rounded-md border border-harp-400 bg-transparent text-wt-black-900 
-               dark:text-white hover:bg-harp-300 focus:outline-none cursor-pointer;
+        @apply flex items-center justify-center gap-4 w-full py-2 px-4 mb-2 text-[15px] font-medium tracking-wide rounded-md border border-harp-400 bg-transparent text-wt-black-900 dark:text-white hover:bg-harp-300 focus:outline-none cursor-pointer;
     }
 
     /* Tab Bar Styling */
     .tab-item {
-        @apply flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 
-               hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200;
+        @apply flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200;
         min-width: 60px;
     }
 
-    .tab-item.active {
-        @apply text-blue-600 dark:text-blue-400 font-semibold;
-    }
+        .tab-item.active {
+            @apply text-blue-600 dark:text-blue-400 font-semibold;
+        }
 
     .tab-item-primary {
         @apply flex flex-col items-center justify-center text-gray-700 dark:text-gray-300;
         min-width: 60px;
     }
+
+    /* Tooltip helpers for Floating Action Buttons (FAB) */
+    /* Usage: wrap button in a container with class `fab-tooltip`, include a child element with class `tip` for the tooltip text. */
+    .fab-tooltip {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px; /* added: increase hit area and spacing around FAB for touch */
+    }
+
+        .fab-tooltip .tip {
+            position: absolute;
+            right: 100%; /* position to the left of the FAB */
+            top: 50%;
+            transform: translateY(-50%) translateX(8px);
+            background: var(--md-sys-color-on-surface);
+            color: var(--md-sys-color-surface);
+            padding: 6px8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 04px10px rgba(0,0,0,0.12);
+            z-index: 60;
+            transition: opacity .12s ease, transform .12s ease;
+        }
+
+        .fab-tooltip:hover .tip,
+        .fab-tooltip:focus-within .tip {
+            opacity: 1;
+            transform: translateY(-50%) translateX(0);
+        }
+
+        /* Small offset for mobile when hovering isn't available; the title attribute remains a fallback. */
+        .fab-tooltip .tip[aria-hidden="true"] {
+            display: none;
+        }
+
+    /* Respect user motion preferences */
+    @media (prefers-reduced-motion: reduce) {
+        .fab-tooltip .tip {
+            transition: none;
+        }
+    }
+}
+
+/* FAB positioning: keep above TabBar on small screens, center vertically on larger screens */
+#fab-wrapper {
+    position: fixed; /* already set via Tailwind, this ensures fallback */
+    right: 1rem; /* match right-4 */
+    bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+    z-index: 20000; /* ensure above overlays */
+}
+
+@media (min-width:768px) {
+    /* On md and up, position in middle of screen vertically and keep to the right */
+    #fab-wrapper {
+        top: 50%;
+        bottom: auto;
+        transform: translateY(-50%);
+        /* keep same right offset as Tailwind classes */
+        right: 1.5rem; /* align with md:right-6 */
+    }
+}
+
+/* Prevent FAB from overlapping the NavBar hamburger on small screens */
+@media (max-width:767px) {
+    /* Move FAB further left from the right edge so it won't block the header menu button */
+    #fab-wrapper {
+        right: calc(1rem +56px); /*56px = safe offset to clear the hamburger / close button */
+        top: auto; /* ensure we keep bottom positioning */
+        bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+    }
+}
+
+
+
+/* Small screens: place FAB below header to avoid overlapping header buttons (hamburger, auth buttons) */
+@media (max-width:767px) {
+    #fab-wrapper {
+        top: calc(64px +1rem); /* put FAB below the top app bar */
+        bottom: auto;
+        transform: none; /* remove vertical centering transform */
+        right: 1rem; /* preserve small-screen right offset */
+    }
+}
+
+/* Ensure header buttons (hamburger / close) have consistent rounded hover and better contrast in dark mode */
+#toggleOpen,
+#toggleClose {
+    border-radius: 9999px; /* ensure perfectly round */
+    transition: background-color .12s ease, border-color .12s ease, box-shadow .12s ease;
+    border: 1px solid transparent;
+}
+
+    /* Light mode hover: subtle dark overlay */
+    #toggleOpen:hover,
+    #toggleClose:hover {
+        background-color: rgba(0,0,0,0.06);
+    }
+
+/* Dark mode hover: slightly brighter overlay and faint border for contrast */
+@media (prefers-color-scheme: dark) {
+    #toggleOpen:hover,
+    #toggleClose:hover {
+        background-color: rgba(255,255,255,0.06);
+        border-color: rgba(255,255,255,0.06);
+    }
+
+    /* ensure the icon color remains legible on hover */
+    #toggleOpen .material-symbols-rounded,
+    #toggleClose .material-symbols-rounded {
+        color: var(--md-sys-color-on-surface);
+    }
+}
+
+/* Focus state for accessibility */
+#toggleOpen:focus,
+#toggleClose:focus {
+    outline: none;
+    box-shadow: 0004px rgba(99,102,241,0.12);
 }

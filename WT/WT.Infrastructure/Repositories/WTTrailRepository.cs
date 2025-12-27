@@ -69,12 +69,16 @@ namespace WT.Infrastructure.Repositories
             // logging any exceptions that occur during the process, as well as saving the new trail to the database context
             try
             {
+
+                //  TODO Update to include Start, End, Waypoints, LengthMeters, ElevationProfile, PointsOfInterest
+
                 var newTrail = new WTTrail
                 {
                     Title = model.Title,
                     Description = model.Description,
-                    Latitude = model.Latitude,
-                    Longitude = model.Longitude,
+
+                    /*Latitude = model.Latitude,
+                    Longitude = model.Longitude,*/
                     Difficulty = model.Difficulty,
                     SurfaceTypes = model.SurfaceTypes,
                     UserId = userId // Assign the trusted userId from the method parameter

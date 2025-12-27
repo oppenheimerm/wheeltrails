@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using WT.Domain.Enums;
+using WT.Domain.Geo;
 
 namespace WT.Domain.Entity
 {
@@ -22,11 +23,43 @@ namespace WT.Domain.Entity
 
         public ApplicationUser? User { get; set; }
 
+        /// <summary>
+        /// Starting geographical coordinates of the trail.
+        /// </summary>
         [Required]
-        public double? Latitude { get; set; }
+        public WTLatLng? Start { get; set; }
 
+        /// <summary>
+        /// Ending geographical coordinates of the trail.
+        /// </summary>
         [Required]
-        public double? Longitude { get; set; }
+        public WTLatLng? End { get; set; }
+
+        /// <summary>
+        /// Represent intermediate waypoints along the trail route.
+        /// </summary>
+        [Required]
+        public List<WTLatLng> Waypoints { get; set; } = new();
+
+        /// <summary>
+        /// Length of the trail in meters.
+        /// </summary>
+        [Required]
+        public double LengthMeters { get; set; }
+
+        /// <summary>
+        /// Elevation profile data points along the trail.
+        /// </summary>
+        public List<double> ElevationProfile { get; set; } = new();
+
+
+
+        /// <summary>
+        /// Represent points of interest (POIs) along the trail.
+        /// </summary>
+        public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
+
+
 
         [Required]
         public TrailDifficulty Difficulty { get; set; } = TrailDifficulty.Easy;
