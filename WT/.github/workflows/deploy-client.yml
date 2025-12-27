@@ -1,0 +1,40 @@
+name: Build and Inject WT.Client
+
+on:
+ push:
+ branches:
+ - main
+
+jobs:
+ build-and-inject:
+ runs-on: ubuntu-latest
+ steps:
+ - name: Checkout
+ uses: actions/checkout@v4
+
+ - name: Setup .NET
+ uses: actions/setup-dotnet@v3
+ with:
+ dotnet-version: '9.0.x'
+
+ - name: Setup Node.js
+ uses: actions/setup-node@v4
+ with:
+ node-version: '18'
+
+ - name: Build client
+ working-directory: WT.Client
+ run: |
+ npm ci
+ npm run build
+
+ - name: Inject Google Maps API Key into built index.html
+ env:
+ GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+ run: |
+ # Replace placeholder in the built artifact (assumes index.html present under WT.Client/wwwroot)
+ perl -pi -e "s/__GOOGLE_MAPS_API_KEY__/$ENV{'GOOGLE_MAPS_API_KEY'}/g" WT.Client/wwwroot/index.html
+
+ - name: Deploy (placeholder)
+ run: |
+ echo "Add your deployment steps here (e.g. Azure Static Web Apps, Firebase hosting, Netlify)"

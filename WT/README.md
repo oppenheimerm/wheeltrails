@@ -48,39 +48,67 @@ Summary of notable changes in this branch (please review and adjust the version/
  - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
  - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
 
+Local Dev: Injecting Google Maps API Key (PowerShell)
+
+To avoid committing API keys to the repository we keep a committed `index.html.template` and generate `index.html` locally (or in CI) by replacing the placeholder `__GOOGLE_MAPS_API_KEY__` with a real key.
+
+Follow these exact PowerShell steps from the repo root (`src/WT`):
+
+1) Ensure a committed template exists (one-time):
+
+```powershell
+# if index.html exists, create a template from it
+Copy-Item .\WT.Client\wwwroot\index.html .\WT.Client\wwwroot\index.html.template -Force
+```
+
+2) Inject key for the current session (immediate, won't be persisted across shells):
+
+```powershell
+# set key for current shell only
+$env:GOOGLE_MAPS_API_KEY = 'YOUR_REAL_KEY_HERE'
+
+# inject the key into a generated index.html
+(Get-Content .\WT.Client\wwwroot\index.html.template -Raw) -replace '__GOOGLE_MAPS_API_KEY__', $env:GOOGLE_MAPS_API_KEY |
+ Set-Content .\WT.Client\wwwroot\index.html -Encoding UTF8
+
+Write-Host 'Wrote WT.Client/wwwroot/index.html'
+```
+
+3) Verify the injection:
+
+```powershell
+# confirm the maps script contains your key
+Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "maps.googleapis.com" -Context0,0
+
+# confirm placeholder removed
+Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "__GOOGLE_MAPS_API_KEY__" || Write-Host "placeholder not present"
+```
+
+4) Stop tracking `index.html` in Git (one-time):
+
+```powershell
+# add to .gitignore (if not already present)
+Add-Content .gitignore "WT.Client/wwwroot/index.html"
+
+# remove from index if previously tracked (safe if already ignored)
+git rm --cached WT.Client/wwwroot/index.html -ErrorAction SilentlyContinue
+
+# commit template and ignore rule
+git add WT.Client/wwwroot/index.html.template .gitignore
+git commit -m "Add index.html.template; ignore generated index.html"
+```
+
+Notes and best practices
+- Do NOT commit `index.html` with a real key. Keep only `index.html.template` in source control.
+- For persistent local environment variables use `setx GOOGLE_MAPS_API_KEY "your_key"` (re-open the shell afterward), but for immediate runs prefer `$env:...` so Node processes in the same shell see it.
+- CI / GitHub Actions: add the secret `GOOGLE_MAPS_API_KEY` to repository secrets and run the injector as part of the build to replace the placeholder before deployment. We keep a Node injector script (`scripts/inject-google-key.js`) in the repo for CI usage.
+- If the key was ever pushed publicly rotate it immediately in Google Cloud Console and reapply restrictions (API + strict HTTP referrers) and quotas.
+
 To publish this entry:
 - Update the version number and replace `YYYY-MM-DD` with the release date.
 - Move the entry into the main "Latest updates" section and update `v1.3` → `v1.4` as needed.
 
-
-## 🔄 Latest updates (v1.3 — Dec26,2025)
-
-- New public profile endpoint: `GET api/account/user/{profileUsername}` returns `APIResponsePublicViewProfile` (lightweight public profile DTO).
-- Server: `WTAccount.GetUserProfileByUsernameAsync(string profileUsername, CancellationToken ct)` added — returns `PublicViewProfileDTO` + counts, honors cancellation tokens.
-- Client: `IAccountService.ViewProfileByUsernameAsync(string profileUsername, CancellationToken ct)` added; `WT.Client` pages use this with a `CancellationTokenSource` per navigation.
-- UI: `WT.Client/Pages/Account/ViewProfile.razor` updated to Material 3 / Tailwind styles, stat cards include hover-lift microinteraction.
-- Important: Avoid parallel EF Core operations on the same `DbContext`. See recommended fixes below.
-- Visual & UX polish for the client app:
- - Top App Bar (NavBar) standardized to Material3 recommended height:64px (`min-h-[64px]`).
- - Subtle backdrop blur + translucent surface and increased elevation (`shadow-elevation-3`) for a layered, native-app feel.
- - Mobile drawer now stops above the TabBar (drawer bottom inset = `4rem` / `h-16`) and supports internal scrolling to avoid clipping footer controls (Login/Sign Up, Settings).
- - Bottom TabBar primary Add action converted to a true circular floating action: square container `w-14 h-14` + `rounded-full`, shadow, ring and hover/focus micro-interactions so the Add button appears perfectly round and accessible.
- - Small accessibility improvements: visible focus rings on interactive controls and ensured touch targets meet minimum sizes.
- - NavBar behavior improvements:
- - Active link detection improved by matching the current absolute path so navigation highlights are consistent across routes.
- - Mobile menu uses an explicit open/close state and a `MobileMenuClass` helper to avoid flicker and ensure the overlay/backdrop behaves correctly.
- - User menu dropdown is keyboard- and focus-friendly and stops event propagation to avoid accidental closes while interacting with menu content.
- - Logout flow now clears client-side authentication data from `localStorage`, updates the custom authentication state provider, closes menus, and uses `Navigation.NavigateTo("/", forceLoad: true)` to ensure a clean client state after sign-out.
- - The NavBar subscribes to `AuthenticationStateProvider.AuthenticationStateChanged` to keep UI in sync with authentication changes and properly unsubscribes on dispose to avoid memory leaks.
-- Navigation consistency:
- - Settings/Profile routes unified in the UI (NavBar & TabBar) — ensure canonical route in codebase (see `NavBar.razor` / `TabBar.razor`).
-- Theme and contrast:
- - Dark mode toggle persists via `localStorage`. Contrast selector remains in the UI but is non-destructive until `themeManager.setContrast` + contrast CSS files are implemented.
-- Other: Application Insights integration and health check endpoints added for monitoring.
-- Profile photo UX: Settings now shows the user's profile photo (or a `Material account_circleMaterial account_circle` fallback) with a ***"Change Photo"*** button that navigates to `/account/identity/upload-photo`. Uploaded profile photos are saved to Firebase and the client stores a small navbar DTO in localStorage under the key configured by `ApplicationSettings:NavBarSettings` for fast navbar rendering.
-
-For full component and implementation notes see the design system: `Design-Notes.md` (updated to v1.3).
-
+---
 
 ## 🎨 Design System
 
@@ -558,8 +586,49 @@ This flow is implemented in `API.Controllers.AccountController.UploadProfilePict
 - ❌ **NEVER** Firebase service account credentials
 
 > **Why?** Blazor WASM runs entirely in the browser. All files in `wwwroot` are downloaded to the client and can be inspected using browser DevTools. User Secrets only work for server-side .NET projects.
+#### Google Maps API Key Management ✨ NEW
+To securely manage the Google Maps API key in the Blazor WebAssembly client without committing it to source control, follow these steps:
+1. **Create a Template**: Keep a committed `index.html.template` in `WT.Client/wwwroot/` with a placeholder for the API key:
+2. **Insert the API Key**: At build time, ensure the API key is injected into a new `index.html` file by your build or deploy process, replacing the placeholder with the actual key. This prevents the API key from being hardcoded in the source files.
+3. **Secure the Key**: Use environment variables or a secret manager to store the API key securely and access it during the build process without exposing it in the source. 
 
-##### Local Storage Guidence ✨ NEW
+#####  PowerShell — update key locally (pick one)
+1.	Temporary for current shell (no restart needed). Run these in repo root (C:..\src\WT):
+```powershell
+# set in current session
+$env:GOOGLE_MAPS_API_KEY = 'NEW_GOOGLE_API_KEY'
+
+# inject into generated index.html from the committed template
+(Get-Content .\WT.Client\wwwroot\index.html.template -Raw) -replace '__GOOGLE_MAPS_API_KEY__', $env:GOOGLE_MAPS_API_KEY |
+  Set-Content .\WT.Client\wwwroot\index.html -Encoding UTF8
+
+# quick verify
+Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "maps.googleapis.com"
+```
+2.	Persistent for your Windows user (applies after you open a new shell)
+
+```powershell
+setx GOOGLE_MAPS_API_KEY "NEW_GOOGLE_API_KEY"
+# close and re-open PowerShell, then run injector
+node .\scripts\inject-google-key.js
+```
+3.	If you prefer the provided PowerShell script wrapper (if present)
+
+```
+# use the helper script created earlier
+$k = 'NEW_GOOGLE_API_KEY'
+.\scripts\inject-google-key.ps1 -Key $k -TemplatePath 'WT.Client\wwwroot\index.html.template' -OutPath 'WT.Client\wwwroot\index.html'powershell
+```
+
+***NOTES:***
+- Do not commit the generated index.html (ensure WT.Client/wwwroot/index.html is in .gitignore).
+- Verify the script tag in the generated file contains the new key.
+- Rotate the key in Google Cloud Console if it was leaked.
+- Apply strict API restrictions in GCP (limit to Maps JS API and exact HTTP referrers, include scheme+host+port).
+- Use separate keys per environment (dev/staging/prod).
+- Never commit real keys — commit only `index.html.template`.
+
+#### Local Storage Guidence ✨ NEW
 The client uses `ApplicationSettings:NavBarSettings` (configured in `wwwroot/appsettings.json`) to 
 persist a small navbar DTO that contains UserPhoto. The NavBar reads 
 this value at startup; call `AccountService.SetNavBarAuthDataAsync()` 
