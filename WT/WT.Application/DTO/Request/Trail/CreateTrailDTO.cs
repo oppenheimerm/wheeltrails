@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using WT.Domain.Enums;
+using WT.Domain.Geo;
 
 namespace WT.Application.DTO.Request.Trail
 {
@@ -15,13 +16,23 @@ namespace WT.Application.DTO.Request.Trail
         [MaxLength(600, ErrorMessage = "Description has a maximum length of 600 characters.")]
         public string? Description { get; set; }
 
+        /// <summary>
+        /// Starting geographical coordinates of the trail.
+        /// </summary>
         [Required]
-        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double? Latitude { get; set; }
+        public WTLatLng? Start { get; set; }
 
+        /// <summary>
+        /// Ending geographical coordinates of the trail.
+        /// </summary>
         [Required]
-        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double? Longitude { get; set; }
+        public WTLatLng? End { get; set; }
+
+        /// <summary>
+        /// Represent intermediate waypoints along the trail route.
+        /// </summary>
+        [Required]
+        public List<WTLatLng> Waypoints { get; set; } = new();
 
         // ✅ NEW: Trail difficulty
         [Required]
@@ -31,6 +42,7 @@ namespace WT.Application.DTO.Request.Trail
         [Required]
         public SurfaceType SurfaceTypes { get; set; } = SurfaceType.Paved;
 
-        // ❌ NO UserId here - security risk!
+        public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
+
     }
 }

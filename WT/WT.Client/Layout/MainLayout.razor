@@ -1,6 +1,9 @@
 ﻿@inherits LayoutComponentBase
 @inject NavigationManager Navigation
 @using WT.Client.Shared
+@using WT.Client.Services
+@inject IFabService FabService
+@inject IJSRuntime JS
 
 <!-- ✨ Material Design 3 Native App Layout with Fixed Header & Footer -->
 <div class="flex flex-col h-screen overflow-hidden bg-[var(--md-sys-color-background)]">
@@ -19,6 +22,84 @@
         </div>
     </main>
 
+    <!-- Floating Action Buttons (global, layout-level) - desktop only -->
+    <div id="fab-wrapper" class="hidden lg:flex fixed right-4 md:right-6 z-[20000]"
+         style="bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));">
+        <div class="flex flex-col items-end gap-3">
+            <!-- Primary FAB -->
+            <button @onclick="ToggleFabOpen"
+                    class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6 transform transition-transform duration-200"
+                    aria-haspopup="true"
+                    aria-expanded="@fabOpen"
+                    aria-controls="fab-actions"
+                    title="More actions"
+                    aria-label="Open actions menu"
+                    @ref="primaryFabRef">
+                <span class="material-symbols-rounded text-[22px] transition-transform duration-300"
+                      style="transform: rotate(@(fabOpen ?45 :0)deg);">create</span>
+                <span class="tip">Actions</span>
+            </button>
+
+            <!-- Actions container -->
+            <div id="fab-actions" class="mt-2 flex flex-col items-end gap-3"
+                 style="display:@(fabOpen ? "flex" : "none")">
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
+                        title="Add POI" aria-label="Add Point of Interest" @onclick="() => FabService.Raise(FabAction.AddPoi)" @ref="firstActionRef">
+                    <span class="material-symbols-rounded">add_location</span>
+                    <span class="tip">Add Point of Interest </span>
+                </button>
+
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
+                        title="Start/Stop Recording" aria-label="Start or stop recording" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span class="tip">Record</span>
+                </button>
+
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
+                        title="Submit Trail" aria-label="Submit Trail" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
+                    <span class="material-symbols-rounded">send</span>
+                    <span class="tip">Submit</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile FAB: shown only on small screens, positioned above the TabBar to avoid header overlap -->
+    <div class="flex lg:hidden fixed right-4 bottom-[calc(var(--tabbar-height,4rem)+1rem+env(safe-area-inset-bottom))] z-[20000]">
+        <div class="flex flex-col items-end gap-3">
+            <button @onclick="ToggleFabOpen"
+                    class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6"
+                    aria-haspopup="true"
+                    aria-expanded="@fabOpen"
+                    aria-controls="fab-actions-mobile"
+                    title="More actions"
+                    aria-label="Open actions menu (mobile)">
+                <span class="material-symbols-rounded text-[22px]">create</span>
+                <span class="tip">Actions</span>
+            </button>
+
+            <div id="fab-actions-mobile" class="mt-2 flex flex-col items-end gap-3" style="display:@(fabOpen ? "flex" : "none")">
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
+                        title="Add POI" aria-label="Add Point of Interest (mobile)" @onclick="() => FabService.Raise(FabAction.AddPoi)">
+                    <span class="material-symbols-rounded">add_location</span>
+                    <span class="tip">Add Point of Interest </span>
+                </button>
+
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
+                        title="Start/Stop Recording" aria-label="Start or stop recording (mobile)" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
+                    <span class="material-symbols-rounded">play_circle</span>
+                    <span class="tip">Record</span>
+                </button>
+
+                <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
+                        title="Submit Trail" aria-label="Submit Trail (mobile)" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
+                    <span class="material-symbols-rounded">send</span>
+                    <span class="tip">Submit</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 📱 FIXED FOOTER (Material 3 Navigation Bar) -->
     <footer class="fixed bottom-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-t border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
             style="padding-bottom: var(--safe-area-inset-bottom);">
@@ -28,6 +109,43 @@
 </div>
 
 @code {
-    // Layout-specific logic
-    private bool IsAuthPage => Navigation.Uri.Contains("/account/identity/");
+    private bool fabOpen = false;
+    private ElementReference primaryFabRef;
+    private ElementReference firstActionRef;
+
+    private void ToggleFabOpen()
+    {
+        fabOpen = !fabOpen;
+        if (fabOpen)
+        {
+            // when opening, focus first action and add escape handler
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(80); // wait for UI to open
+                try { await firstActionRef.FocusAsync(); } catch { /* ignore if ref not present (mobile) */ }
+                await JS.InvokeVoidAsync("fabInterop.addEscapeHandler", DotNetObjectReference.Create(this));
+            });
+        }
+        else
+        {
+            // close: remove escape handler and return focus to primary
+            _ = Task.Run(async () =>
+            {
+                await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
+                try { await primaryFabRef.FocusAsync(); } catch { /* ignore on mobile */ }
+            });
+        }
+    }
+
+    [JSInvokable]
+    public async Task CloseFabFromJs()
+    {
+        if (fabOpen)
+        {
+            fabOpen = false;
+            await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
+            try { await primaryFabRef.FocusAsync(); } catch { }
+            StateHasChanged();
+        }
+    }
 }

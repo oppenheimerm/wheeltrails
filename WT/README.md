@@ -17,6 +17,42 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
+## 🔄 Latest updates (v1.4 — Dec27,2025)
+
+Summary of notable changes in this branch (please review and adjust the version/date before publishing):
+
+- Floating Action Button (FAB)
+ - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
+ - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
+ - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
+ - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
+
+- Map & Recorder
+ - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
+ - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
+ - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
+
+- Accessibility & UX
+ - Focus-visible rings and improved keyboard flows for FAB and user menus.
+ - ARIA attributes and labels added where appropriate.
+
+- CSS & Styling
+ - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
+
+- JS Interop
+ - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
+ - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
+
+- Notes / Pending work
+ - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
+ - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
+ - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
+
+To publish this entry:
+- Update the version number and replace `YYYY-MM-DD` with the release date.
+- Move the entry into the main "Latest updates" section and update `v1.3` → `v1.4` as needed.
+
+
 ## 🔄 Latest updates (v1.3 — Dec26,2025)
 
 - New public profile endpoint: `GET api/account/user/{profileUsername}` returns `APIResponsePublicViewProfile` (lightweight public profile DTO).
@@ -44,6 +80,7 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 - Profile photo UX: Settings now shows the user's profile photo (or a `Material account_circleMaterial account_circle` fallback) with a ***"Change Photo"*** button that navigates to `/account/identity/upload-photo`. Uploaded profile photos are saved to Firebase and the client stores a small navbar DTO in localStorage under the key configured by `ApplicationSettings:NavBarSettings` for fast navbar rendering.
 
 For full component and implementation notes see the design system: `Design-Notes.md` (updated to v1.3).
+
 
 ## 🎨 Design System
 

@@ -1,4 +1,6 @@
-﻿namespace WT.Application.Extensions
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace WT.Application.Extensions
 {
     /// <summary>
     /// Provides utility methods for country code operations.
@@ -69,20 +71,63 @@
         {
             return new List<CountryCode>
             {
-                new CountryCode("AU", "Australia"),
-                new CountryCode("BZ", "Brazil"),
-                new CountryCode("CD", "Canada"),
-                new CountryCode("DE", "Germany"),
-                new CountryCode("FR", "France"),
-                new CountryCode("IT", "Italy"),
-                new CountryCode("NZ", "New Zealand"),
-                new CountryCode("PL", "Poland"),
-                new CountryCode("RO", "Romania"),
-                new CountryCode("UK", "United Kingdom"),
-                new CountryCode("US", "United States")
+                // Canberra
+                new CountryCode("AU", "Australia", (-35.28, 149.13)),
+                // Brasilia
+                new CountryCode("BZ", "Brazil", (-15.79, -47.88)),
+                // Ottawa
+                new CountryCode("CD", "Canada", (45.4215, -75.6972)),
+                // Berlin
+                new CountryCode("DE", "Germany", (52.5200, 13.4050)),
+                // Paris
+                new CountryCode("FR", "France", (48.8566, 2.3522)),
+                // Rome
+                new CountryCode("IT", "Italy", (41.9028, 12.4964)),
+                // Wellington
+                new CountryCode("NZ", "New Zealand", (-40.9006, 174.8860)),
+                // Warsaw
+                new CountryCode("PL", "Poland", (52.2370, 21.0173)),
+                // Bucharest
+                new CountryCode("RO", "Romania", (44.4268, 26.1025)),
+                // London
+                new CountryCode("UK", "United Kingdom", (55.3781, -3.4360)),
+                // Washington, D.C.
+                new CountryCode("US", "United States", (37.0902, -95.7129)),
+                //  Spain
+                new CountryCode("ES", "Spain", (40.4637, -3.7038)),
+                //  Japan
+                new CountryCode("JP", "Japan", (36.2048, 138.2529)),
+                //  South Africa
+                new CountryCode("ZA", "South Africa", (-30.5595, 22.9375)),
+
+
             }.OrderBy(code => code.Name).ToList();
         }
+
+
+        public static List<PointOfInterestType> GetPointOfInterestTypes()
+        {
+            return new List<PointOfInterestType>
+            {
+                new PointOfInterestType("VIEW", "Scenic Viewpoint"),
+                new PointOfInterestType("REST", "Rest Area"),
+                new PointOfInterestType("INFO", "Information Center"),
+                new PointOfInterestType("FOOD", "Food Stand"),
+                new PointOfInterestType("TOIL", "Toilet Facility"),
+                new PointOfInterestType("ACCS", "Accessibility Feature"),
+                new PointOfInterestType("HIST", "Historical Site"),
+                new PointOfInterestType("NATU", "Natural Reserve"),
+                new PointOfInterestType("OBST", "Obstruction"),
+                new PointOfInterestType("CNST", "Construction"),
+                new PointOfInterestType("OBSV", "Observation Deck"),
+                new PointOfInterestType("FSTN", "First Aid Station"),
+            }.OrderBy(poi => poi.POIName).ToList();
+        }
+        
+
     }
+
+
 
     /// <summary>
     /// Represents a country with its ISO 3166-1 alpha-2 code and full name.
@@ -98,10 +143,12 @@
         /// </summary>
         /// <param name="code">Two-letter ISO 3166-1 alpha-2 country code (e.g., "US", "GB").</param>
         /// <param name="name">Full name of the country (e.g., "United States", "United Kingdom").</param>
-        public CountryCode(string code, string name)
+        /// <param name="capital">Geographical coordinates of the country's capital city.</param>
+        public CountryCode(string code, string name, (double latitude, double longitude) capital)
         {
             Code = code;
             Name = name;
+            Capital = capital;
         }
 
         /// <summary>
@@ -115,5 +162,32 @@
         /// </summary>
         /// <value>The complete country name in English (e.g., "United States", "United Kingdom").</value>
         public string Name { get; set; }
+
+        /// <summary>
+        /// This property represents the geographical coordinates of the country's capital city.
+        /// It is used as fallback coordinates on the client side <see cref="WT.Domain.Entity.WTTrail"/>
+        /// When you initialize the google map for a trail creation, if no start or end coordinates are provided
+        /// </summary>
+        public (double latitude, double longitude) Capital { get; set; }
+    }
+
+
+    /// <summary>
+    /// Helper class representing a Point of Interest (POI) <see cref="WTPo"/>
+    /// </summary>
+    public class PointOfInterestType
+    {
+        public PointOfInterestType(string poiCode, string poiName)
+        {
+            {
+                POICode = poiCode;
+                POIName = poiName;
+            }
+        }
+
+        [MaxLength(4, ErrorMessage = "POICode code must be 4 characters long and unique"), MinLength(4)]
+        public string? POICode { get; set; }
+
+        public string? POIName { get; set; }
     }
 }

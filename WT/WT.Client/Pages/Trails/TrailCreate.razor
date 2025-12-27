@@ -1,0 +1,309 @@
+﻿@page "/trails/new"
+
+@using WT.Application.DTO.Request.Trail
+@using WT.Domain.Geo
+@using WT.Client.Services
+@inject IJSRuntime JS
+@inject IFabService FabService
+@implements IDisposable
+
+<PageTitle>WheelyTrails - Add a new trail</PageTitle>
+
+@code {
+    private bool isRecording = false;
+    private List<WTLatLng> Waypoints { get; set; } = new();
+    private List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
+    private WTLatLng? lastKnownPosition;
+
+    // time tracking for recording (supports pause/resume)
+    private DateTime? TimeStart { get; set; }
+    private DateTime? TimeEnd { get; set; }
+    // accumulated elapsed time across paused sessions
+    private TimeSpan TimeAccumulated { get; set; } = TimeSpan.Zero;
+
+    // Elapsed time includes accumulated + current running interval when recording
+    private TimeSpan ElapsedTime => TimeAccumulated + (isRecording && TimeStart.HasValue ? (DateTime.UtcNow - TimeStart.Value) : TimeSpan.Zero);
+
+    // Human readable display for UI (mm:ss or h:mm:ss)
+    private string ElapsedTimeDisplay
+    {
+        get
+        {
+            var ts = ElapsedTime;
+            if (ts.TotalHours >=1)
+                return string.Format("{0}:{1:00}:{2:00}", (int)ts.TotalHours, ts.Minutes, ts.Seconds);
+            return string.Format("{0:00}:{1:00}", (int)ts.TotalMinutes, ts.Seconds);
+        }
+    }
+
+    private DotNetObjectReference<TrailCreate>? dotNetRef;
+    private CreateTrailDTO? NewTrail { get; set; }
+
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isSubmitting = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            // Try to get a one-shot current position to center the map, fall back to London
+            try
+            {
+                var pos = await JS.InvokeAsync<Geoposition>("getCurrentPosition");
+                await JS.InvokeVoidAsync("initMap", dotNetRef, "map", pos.lat, pos.lng,16);
+            }
+            catch
+            {
+                // fallback center (London)
+                await JS.InvokeVoidAsync("initMap", dotNetRef, "map",51.5074, -0.1278,14);
+            }
+
+            // subscribe to FAB actions
+            FabService.OnFabAction += HandleFabAction;
+        }
+    }
+
+    private void HandleFabAction(FabAction action)
+    {
+        InvokeAsync(async () =>
+        {
+            switch (action)
+            {
+                case FabAction.ToggleRecording:
+                    await ToggleRecording();
+                    break;
+                case FabAction.AddPoi:
+                    await AddPoi();
+                    break;
+                case FabAction.SubmitTrail:
+                    await SubmitTrail();
+                    break;
+            }
+        });
+    }
+
+    private async Task ToggleRecording()
+    {
+        if (!isRecording)
+        {
+            // START or RESUME recording
+            isRecording = true;
+            errorMessage = null;
+
+            // If this is a fresh start (no previous start and no accumulated), clear previous data
+            if (!TimeStart.HasValue && TimeAccumulated == TimeSpan.Zero)
+            {
+                Waypoints.Clear();
+                PointsOfInterest.Clear();
+            }
+
+            // mark start time (resume if previously paused)
+            TimeStart = DateTime.UtcNow;
+            TimeEnd = null;
+
+            // start high-accuracy watch and pass updates to .NET
+            await JS.InvokeVoidAsync("startWatchPosition", dotNetRef, new { enableHighAccuracy = true, maximumAge =0, timeout =5000 });
+        }
+        else
+        {
+            // PAUSE / STOP recording
+            isRecording = false;
+            await JS.InvokeVoidAsync("stopWatchPosition");
+
+            // record end time and accumulate elapsed
+            TimeEnd = DateTime.UtcNow;
+            if (TimeStart.HasValue)
+            {
+                TimeAccumulated += (TimeEnd.Value - TimeStart.Value);
+                TimeStart = null; // clear running start
+            }
+
+            if (Waypoints.Count >0)
+            {
+                var start = Waypoints.First();
+                var end = Waypoints.Last();
+
+                // Prepare DTO for later submission
+                NewTrail = new CreateTrailDTO
+                {
+                    Start = start,
+                    End = end,
+                    Waypoints = Waypoints.ToList(),
+                    PointsOfInterest = PointsOfInterest.ToList(),
+                    Description = "My recorded trail",
+                    Title = "New Trail",
+                    Difficulty = Domain.Enums.TrailDifficulty.Easy,
+                    SurfaceTypes = Domain.Enums.SurfaceType.Paved
+                };
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnPositionUpdate(WTLatLng point)
+    {
+        lastKnownPosition = point;
+        Waypoints.Add(point);
+
+        await JS.InvokeVoidAsync("updateTrailPath", Waypoints);
+        StateHasChanged();
+    }
+
+    private async Task AddPoi()
+    {
+        if (lastKnownPosition is null)
+            return;
+
+        var poi = new WTPointOfInterest(lastKnownPosition, "VIEW", "Generic POI");
+
+        PointsOfInterest.Add(poi);
+
+        await JS.InvokeVoidAsync("addPoiMarker", poi);
+        StateHasChanged();
+    }
+
+    private async Task SubmitTrail()
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        // Simple client-side validation for demo UI
+        if (Waypoints.Count < 2)
+        {
+            errorMessage = "Please record at least two points (start and end) before submitting.";
+            isSubmitting = false;
+            StateHasChanged();
+            return;
+        }
+
+        if (NewTrail is null)
+        {
+            var start = Waypoints.First();
+            var end = Waypoints.Last();
+            NewTrail = new CreateTrailDTO
+            {
+                Start = start,
+                End = end,
+                Waypoints = Waypoints.ToList(),
+                PointsOfInterest = PointsOfInterest.ToList(),
+                Description = "Recorded trail",
+                Title = "Recorded Trail",
+                Difficulty = Domain.Enums.TrailDifficulty.Easy,
+                SurfaceTypes = Domain.Enums.SurfaceType.Paved
+            };
+        }
+
+        try
+        {
+            // TODO: wire up backend call (TrailService.SaveTrail)
+            await Task.Delay(400); // simulate async work
+            successMessage = "Trail submitted (UI demo). Backend integration pending.";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to submit trail: " + ex.Message;
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string LastPositionDisplay => lastKnownPosition is null ? "N/A" : string.Format("{0:F5}, {1:F5}", lastKnownPosition.Lat, lastKnownPosition.Lng);
+
+    public void Dispose()
+    {
+        dotNetRef?.Dispose();
+        FabService.OnFabAction -= HandleFabAction;
+    }
+    
+    private class Geoposition
+    {
+        public double lat { get; set; }
+        public double lng { get; set; }
+    }
+}
+
+<!-- Page layout: respect Top App Bar offset (pt-16), Material3 color tokens and Tailwind utilities -->
+<div class="min-h-screen pt-16 bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]" id="trail-stage">
+    <div class="max-w-6xl mx-auto px-4 py-12" id="trail-stage-inner">
+        <div class="grid md:grid-cols-2 gap-8 items-start">
+
+            <!-- Map column -->
+            <div class="rounded-xl overflow-hidden shadow-elevation-2 bg-[var(--md-sys-color-surface-container-lowest)]">
+                <div id="map" style="width:100%; height:560px;"></div>
+            </div>
+
+            <!-- Controls column -->
+            <div class="w-full max-w-xl mx-auto">
+                <div class="bg-[var(--md-sys-color-surface-container-lowest)] dark:bg-[var(--md-sys-color-surface)] rounded-xl shadow-elevation-2 p-6">
+
+                    <h2 class="text-xl font-semibold mb-2">Record a New Trail</h2>
+                    <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mb-4">Use the recorder to capture waypoints and points of interest. Add POIs while recording.</p>
+
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">@errorMessage</div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)]">@successMessage</div>
+                    }
+
+                    <!-- Stats -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Points recorded</p>
+                            <p class="text-lg font-medium">@Waypoints.Count</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Points of Interest</p>
+                            <p class="text-lg font-medium">@PointsOfInterest.Count</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Last Position</p>
+                            <p class="text-lg font-medium">@LastPositionDisplay</p>
+                        </div>
+
+                        <div>
+                            <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Time</p>
+                            <p class="text-lg font-medium">@ElapsedTimeDisplay</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button class="wt-btn-outline" @onclick="ToggleRecording">
+                            @(isRecording ? "Stop recording" : "Start recording")
+                        </button>
+
+                        <button class="wt-btn-outline" @onclick="AddPoi" disabled="@(lastKnownPosition is null || !isRecording)">
+                            Add POI
+                        </button>
+
+                        <button class="wt-btn" @onclick="SubmitTrail" disabled="@(isSubmitting)">
+                            @(isSubmitting ? "Submitting..." : "Submit")
+                        </button>
+                    </div>
+
+                    <hr class="my-4" />
+
+                    <h3 class="text-sm font-medium">Notes</h3>
+                    <p class="text-xs text-[var(--md-sys-color-on-surface-variant)] mt-2">This is a UI demo. Backend save will be wired later.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Buttons removed - FAB is rendered at layout level via IFabService -->
+</div>
+

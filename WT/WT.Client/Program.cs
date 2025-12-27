@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using WT.Application.Extensions;
 using WT.Application.Services;
 using WT.Client;
+using WT.Client.Services;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
@@ -36,6 +37,9 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 // Register authentication
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+
+// Register FAB service
+builder.Services.AddSingleton<IFabService, FabService>();
 
 // Optional: logging
 builder.Logging.SetMinimumLevel(LogLevel.Information);

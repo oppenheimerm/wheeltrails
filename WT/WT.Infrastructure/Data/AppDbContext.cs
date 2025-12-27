@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using WT.Domain.Entity;
+using WT.Domain.Geo;
 
 namespace WT.Infrastructure.Data
 {
@@ -219,6 +220,74 @@ namespace WT.Infrastructure.Data
             builder.Entity<WTTrail>()
                 .Property(t => t.SurfaceTypes)
                 .HasConversion<int>(); // Store SurfaceType flags enum as int
+
+            // ============================================================
+            // VALUE OBJECT / OWNED TYPE MAPPINGS
+            // ============================================================
+            // Explanation:
+            // - EF Core will attempt to map any non-primitive CLR type referenced by an entity
+            // as an entity type unless configured otherwise. Because `WTLatLng` is a simple
+            // value object (latitude/longitude) we must tell EF to treat it as an *owned* type
+            // (value object) so it is stored as columns on the owner (WTTrail) or in an owned
+            // collection table. This avoids the "requires a primary key" migration error.
+            // - `Start` and `End` are single owned instances -> use `OwnsOne` and map to columns
+            // on the `Trails` table.
+            // - `Waypoints` is a collection of value objects -> use `OwnsMany` and store in
+            // separate table `TrailWaypoints` with a shadow `Id` key so EF can track items.
+            // - `PointsOfInterest` is modelled as an owned collection here. Each POI has its own
+            // `Id` (domain entity-like) so we use that as the key and own its `Location` too.
+
+            builder.Entity<WTTrail>(b =>
+            {
+                // Start coordinates stored as columns on Trails: StartLat, StartLng
+                b.OwnsOne(t => t.Start, sa =>
+                {
+                    sa.Property(p => p.Lat).HasColumnName("StartLat");
+                    sa.Property(p => p.Lng).HasColumnName("StartLng");
+                });
+
+                // End coordinates stored as columns on Trails: EndLat, EndLng
+                b.OwnsOne(t => t.End, ea =>
+                {
+                    ea.Property(p => p.Lat).HasColumnName("EndLat");
+                    ea.Property(p => p.Lng).HasColumnName("EndLng");
+                });
+
+                // Waypoints: owned collection stored in separate table `TrailWaypoints`.
+                // Use a shadow `Id` so EF can track collection elements.
+                b.OwnsMany(t => t.Waypoints, wp =>
+                {
+                    wp.WithOwner().HasForeignKey("TrailId");
+                    wp.Property<Guid>("Id").ValueGeneratedOnAdd();
+                    wp.HasKey("Id");
+                    wp.Property(p => p.Lat).HasColumnName("WaypointLat");
+                    wp.Property(p => p.Lng).HasColumnName("WaypointLng");
+                    wp.ToTable("TrailWaypoints");
+                });
+
+                // PointsOfInterest: owned collection. WTPointOfInterest has an Id in the domain
+                // so we use it as the primary key for the owned items. We also own the POI's
+                // Location (WTLatLng) as a nested owned object.
+                b.OwnsMany(t => t.PointsOfInterest, poi =>
+                {
+                    poi.WithOwner().HasForeignKey("TrailId");
+                    poi.HasKey(p => p.Id);
+
+                    // Limit lengths at the DB level for POI strings
+                    poi.Property(p => p.Type).HasMaxLength(100);
+                    poi.Property(p => p.Notes).HasMaxLength(300);
+
+                    // POI.Location is also a WTLatLng value object -> own it here
+                    poi.OwnsOne(p => p.Location, loc =>
+                    {
+                        loc.Property(l => l.Lat).HasColumnName("PoiLat");
+                        loc.Property(l => l.Lng).HasColumnName("PoiLng");
+                    });
+
+                    poi.ToTable("TrailPointsOfInterest");
+                });
+            });
+
         }
 
         // ============================================================
