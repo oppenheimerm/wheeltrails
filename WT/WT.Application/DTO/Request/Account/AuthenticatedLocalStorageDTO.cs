@@ -1,4 +1,6 @@
-﻿namespace WT.Application.DTO.Request.Account
+﻿using WT.Domain.Enums;
+
+namespace WT.Application.DTO.Request.Account
 {
     /// <summary>
     /// Represents the authentication data stored in browser local storage for Blazor WebAssembly applications.
@@ -56,7 +58,7 @@
         /// <summary>
         /// Gets or sets the puiblic username of the authenticated user.
         /// </summary>
-        public string ProfileUsername { get; set; } = string.Empty;
+        public string? ProfileUsername { get; set; }
 
         /// <summary>
         /// Gets or sets the Bio or description of the authenticated user.
@@ -72,5 +74,12 @@
         /// Gets or sets the email address of the authenticated user.
         /// </summary>
         public string? Email { get; set; }
+
+        /// <summary>
+        /// Trail creation GPS accuracy level of the authenticated user.
+        /// </summary>
+        public GpsAccuracyLevel GpsAccuracy { get; set; }
+
+        public bool ShowRecordingWarning { get; set; }
     }
 }

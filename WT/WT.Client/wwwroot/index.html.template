@@ -63,9 +63,9 @@
  <!-- Modal Helper Script -->
  <script src="js/modal.js"></script>
 
- <!-- Google Maps JS: replace AIzaSyACcAP1m-MV_iQkXS3bh39v5-xMqONVmcY at build/deploy time with your environment key. -->
+ <!-- Google Maps JS: replace __GOOGLE_MAPS_API_KEY__ at build/deploy time with your environment key. -->
  <!-- Do NOT commit real keys. Use CI secrets / local scripts to inject the key. -->
- <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACcAP1m-MV_iQkXS3bh39v5-xMqONVmcY&libraries=geometry"></script>
+ <script async src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=geometry"></script>
 </body>
 
 </html>

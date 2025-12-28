@@ -1373,6 +1373,10 @@ video {
   top: 1rem;
 }
 
+.bottom-\[calc\(var\(--tabbar-height\2c 4rem\)\+3\.25rem\)\] {
+  bottom: calc(var(--tabbar-height,4rem) + 3.25rem);
+}
+
 .z-10 {
   z-index: 10;
 }
@@ -1391,6 +1395,10 @@ video {
 
 .z-\[20000\] {
   z-index: 20000;
+}
+
+.z-40 {
+  z-index: 40;
 }
 
 .mx-2 {
@@ -1520,6 +1528,10 @@ video {
 
 .mt-\[96\.8px\] {
   margin-top: 96.8px;
+}
+
+.ml-4 {
+  margin-left: 1rem;
 }
 
 .block {
@@ -2411,6 +2423,15 @@ video {
 
 .bg-white\/80 {
   background-color: rgb(255 255 255 / 0.8);
+}
+
+.bg-black {
+  --tw-bg-opacity: 1;
+  background-color: rgb(0 0 0 / var(--tw-bg-opacity, 1));
+}
+
+.bg-opacity-40 {
+  --tw-bg-opacity: 0.4;
 }
 
 .bg-gradient-to-br {

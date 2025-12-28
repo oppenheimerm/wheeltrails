@@ -14,6 +14,11 @@ namespace WT.Client.Services
         /// <inheritdoc />
         public event Action<FabAction>? OnFabAction;
 
+        /// <inheritdoc />
+        public event Action<bool>? OnVisibilityChanged;
+
+        private bool _visible = false;
+
         /// <summary>
         /// Raises the specified <see cref="FabAction"/> to all subscribers.
         /// </summary>
@@ -21,6 +26,33 @@ namespace WT.Client.Services
         public void Raise(FabAction action)
         {
             OnFabAction?.Invoke(action);
+        }
+
+        /// <inheritdoc />
+        public void Show()
+        {
+            if (!_visible)
+            {
+                _visible = true;
+                OnVisibilityChanged?.Invoke(true);
+            }
+        }
+
+        /// <inheritdoc />
+        public void Hide()
+        {
+            if (_visible)
+            {
+                _visible = false;
+                OnVisibilityChanged?.Invoke(false);
+            }
+        }
+
+        /// <inheritdoc />
+        public void ToggleVisibility()
+        {
+            _visible = !_visible;
+            OnVisibilityChanged?.Invoke(_visible);
         }
     }
 }

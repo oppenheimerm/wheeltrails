@@ -73,7 +73,9 @@ namespace WT.Application.Extensions
                     ProfileUsername = result.User.ProfileUsername,
                     Email = result.User.Email,
                     UserPhoto = result.User.ProfilePicture,
-                    Bio = result.User.Bio
+                    Bio = result.User.Bio,
+                    GpsAccuracy = result.User.GpsAccuracy,
+                    ShowRecordingWarning = result.User.ShowRecordingWarning
                 };
                 
                 var jsonString = JsonSerializer.Serialize(authLocalStorage);

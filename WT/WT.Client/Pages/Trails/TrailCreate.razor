@@ -5,12 +5,16 @@
 @using WT.Client.Services
 @inject IJSRuntime JS
 @inject IFabService FabService
+@inject NavigationManager NavigationManager
 @implements IDisposable
 
 <PageTitle>WheelyTrails - Add a new trail</PageTitle>
 
 @code {
     private bool isRecording = false;
+    // UI state for confirmation modal and recording banner
+    private bool showRecordingConfirm = false;
+    private bool showRecordingBanner = false;
     private List<WTLatLng> Waypoints { get; set; } = new();
     private List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
     private WTLatLng? lastKnownPosition;
@@ -61,8 +65,12 @@
                 await JS.InvokeVoidAsync("initMap", dotNetRef, "map",51.5074, -0.1278,14);
             }
 
-            // subscribe to FAB actions
+            // Subscribe to FAB actions raised from the layout-level FAB (pages opt-in)
             FabService.OnFabAction += HandleFabAction;
+
+            // Make the global FAB visible for this page (opt-in). The layout listens
+            // to FabService.OnVisibilityChanged and will render the FAB when Show() is called.
+            FabService.Show();
         }
     }
 
@@ -89,56 +97,79 @@
     {
         if (!isRecording)
         {
-            // START or RESUME recording
-            isRecording = true;
-            errorMessage = null;
-
-            // If this is a fresh start (no previous start and no accumulated), clear previous data
-            if (!TimeStart.HasValue && TimeAccumulated == TimeSpan.Zero)
-            {
-                Waypoints.Clear();
-                PointsOfInterest.Clear();
-            }
-
-            // mark start time (resume if previously paused)
-            TimeStart = DateTime.UtcNow;
-            TimeEnd = null;
-
-            // start high-accuracy watch and pass updates to .NET
-            await JS.InvokeVoidAsync("startWatchPosition", dotNetRef, new { enableHighAccuracy = true, maximumAge =0, timeout =5000 });
+            // Show confirmation modal before starting recording so users understand battery impact
+            showRecordingConfirm = true;
+            StateHasChanged();
+            return;
         }
-        else
+
+        // If already recording, stop
+        await StopRecordingAsync();
+    }
+
+    // Called when user confirms they want to start recording from the modal
+    private async Task StartRecordingAsync()
+    {
+        showRecordingConfirm = false;
+
+        // START or RESUME recording
+        isRecording = true;
+        errorMessage = null;
+
+        // If this is a fresh start (no previous start and no accumulated), clear previous data
+        if (!TimeStart.HasValue && TimeAccumulated == TimeSpan.Zero)
         {
-            // PAUSE / STOP recording
-            isRecording = false;
-            await JS.InvokeVoidAsync("stopWatchPosition");
+            Waypoints.Clear();
+            PointsOfInterest.Clear();
+        }
 
-            // record end time and accumulate elapsed
-            TimeEnd = DateTime.UtcNow;
-            if (TimeStart.HasValue)
+        // mark start time (resume if previously paused)
+        TimeStart = DateTime.UtcNow;
+        TimeEnd = null;
+
+        // start high-accuracy watch and pass updates to .NET
+        await JS.InvokeVoidAsync("startWatchPosition", dotNetRef, new { enableHighAccuracy = true, maximumAge =0, timeout =5000 });
+
+        // show persistent small banner while recording
+        showRecordingBanner = true;
+
+        StateHasChanged();
+    }
+
+    private async Task StopRecordingAsync()
+    {
+        // PAUSE / STOP recording
+        isRecording = false;
+        await JS.InvokeVoidAsync("stopWatchPosition");
+
+        // record end time and accumulate elapsed
+        TimeEnd = DateTime.UtcNow;
+        if (TimeStart.HasValue)
+        {
+            TimeAccumulated += (TimeEnd.Value - TimeStart.Value);
+            TimeStart = null; // clear running start
+        }
+
+        // hide banner
+        showRecordingBanner = false;
+
+        if (Waypoints.Count >0)
+        {
+            var start = Waypoints.First();
+            var end = Waypoints.Last();
+
+            // Prepare DTO for later submission
+            NewTrail = new CreateTrailDTO
             {
-                TimeAccumulated += (TimeEnd.Value - TimeStart.Value);
-                TimeStart = null; // clear running start
-            }
-
-            if (Waypoints.Count >0)
-            {
-                var start = Waypoints.First();
-                var end = Waypoints.Last();
-
-                // Prepare DTO for later submission
-                NewTrail = new CreateTrailDTO
-                {
-                    Start = start,
-                    End = end,
-                    Waypoints = Waypoints.ToList(),
-                    PointsOfInterest = PointsOfInterest.ToList(),
-                    Description = "My recorded trail",
-                    Title = "New Trail",
-                    Difficulty = Domain.Enums.TrailDifficulty.Easy,
-                    SurfaceTypes = Domain.Enums.SurfaceType.Paved
-                };
-            }
+                Start = start,
+                End = end,
+                Waypoints = Waypoints.ToList(),
+                PointsOfInterest = PointsOfInterest.ToList(),
+                Description = "My recorded trail",
+                Title = "New Trail",
+                Difficulty = Domain.Enums.TrailDifficulty.Easy,
+                SurfaceTypes = Domain.Enums.SurfaceType.Paved
+            };
         }
 
         StateHasChanged();
@@ -223,13 +254,25 @@
     public void Dispose()
     {
         dotNetRef?.Dispose();
+        // Unsubscribe from FAB actions and hide the FAB when leaving the page to
+        // avoid showing it on unrelated pages.
         FabService.OnFabAction -= HandleFabAction;
+        FabService.Hide();
     }
     
     private class Geoposition
     {
         public double lat { get; set; }
         public double lng { get; set; }
+    }
+
+    // Navigate to account settings from the confirmation modal so the user
+    // can change recording defaults (e.g., GPS accuracy). Closes the modal
+    // before navigating.
+    private void GoToSettingsFromModal()
+    {
+        showRecordingConfirm = false;
+        NavigationManager.NavigateTo("/account/identity/settings");
     }
 }
 
@@ -252,7 +295,7 @@
 
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">@errorMessage</div>
+                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container]">@errorMessage</div>
                     }
 
                     @if (!string.IsNullOrEmpty(successMessage))
@@ -306,4 +349,33 @@
 
     <!-- Floating Action Buttons removed - FAB is rendered at layout level via IFabService -->
 </div>
+
+@* Confirmation Modal *@
+@if (showRecordingConfirm)
+{
+ <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+ <div class="bg-white dark:bg-harp-900 rounded-xl shadow-elevation-4 max-w-md w-full p-6">
+ <h3 class="text-lg font-semibold text-wt-black-900 dark:text-white">Recording uses GPS</h3>
+ <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mt-3">Recording uses your device GPS and may reduce battery life. High accuracy mode provides better tracks but uses more power. Continue?</p>
+
+ <div class="mt-6 flex justify-end gap-3">
+ <button class="wt-btn-outline" @onclick="() => { showRecordingConfirm = false; StateHasChanged(); }">Cancel</button>
+ <button class="wt-btn-outline" @onclick="GoToSettingsFromModal">Change defaults in Settings</button>
+ <button class="wt-btn" @onclick="StartRecordingAsync">Continue</button>
+ </div>
+ </div>
+ </div>
+}
+
+@* Persistent recording banner/chip *@
+@if (showRecordingBanner)
+{
+ <div class="fixed left-1/2 transform -translate-x-1/2 bottom-[calc(var(--tabbar-height,4rem)+3.25rem)] z-40">
+ <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] shadow-elevation-3">
+ <span class="material-symbols-rounded">my_location</span>
+ <span class="text-sm">Recording — GPS in use. Tap to stop. (May affect battery)</span>
+ <button class="ml-4 wt-btn-outline text-sm" @onclick="StopRecordingAsync">Stop</button>
+ </div>
+ </div>
+}
 

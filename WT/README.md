@@ -48,67 +48,40 @@ Summary of notable changes in this branch (please review and adjust the version/
  - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
  - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
 
-Local Dev: Injecting Google Maps API Key (PowerShell)
+Recorder UX & FAB (what to test)
+ - Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
+ - Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
+ - New recorder flow on `/trails/new` (TrailCreate):
+ - Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
+ - After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
+ - The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
 
-To avoid committing API keys to the repository we keep a committed `index.html.template` and generate `index.html` locally (or in CI) by replacing the placeholder `__GOOGLE_MAPS_API_KEY__` with a real key.
+IFabService Quick Reference
+ - API surface (client):
+ - `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
+ - `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
+ - `void Raise(FabAction action)` — layout uses this to raise actions to pages.
+ - `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
 
-Follow these exact PowerShell steps from the repo root (`src/WT`):
+Settings & Persistence (recorder)
+ - New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
+ - `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
+ - Recommended server work (before persisting preferences in DB):
+ - Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
+ - Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
 
-1) Ensure a committed template exists (one-time):
+Recorder interop (JS helpers)
+ - `getCurrentPosition()` — one-shot position used to center the map on first render.
+ - `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
+ - `stopWatchPosition()` — stops the geolocation watch.
 
-```powershell
-# if index.html exists, create a template from it
-Copy-Item .\WT.Client\wwwroot\index.html .\WT.Client\wwwroot\index.html.template -Force
-```
+What to test (quick checklist)
+ - Navigate to `/trails/new` — the FAB should appear (page opts-in).
+ - Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
+ - When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
+ - Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
 
-2) Inject key for the current session (immediate, won't be persisted across shells):
-
-```powershell
-# set key for current shell only
-$env:GOOGLE_MAPS_API_KEY = 'YOUR_REAL_KEY_HERE'
-
-# inject the key into a generated index.html
-(Get-Content .\WT.Client\wwwroot\index.html.template -Raw) -replace '__GOOGLE_MAPS_API_KEY__', $env:GOOGLE_MAPS_API_KEY |
- Set-Content .\WT.Client\wwwroot\index.html -Encoding UTF8
-
-Write-Host 'Wrote WT.Client/wwwroot/index.html'
-```
-
-3) Verify the injection:
-
-```powershell
-# confirm the maps script contains your key
-Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "maps.googleapis.com" -Context0,0
-
-# confirm placeholder removed
-Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "__GOOGLE_MAPS_API_KEY__" || Write-Host "placeholder not present"
-```
-
-4) Stop tracking `index.html` in Git (one-time):
-
-```powershell
-# add to .gitignore (if not already present)
-Add-Content .gitignore "WT.Client/wwwroot/index.html"
-
-# remove from index if previously tracked (safe if already ignored)
-git rm --cached WT.Client/wwwroot/index.html -ErrorAction SilentlyContinue
-
-# commit template and ignore rule
-git add WT.Client/wwwroot/index.html.template .gitignore
-git commit -m "Add index.html.template; ignore generated index.html"
-```
-
-Notes and best practices
-- Do NOT commit `index.html` with a real key. Keep only `index.html.template` in source control.
-- For persistent local environment variables use `setx GOOGLE_MAPS_API_KEY "your_key"` (re-open the shell afterward), but for immediate runs prefer `$env:...` so Node processes in the same shell see it.
-- CI / GitHub Actions: add the secret `GOOGLE_MAPS_API_KEY` to repository secrets and run the injector as part of the build to replace the placeholder before deployment. We keep a Node injector script (`scripts/inject-google-key.js`) in the repo for CI usage.
-- If the key was ever pushed publicly rotate it immediately in Google Cloud Console and reapply restrictions (API + strict HTTP referrers) and quotas.
-
-To publish this entry:
-- Update the version number and replace `YYYY-MM-DD` with the release date.
-- Move the entry into the main "Latest updates" section and update `v1.3` → `v1.4` as needed.
-
----
+***
 
 ## 🎨 Design System
 
@@ -592,33 +565,6 @@ To securely manage the Google Maps API key in the Blazor WebAssembly client with
 2. **Insert the API Key**: At build time, ensure the API key is injected into a new `index.html` file by your build or deploy process, replacing the placeholder with the actual key. This prevents the API key from being hardcoded in the source files.
 3. **Secure the Key**: Use environment variables or a secret manager to store the API key securely and access it during the build process without exposing it in the source. 
 
-#####  PowerShell — update key locally (pick one)
-1.	Temporary for current shell (no restart needed). Run these in repo root (C:..\src\WT):
-```powershell
-# set in current session
-$env:GOOGLE_MAPS_API_KEY = 'NEW_GOOGLE_API_KEY'
-
-# inject into generated index.html from the committed template
-(Get-Content .\WT.Client\wwwroot\index.html.template -Raw) -replace '__GOOGLE_MAPS_API_KEY__', $env:GOOGLE_MAPS_API_KEY |
-  Set-Content .\WT.Client\wwwroot\index.html -Encoding UTF8
-
-# quick verify
-Select-String -Path .\WT.Client\wwwroot\index.html -Pattern "maps.googleapis.com"
-```
-2.	Persistent for your Windows user (applies after you open a new shell)
-
-```powershell
-setx GOOGLE_MAPS_API_KEY "NEW_GOOGLE_API_KEY"
-# close and re-open PowerShell, then run injector
-node .\scripts\inject-google-key.js
-```
-3.	If you prefer the provided PowerShell script wrapper (if present)
-
-```
-# use the helper script created earlier
-$k = 'NEW_GOOGLE_API_KEY'
-.\scripts\inject-google-key.ps1 -Key $k -TemplatePath 'WT.Client\wwwroot\index.html.template' -OutPath 'WT.Client\wwwroot\index.html'powershell
-```
 
 ***NOTES:***
 - Do not commit the generated index.html (ensure WT.Client/wwwroot/index.html is in .gitignore).
@@ -628,214 +574,44 @@ $k = 'NEW_GOOGLE_API_KEY'
 - Use separate keys per environment (dev/staging/prod).
 - Never commit real keys — commit only `index.html.template`.
 
-#### Local Storage Guidence ✨ NEW
-The client uses `ApplicationSettings:NavBarSettings` (configured in `wwwroot/appsettings.json`) to 
-persist a small navbar DTO that contains UserPhoto. The NavBar reads 
-this value at startup; call `AccountService.SetNavBarAuthDataAsync()` 
-after profile changes to refresh the stored DTO.
+### Google Maps API Key — Local Dev (PowerShell)
 
-### Privacy Protection ✨ NEW
+To avoid committing API keys, keep a committed `index.html.template` and generate a local `index.html` that contains your real key. A helper script `scripts/dev-inject.ps1` is provided to make this repeatable and safe.
 
-⚠️ **CRITICAL: Never Expose User Email Addresses Publicly**
+Recommended (one-line helpers; run from repo root `src/WT`):
 
-**Security Rule:** The `ApplicationUser.Email` property should **NEVER** be exposed in public API responses or displayed in user-facing interfaces.
+- Use the helper script (recommended):
 
-**Why?**
-- **Privacy:** Email addresses are personal identifiable information (PII)
-- **Security:** Exposing emails enables targeted phishing attacks
-- **Spam:** Email harvesting bots can scrape public email addresses
-- **GDPR Compliance:** Email addresses are protected under privacy regulations
-- **Professional Standards:** User emails should only be visible to the user themselves and administrators
+```powershell
+# One-off inject (current shell)
+pwsh -ExecutionPolicy Bypass -File .\scripts\dev-inject.ps1 -Key "YOUR_KEY_HERE"
 
-**What to Use Instead:**
-- ✅ **ProfileUsername** (`@john_doe`) - Public display name for profiles, comments, and likes
-- ✅ **FirstName** - Safe for public display in user interfaces
-- ✅ **UserId (Guid)** - Internal identifier, safe to expose in API responses
+# Persist the key for future shells (requires reopening shells)
+pwsh -ExecutionPolicy Bypass -File .\scripts\dev-inject.ps1 -Key "YOUR_KEY_HERE" -Persist
 
-**When Email CAN Be Used:**
-- ✅ Authentication (login process)
-- ✅ Password reset emails
-- ✅ Admin user management interfaces
-- ✅ User's own profile settings page (viewing their own email)
-- ✅ Internal logging and audit trails
-- ✅ Email verification workflows
+# Non-interactive: inject and force git index changes (stop tracking) without prompts
+pwsh -ExecutionPolicy Bypass -File .\scripts\dev-inject.ps1 -Key "YOUR_KEY_HERE" -ForceGitChanges
+```
 
-**When Email MUST NOT Be Used:**
-- ❌ Public profile pages (`/user/{profileUsername}`)
-- ❌ Trail likes/comments display
-- ❌ Search results
-- ❌ API responses for trail creators
-- ❌ Social features (followers, likes, ratings)
-- ❌ Any public-facing UI component
-- ❌ Trail owner display (`Created by: {email}`)
-- ❌ Community leaderboards or user listings
+Manual (simple) alternative:
 
-### User Secrets
-The project uses .NET User Secrets for sensitive configuration during development. **Never commit secrets to source control.**
+```powershell
+# Set for current shell only (no restart)
+$env:GOOGLE_MAPS_API_KEY = 'YOUR_KEY_HERE'
+(Get-Content .\WT.Client\wwwroot\index.html.template -Raw) -replace '__GOOGLE_MAPS_API_KEY__', $env:GOOGLE_MAPS_API_KEY | Out-File .\WT.Client\wwwroot\index.html -Encoding utf8
 
-Required secrets for API and Infrastructure projects:
-- `JwtSettings:Issuer`, `JwtSettings:Audience`, `JwtSettings:Secret`
-- `AdminUser:FirstName`, `AdminUser:Email`, `AdminUser:Password`
-- `ConnectionStrings:WTConnectionString`
-- `ApplicationSettings:RefreshTokenTTL`
-- `EmailSettings:SmtpHost`, `EmailSettings:SmtpPort`, `EmailSettings:SmtpUser`, `EmailSettings:SmtpPassword`
-- `EmailSettings:EnableSsl`, `EmailSettings:FromEmail`, `EmailSettings:FromName`, `EmailSettings:ClientUrl`
-- `Firebase:ServiceAccountJson` ✨ NEW
-- `ApplicationInsights:ConnectionString` ✨ NEW (optional)
+# Verify
+Select-String -Path .\WT.Client\wwwroot\index.html -Pattern 'maps.googleapis.com' -SimpleMatch
+```
 
-### Solution Configuration ✨ NEW
+Notes
+- Commit only `WT.Client/wwwroot/index.html.template`. Do NOT commit `WT.Client/wwwroot/index.html` (it should be in `.gitignore`).
+- If you persist the key with `setx` (or use `-Persist`), re-open shells or restart apps to pick up the env var.
+- For CI: add `GOOGLE_MAPS_API_KEY` to repository Secrets and run an injector step during the build. See `scripts/README-inject.md` for full details and script behavior.
 
-For Solution properties that rarely change `Constants.cs`
-(**WT.Application.Extensions**) will act as a single source 
-of truth and for the following conditions:
+See also: `scripts/README-inject.md` for additional guidance.
 
-- The value is not sensitive
-- The value rarely changes
-- The value is needed in attributes (which require compile‑time constants)
-- You want a single source of truth
-- You want to avoid cluttering `Program.cs`
-
-
-### Rate Limiting Configuration ✨ NEW
-
-**Global Rate Limit:**
--100 requests per minute per IP address
-- Sliding window with queue support
-- Custom rejection messages
-
-**Auth Endpoint Rate Limit:**
--10 requests per minute per IP address
-- Applied to sensitive authentication endpoints
-- Prevents brute force attacks
-
-## 🧪 Testing
-
-### Manual Testing Checklist
-
-<!-- Cancellation guidance for profile uploads -->
-
-### Cancellation: Cooperative client + server upload handling
-
-To improve responsiveness and avoid wasted bandwidth and server work, the upload flow implements cooperative cancellation across the Blazor WebAssembly client and the API back end.
-
-Client (Blazor WASM)
-- Create a `CancellationTokenSource` when starting an upload and pass `cts.Token` into the client service method that performs the HTTP `POST` of the multipart content.
-- Cancel and dispose the `CancellationTokenSource` when the user cancels the operation (Cancel button), when a new upload begins, or when the component is disposed.
-- Example pattern (component):
- - Field: `private CancellationTokenSource? _uploadCts;`
- - Before upload: cancel+dispose previous `CTS`, then ` _uploadCts = new CancellationTokenSource();`
- - Call service: `await AccountService.UpdateProfilePictureUrlAsync(dto, _uploadCts.Token);`
- - On user cancel / RemovePhoto / Dispose: `_uploadCts?.Cancel(); _uploadCts?.Dispose(); _uploadCts = null;`
-- The client `AccountService.UpdateProfilePictureUrlAsync` accepts an optional `CancellationToken` and forwards it into `HttpClient.PostAsync(..., content, cancellationToken)` so the browser/HttpClient stops sending the request when cancelled.
-
-Server (API)
-- Controller actions accept an explicit `CancellationToken` parameter and prefer it when provided. The action also observes `HttpContext.RequestAborted` as a fallback for network disconnects or proxy-level disconnects.
-- Example pattern (controller):
- - Action signature: `public async Task<IActionResult> UploadProfilePicture([FromForm] UpdateProfilePhotoDTO? model, CancellationToken cancellationToken)`
- - Choose the token to observe: `var ct = cancellationToken.CanBeCanceled ? cancellationToken : HttpContext.RequestAborted;`
- - Throw/handle `OperationCanceledException` (or check `ct.IsCancellationRequested`) and return a `499`-style response to indicate client cancel.
-- For long-running server-side storage operations, consider adding `CancellationToken` parameters to `IFileStorageService` methods so the upload/optimization can be aborted as soon as possible.
-
-Why this matters
-- Early client cancellation avoids uploading large files when the user navigates away or explicitly cancels.
-- The server's `RequestAborted` helps detect network disconnects, but explicit client tokens make client-initiated cancellation deterministic.
-- Proper disposal of `CancellationTokenSource` prevents resource leaks.
-
-Recommendations
-- Add a small Cancel button in the upload UI while `isUploading` and call `_uploadCts?.Cancel()` so users can stop upload explicitly.
-- Propagate the cancellation token through storage and repository layers (`IFileStorageService.UploadProfilePictureAsync(Stream, string, Guid, CancellationToken)`) for full end-to-end cancellation.
-- Continue to log cancellations for telemetry but avoid treating them as errors.
-
-This cooperative cancellation pattern was added to `WT.Application.Services.AccountService.UpdateProfilePictureUrlAsync(...)` (client) and `API.Controllers.AccountController.UploadProfilePicture(...)` (server) to make uploads more resilient and user-friendly.
-
-<!-- End cancellation guidance -->
-
-#### Registration Flow ✨ ENHANCED
-- [ ] Navigate to `/account/identity/register`
-- [ ] Fill out form with valid data
-- [ ] Test ProfileUsername validation:
- - [ ] Enter existing username → See "already taken" error
- - [ ] Enter username with profanity → See "inappropriate content" error
- - [ ] Enter valid unique username → See green "available!" checkmark
-- [ ] Submit form
-- [ ] Verify email received with verification link
-- [ ] Click verification link
-- [ ] Confirm successful email verification
-
-#### Login Flow
-- [ ] Navigate to `/account/identity/login`
-- [ ] Enter registered email and password
-- [ ] Verify successful login with JWT token
-- [ ] Check LocalStorage for authentication data
-- [ ] Verify user menu displays ProfileUsername
-- [ ] Test logout functionality
-
-#### Password Reset Flow
-- [ ] Click "Forgot Password?" link
-- [ ] Enter registered email
-- [ ] Verify reset email received
-- [ ] Click reset link and enter new password
-- [ ] Confirm password reset successful
-- [ ] Verify all sessions logged out
-- [ ] Login with new password
-
-#### Account Settings ✨ NEW
-- [ ] Navigate to `/account/identity/settings` while logged in
-- [ ] Verify account information displays correctly:
- - [ ] Profile picture (or fallback icon)
- - [ ] First name and profile username
- - [ ] Email address (display only)
- - [ ] Bio content
- - [ ] Member since date
- - [ ] Country code
-- [ ] Test JWT expiration handling:
- - [ ] Wait30+ minutes (or manually invalidate JWT)
- - [ ] Reload settings page
- - [ ] Verify automatic token refresh occurs
- - [ ] Confirm data loads successfully after refresh
-- [ ] Test error handling:
- - [ ] Logout and try to access `/account/identity/settings`
- - [ ] Verify redirect to login page
- - [ ] Manually delete local storage data
- - [ ] Verify "not authenticated" error message
-
-#### Trail Likes ✨ NEW
-- [ ] Navigate to a trail detail page
-- [ ] Click "Like" button
-- [ ] Verify like count increments
-- [ ] Verify visual feedback (heart icon filled)
-- [ ] Click "Unlike" button
-- [ ] Verify like count decrements
-- [ ] Attempt to like the same trail twice (should fail with error)
-
-#### Health Checks ✨ NEW
-- [ ] Visit `/health` endpoint
-- [ ] Verify "Healthy" status returned
-- [ ] Visit `/health/ready` endpoint
-- [ ] Verify readiness probe responds
-
-## 🐛 Known Issues
-
-### Current Limitations
-- ProfileUsername is permanent (cannot be changed after registration)
-- Rate limiting is IP-based (may affect users behind shared IPs)
-- Email verification required before login (no skip option)
-
-## 🗺️ Roadmap
-
-### Planned Features
-- [ ] ProfileUsername change requests (admin approval required)
-- [ ] User-to-user messaging system
-- [ ] Trail difficulty voting/consensus
-- [ ] Offline mode for trail discovery
-- [ ] Mobile app (React Native or .NET MAUI)
-- [ ] Advanced search with natural language processing
-- [ ] Trail recommendations based on user preferences
-- [ ] Social features (followers, activity feed)
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+--- 
 
 ## 🙏 Acknowledgments
 

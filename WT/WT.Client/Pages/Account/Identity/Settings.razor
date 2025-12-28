@@ -8,10 +8,10 @@
 @inject ILocalStorageService LocalStorage
 
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @using System.Linq.Expressions
 @using WT.Application.DTO.Response.Account
 @using WT.Application.Extensions
+@using WT.Domain.Enums
 
 <PageTitle>WheelyTrails - Account Settings</PageTitle>
 @attribute [Authorize(Roles = Constants.Role.USER)]
@@ -30,6 +30,20 @@
 
     // New: profile photo url loaded from local storage (NavBarSettings)
     private string? profilePhotoUrl;
+
+    // Local storage key for recording preferences fallback (for unauthenticated testing)
+    private const string RecordingPrefsLocalStorageKey = "RecordingPreferences";
+
+    // Selected int value for dropdown binding (synchronizes to AuthenticateUserQuery.GpsAccuracy)
+    private int SelectedGpsAccuracy
+    {
+        get => (int)(AuthenticateUserQuery?.GpsAccuracy ?? GpsAccuracyLevel.Default);
+        set
+        {
+            if (AuthenticateUserQuery == null) AuthenticateUserQuery = new APIResponseUserSettingsDTO();
+            AuthenticateUserQuery.GpsAccuracy = (GpsAccuracyLevel)value;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -85,6 +99,25 @@
                 Console.WriteLine("Failed to fetch account settings");
                 //NavigationManager.NavigateTo("/account/identity/login", true);
             }
+
+            // If server didn't provide recorder prefs (or for quick local testing), try local storage
+            if (AuthenticateUserQuery == null)
+            {
+                AuthenticateUserQuery = new APIResponseUserSettingsDTO();
+            }
+
+            // Try to merge local recording prefs (useful for testing without full backend)
+            try
+            {
+                var localPrefs = await LocalStorage.GetItemAsync<RecordingPreferences?>(RecordingPrefsLocalStorageKey);
+                if (localPrefs != null)
+                {
+                    // only override if values are not null / default
+                    AuthenticateUserQuery.GpsAccuracy = localPrefs.GpsAccuracy;
+                    AuthenticateUserQuery.ShowRecordingWarning = localPrefs.ShowRecordingWarning;
+                }
+            }
+            catch (Exception) { /* ignore local storage read errors */ }
 
             // Load profile photo from local storage (NavBarSettings)
             try
@@ -193,6 +226,51 @@
     private void GoToUploadPhoto()
     {
         NavigationManager.NavigateTo("/account/identity/upload-photo");
+    }
+
+    // Recording preferences local model (used for localStorage fallback)
+    private record RecordingPreferences(GpsAccuracyLevel GpsAccuracy, bool ShowRecordingWarning);
+
+    private async Task SaveRecordingPreferencesAsync()
+    {
+        try
+        {
+            if (AuthenticateUserQuery == null) return;
+
+            // Persist to local storage for quick feedback/testing
+            var prefs = new RecordingPreferences(AuthenticateUserQuery.GpsAccuracy, AuthenticateUserQuery.ShowRecordingWarning);
+            await LocalStorage.SetItemAsync(RecordingPrefsLocalStorageKey, prefs);
+
+            // TODO: Optionally call an API to persist server-side when endpoint exists
+            successMessage = "Recorder preferences saved.";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to save recording preferences: {ex.Message}");
+            errorMessage = "Failed to save preferences.";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResetLocalPrefsAsync()
+    {
+        try
+        {
+            await LocalStorage.RemoveItemAsync(RecordingPrefsLocalStorageKey);
+            successMessage = "Recording preferences reset.";
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to reset local prefs: {ex.Message}");
+            errorMessage = "Failed to reset local preferences.";
+        }
+        finally
+        {
+            StateHasChanged();
+        }
     }
 }
 
@@ -352,6 +430,54 @@
                             </div>
                         </div>
 
+                        <!-- Recorder Preferences Section -->
+                        <div>
+                            <h2 class="text-2xl font-semibold text-wt-black-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-harp-700">
+                                Recorder Preferences
+                            </h2>
+
+                            <div class="space-y-4">
+                                <!-- GPS Accuracy (dropdown) -->
+                                <div>
+                                    <label class="wt-form-lbl" for="gpsAccuracy">GPS Accuracy</label>
+                                    <div class="relative">
+                                        <InputSelect @bind-Value="SelectedGpsAccuracy"
+                                                     id="gpsAccuracy"
+                                                     class="wt-form-input-dd">
+                                            <option value="">Select GPS accuracy</option>
+                                            @foreach (var level in Enum.GetValues<GpsAccuracyLevel>())
+                                            {
+                                                <option value="@((int)level)">@level</option>
+                                            }
+                                        </InputSelect>
+                                        <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            <span class="material-symbols-rounded text-[18px] text-gray-500 dark:text-gray-400">recenter</span>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-[var(--md-sys-color-on-surface-variant)] mt-2">High accuracy gives better trails but may reduce battery life.</p>
+                                </div>
+
+                                <!-- Show recording warning toggle -->
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <label class="wt-form-lbl">Show recording warning</label>
+                                        <p class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Show a confirmation before starting recording to warn about battery usage.</p>
+                                    </div>
+                                    <div>
+                                        <label class="switch">
+                                            <input type="checkbox" @bind="AuthenticateUserQuery.ShowRecordingWarning" />
+                                            <span class="slider round"></span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="flex gap-3">
+                                    <button type="button" class="wt-btn" @onclick="SaveRecordingPreferencesAsync">Save preferences</button>
+                                    <button type="button" class="wt-btn-outline" @onclick="ResetLocalPrefsAsync">Reset local prefs</button>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Bio Section -->
                         <div>
                             <h2 class="text-2xl font-semibold text-wt-black-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-harp-700">
@@ -363,12 +489,12 @@
                                 <InputTextArea @bind-Value="AuthenticateUserQuery.Bio"
                                                id="bio"
                                                class="@GetInputClass(() => ModelDTO.Bio)"
-                                               placeholder="Tell us about yourself and your love for trails... (max 500 characters)"
+                                               placeholder="Tell us about yourself and your love for trails... (max500 characters)"
                                                rows="4" />
                                 <div class="flex justify-between items-center mt-1">
                                     <ValidationMessage For="@(() => AuthenticateUserQuery.Bio)" class="wt-form-error-msg" />
                                     <span class="text-xs text-gray-500 dark:text-gray-400">
-                                        @((ModelDTO.Bio?.Length ?? 0)) / 500 characters
+                                        @((ModelDTO.Bio?.Length ??0)) /500 characters
                                     </span>
                                 </div>
                             </div>
@@ -464,3 +590,4 @@
         }
     </div>
 </div>
+

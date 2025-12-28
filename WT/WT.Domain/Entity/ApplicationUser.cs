@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using WT.Domain.Enums;
+
 
 namespace WT.Domain.Entity
 {
@@ -49,7 +51,18 @@ namespace WT.Domain.Entity
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
         public string? CountryCode { get; set; }
+
+        /// <summary>
+        /// While recording a trail, the GPS accuracy level to use.
+        /// </summary>
+        public GpsAccuracyLevel CreateTrailGpsAccuracy { get; set; } = GpsAccuracyLevel.Default;
         
+        /// <summary>
+        /// Whether to show the battery/recording warning before starting recording.
+        /// Default: true (show warning).
+        /// </summary>
+        public bool ShowRecordingWarning { get; set; } = true;
+
         [NotMapped] // Don't map to database - managed separately
         public List<RefreshToken>? RefreshTokens { get; set; }
         

@@ -190,4 +190,5 @@ namespace WT.Application.Extensions
 
         public string? POIName { get; set; }
     }
+
 }

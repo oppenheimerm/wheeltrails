@@ -18,6 +18,7 @@ namespace WT.Application.Extensions
                 FirstName = entity.FirstName,
                 Email = entity.Email,
                 ProfilePicture = entity.ProfilePicture,
+                ProfileUsername = entity.ProfileUsername,
                 Bio = entity.Bio,
                 CountryCode = entity.CountryCode,
                 RegistrationDate = entity.ProfileUsernameCreatedAt,

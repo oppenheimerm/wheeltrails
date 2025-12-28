@@ -698,9 +698,10 @@ namespace WT.Application.Services
 
                 Console.WriteLine($"✅ Account settings retrieved successfully (took {currentAttempt} attempt(s))");
                 Console.WriteLine("✅ Successfully updated local storage with account settings.");
+                Console.WriteLine($"✅ ProfileUsername: {result.UserSettings.ProfileUsername}.");
 
                 // Update local storage with latest navbar info
-                if(result != null)
+                if (result != null)
                 {
                     if (result.UserSettings != null)
                     {
@@ -712,6 +713,8 @@ namespace WT.Application.Services
                         var jsonString = JsonSerializer.Serialize(navBarSettingsDTO);
                         Console.WriteLine($"NavBarSettings:Key {_configuration["ApplicationSettings:NavBarSettings"]}");
                         await _localStorage.SetItemAsStringAsync(_configuration["ApplicationSettings:NavBarSettings"]!, jsonString);
+
+
                     }
                 }               
                 

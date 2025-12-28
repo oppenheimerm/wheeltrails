@@ -1223,7 +1223,9 @@ namespace WT.Infrastructure.Repositories
                     MemberSince = userDto.RegistrationDate,
                     ProfilePicture = userDto.ProfilePicture,
                     Bio = userDto.Bio,
-                    CountryCode = userDto.CountryCode
+                    CountryCode = userDto.CountryCode,
+                    GpsAccuracy = userDto.GpsAccuracy,
+                    ShowRecordingWarning = userDto.ShowRecordingWarning
                 }
             };
 
@@ -1813,7 +1815,9 @@ namespace WT.Infrastructure.Repositories
                     MemberSince = user.ProfileUsernameCreatedAt,
                     ProfilePicture = user.ProfilePicture,
                     Bio = user.Bio,
-                    CountryCode = user.CountryCode
+                    CountryCode = user.CountryCode,
+                    GpsAccuracy = user.CreateTrailGpsAccuracy,
+                    ShowRecordingWarning = user.ShowRecordingWarning
                 };
 
                 LogException.LogToFile($"Account settings retrieved for user {user.Email} at {DateTime.UtcNow}");

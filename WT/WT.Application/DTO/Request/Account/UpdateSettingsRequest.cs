@@ -1,5 +1,6 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
+using WT.Domain.Enums;
 
 namespace WT.Application.DTO.Request.Account
 {
@@ -13,5 +14,7 @@ namespace WT.Application.DTO.Request.Account
 
         [MaxLength(2, ErrorMessage = "Country code must be 2 characters long."), MinLength(2)]
         public string? CountryCode { get; set; }
+
+        public GpsAccuracyLevel GpsAccuracy { get; set; }
     }
 }

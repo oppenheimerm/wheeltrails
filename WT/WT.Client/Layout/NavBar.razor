@@ -13,6 +13,7 @@
     private bool isUserMenuOpen = false;
     private string? userProfilePicture;
     private string? userName;
+    private string? profuleUsername;
     private string? userTitle;
     readonly string? LocalStorageKey;
 
@@ -69,6 +70,8 @@
             var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
             Console.WriteLine("✅ LocalStorage.GetItemAsync CALLED!");
             Console.WriteLine($"Navbar Profile picture: {navBarAuthData?.UserPhoto}");
+            Console.WriteLine($"Navbar ProfileUsername: {navBarAuthData?.ProfileUsername}");
+            profuleUsername = navBarAuthData?.ProfileUsername ?? "";
             userProfilePicture = navBarAuthData?.UserPhoto ?? "https://i.pravatar.cc/300";
  
         }
@@ -394,15 +397,39 @@
 
                                     <!-- Dropdown Links -->
                                     <div class="py-2">
-                                        <a href="/account/profile"
-                                           class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
-                                                      hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
-                                           @onclick="CloseUserMenu">
-                                            <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
-                                                person
-                                            </span>
-                                            Profile
-                                        </a>
+
+                                        <!--
+
+                                            /user/{profileUsername
+
+
+                                        -->
+                                        @{
+                                            if (!string.IsNullOrEmpty(profuleUsername))
+                                            {
+                                                <a href="/user/@profuleUsername"
+                                                   class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+                                                                  hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                                   @onclick="CloseUserMenu">
+                                                    <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
+                                                        person
+                                                    </span>
+                                                    Profile
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a href="/"
+                                                   class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+                                                                  hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                                   @onclick="CloseUserMenu">
+                                                    <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
+                                                        person
+                                                    </span>
+                                                    Profile
+                                                </a>
+                                            }
+                                        }
 
                                         <a href="/account/identity/settings"
                                            class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
