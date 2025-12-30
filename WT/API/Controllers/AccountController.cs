@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 using WT.Application.APIServiceLogs;
 using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
@@ -28,6 +29,7 @@ namespace API.Controllers
         private readonly IFileStorageService _fileStorageService;
         private readonly IConfiguration _configuration;
         private readonly IMemoryCache _cache;
+        private readonly IEmailService _emailService;
 
         public AccountController(
             IAccountRepository accountRepository, // ✅ Inject IAccountRepository
@@ -35,7 +37,8 @@ namespace API.Controllers
             IFileStorageService fileStorageService,
             IConfiguration configuration,
             UserManager<ApplicationUser> userManager,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            IEmailService emailService)
         {
             _accountRepository = accountRepository;
             _dbContext = dbContext;
@@ -43,6 +46,7 @@ namespace API.Controllers
             _fileStorageService = fileStorageService;
             _configuration = configuration;
             _cache = cache;
+            _emailService = emailService;
         }
 
         [HttpGet]
@@ -52,7 +56,46 @@ namespace API.Controllers
             return Ok();
         }
 
-          [AllowAnonymous]
+        // Diagnostic endpoint to send a test email via configured email provider (SendGrid)
+        // Example request body: { "to": "you@example.com", "type": "verification" }
+        [HttpPost("diagnostic/send-test-email")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SendTestEmail([FromBody] TestEmailRequest? model)
+        {
+            if (model == null || string.IsNullOrWhiteSpace(model.To))
+            {
+                return BadRequest(new { Success = false, Message = "Recipient (to) is required" });
+            }
+
+            try
+            {
+                bool sent = false;
+
+                // Use the configured email service to send a simple verification or reset email
+                if (string.Equals(model.Type, "reset", StringComparison.OrdinalIgnoreCase))
+                {
+                    var token = model.Token ?? "test-reset-token";
+                    sent = await _emailService.SendPasswordResetEmailAsync(model.To, model.FirstName ?? "Tester", token);
+                }
+                else
+                {
+                    var token = model.Token ?? "test-verification-token";
+                    sent = await _emailService.SendVerificationEmailAsync(model.To, model.FirstName ?? "Tester", token);
+                }
+
+                if (sent)
+                    return Ok(new { Success = true, Message = "Test email queued/sent" });
+
+                return StatusCode(500, new { Success = false, Message = "Failed to send test email (provider error)" });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { Success = false, Message = "Exception while sending test email" });
+            }
+        }
+
+        [AllowAnonymous]
         [HttpPost("identity/create")]
         public async Task<ActionResult<BaseAPIResponseDTO>> CreateAccount(RegisterDTO model)
         {
@@ -618,5 +661,14 @@ namespace API.Controllers
         }
 
         #endregion
+
+        public class TestEmailRequest
+        {
+            [Required]
+            public string To { get; set; } = string.Empty;
+            public string? FirstName { get; set; }
+            public string? Token { get; set; }
+            public string? Type { get; set; } // "verification" (default) or "reset"
+        }
     }
 }

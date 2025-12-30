@@ -40,6 +40,8 @@
 	  
     <PackageReference Include="Scalar.AspNetCore" Version="2.11.0" />	
 	  
+    <PackageReference Include="SendGrid" Version="9.29.3" />	
+	  
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />	
 	  
     <PackageReference Include="SixLabors.ImageSharp.Web" Version="3.2.0" />

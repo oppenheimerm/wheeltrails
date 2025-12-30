@@ -127,12 +127,28 @@ using (var scope = app.Services.CreateScope())
     Console.WriteLine($"🎯 UsernameValidator loaded and tested successfully!");
 }
 
+
+//  Our API has a friendly, lightweight landing response.  It givees a clear indication that the API is running.
+// and has zero security implications.  This also plays well with uptime monitoring services, tool like
+// Azure Monitor, Pingdom, UptimeRobot, etc., can ping this endpoint to verify that the API is operational.
+app.MapGet("/", () =>
+    Results.Json(new
+    {
+        status = "WheelyTrails API is running",
+        environment = app.Environment.EnvironmentName
+    })
+);
+
 // Configure the HTTP request pipeline.
+app.MapOpenApi(); // always expose JSON
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
-    app.MapScalarApiReference();
+    app.MapScalarApiReference(); // UI only in dev
 }
+
+
+
 
 app.UseHttpsRedirection();
 

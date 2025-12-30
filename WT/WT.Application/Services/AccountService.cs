@@ -248,14 +248,29 @@ namespace WT.Application.Services
                 // Check if the response was successful
                 if (!response.IsSuccessStatusCode)
                 {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"❌ Login failed. Status: {response.StatusCode}, Error: {errorContent}");
-                    
-                    return new APIResponseAuthentication 
-                    { 
-                        Success = false, 
-                        Message = $"Login failed: {response.StatusCode}" 
-                    };
+                    // respone is a type of APIResponseAuthentication retured by the API
+                    // I want to retun this friendly error message to the caller, not bad request 400 etc.
+                    // So we need to convert the response content to a APIResponseAuthentication object
+                    var friendlyError = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
+                    Console.WriteLine($"❌ Login failed. Status: {response.StatusCode}");
+
+                    // check if friendlyError is not null and has a message
+                    if (friendlyError != null && !string.IsNullOrEmpty(friendlyError.Message))
+                    {
+                        return new APIResponseAuthentication 
+                        { 
+                            Success = false, 
+                            Message = friendlyError.Message 
+                        };
+                    }
+                    else { 
+                        return new APIResponseAuthentication 
+                        { 
+                            Success = false, 
+                            Message = $"Login failed: {response.StatusCode}" 
+                        };
+                    }
+
                 }
                 
                 var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
@@ -273,7 +288,7 @@ namespace WT.Application.Services
                 return result ?? new APIResponseAuthentication 
                 { 
                     Success = false, 
-                    Message = "Failed to parse login response" 
+                    Message = "Login failed. Please try again." 
                 };
             }
             catch (Exception ex)
@@ -283,8 +298,9 @@ namespace WT.Application.Services
                 
                 return new APIResponseAuthentication 
                 { 
-                    Success = false, 
-                    Message = $"Login error: {ex.Message}" 
+                    Success = false,
+                    // Never return sensitive exception details to the caller, just a generic message
+                    Message = "Login error. Please try again." 
                 };
             }
         }

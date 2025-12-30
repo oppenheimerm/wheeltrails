@@ -138,8 +138,12 @@
                         }
                         else
                         {
-                            <div class="h-28 w-28 rounded-full bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface)] flex items-center justify-center text-[var(--md-sys-color-on-surface-variant)] ring-4 ring-white dark:ring-slate-900">
-                                <span class="material-icons text-6xl">account_circle</span>
+                            <div class="h-28 w-28 rounded-full bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface)] flex items-center justify-center text-[var(--md-sys-color-on-surface-variant)] ring-4 ring-white dark:ring-slate-900"
+                                id="viewprofile-noimage-wrap">
+                                <!-- Make the material icon scale to fit the parent circle. Use explicit font-size and remove extra line-height. -->
+                                <span class="material-symbols-rounded leading-none text-[4.5rem]">
+                                    account_circle
+                                </span>
                             </div>
                         }
                     </div>
