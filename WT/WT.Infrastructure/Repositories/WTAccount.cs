@@ -267,17 +267,25 @@ namespace WT.Infrastructure.Repositories
                     };
                 }
 
-                // Check if user is verified - disabled for now(Testing)
-                /*if (!user.IsVerified)
-                    return new APIResponseAuthentication(false, "Please verify your account");*/
+                if (!user.IsVerified)
+                    return new APIResponseAuthentication(false, "Please verify your account");
 
-                /*
-                if (account.AccountLockedOut == true)
-                    return new APIResponseAuthentication(false, "Your account is locked.  Please contact our help desk for assistance.");
-                 */
+                // handle a locked out user
+                if (await userManager.IsLockedOutAsync(user))
+                {
+                    LogException.LogToFile($"Login attempt for locked out user: {user.Email} at {DateTime.UtcNow}");
+                    return new APIResponseAuthentication
+                    {
+                        Success = false,
+                        Message = "Your account is locked due to multiple failed login attempts. Please try again later."
+                    };
+                }
+
 
                 SignInResult result;
-                result = await signinManager.CheckPasswordSignInAsync(user, model.Password!, false);
+                // We set lockoutOnFailure to true to enable account lockout after multiple failed attempts
+                // This helps protect against brute-force attacks.
+                result = await signinManager.CheckPasswordSignInAsync(user, model.Password!, true);
                 if (result.Succeeded)
                 {
                     //  Get user roles

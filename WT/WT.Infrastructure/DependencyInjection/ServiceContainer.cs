@@ -37,6 +37,14 @@ namespace WT.Infrastructure.DependencyInjection
                 // By default, Identity restricts usernames to ASCII. You can override this behavior by setting
                 // AllowedUserNameCharacters to null or to a custom string of allowed characters.
                 options.User.AllowedUserNameCharacters = null;
+                // Lockout settings
+                //  How long the user stays locked out
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                //  Maximum failed access attempts before lockout
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                //  Whether new users are subject to lockout
+                options.Lockout.AllowedForNewUsers = true;
+
             }).AddRoles<IdentityRole<Guid>>()
               .AddEntityFrameworkStores<AppDbContext>()
               .AddSignInManager()
@@ -71,7 +79,8 @@ namespace WT.Infrastructure.DependencyInjection
             // ❌ REMOVE THIS LINE (client-side service, doesn't belong here):
             // services.AddScoped<IAccountService, WTAccount>();
             
-            services.AddScoped<IEmailService, EmailService>();
+            // Replace generic EmailService with SendGrid implementation for production readiness.
+            services.AddScoped<IEmailService, SendGridEmailService>();
             services.AddScoped<IFileStorageService, FirebaseStorageService>();
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();
