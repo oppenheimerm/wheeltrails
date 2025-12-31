@@ -1,0 +1,56 @@
+@inject IJSRuntime JS
+@implements IDisposable
+
+<!--
+    ServiceWorkerUpdate.razor
+    Subscribes to update notifications via JS interop.
+•	Shows an in-app prompt “A new version is available.” with Update and Dismiss buttons.
+•	Calls JS to skip waiting and reload when the user confirms.
+-->
+
+<div class="fixed bottom-6 right-6 z-50">
+    @if (showPrompt)
+    {
+        <div class="bg-[var(--md-sys-color-surface-container)] text-[var(--md-sys-color-on-surface)] p-4 rounded-lg shadow-elevation-4 flex items-center gap-3">
+            <div class="flex-1">A new version is available.</div>
+            <button class="px-3 py-1 bg-[var(--md-sys-color-primary)] text-white rounded" @onclick="ApplyUpdate">Update</button>
+            <button class="px-3 py-1 border rounded" @onclick="Dismiss">Dismiss</button>
+        </div>
+    }
+</div>
+
+@code {
+    private DotNetObjectReference<ServiceWorkerUpdate>? objRef;
+    private bool showPrompt = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("wtSwInterop.addServiceWorkerUpdateListener", objRef);
+        }
+    }
+
+    [JSInvokable("NotifyUpdateAvailable")]
+    public void NotifyUpdateAvailable()
+    {
+        showPrompt = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ApplyUpdate()
+    {
+        await JS.InvokeVoidAsync("wtSwInterop.skipWaitingAndReload");
+    }
+
+    private void Dismiss()
+    {
+        showPrompt = false;
+    }
+
+    public void Dispose()
+    {
+        objRef?.Dispose();
+    }
+}

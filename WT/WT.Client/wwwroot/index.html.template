@@ -44,11 +44,11 @@
  </div>
 
  <div id="blazor-error-ui" class="hidden fixed bottom-0 left-0 right-0 bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] p-4 flex items-center justify-between shadow-md z-50 invisible">
- <span class="text-sm font-medium">An unhandled error has occurred.</span>
- <div class="flex items-center space-x-4">
- <a href="." class="text-[var(--md-sys-color-primary)] hover:underline text-sm font-semibold">Reload</a>
- <button class="text-[var(--md-sys-color-error)] hover:text-[var(--md-sys-color-on-error)] text-lg font-bold focus:outline-none" aria-label="Dismiss">ðŸ—™</button>
- </div>
+	 <span class="text-sm font-medium">An unhandled error has occurred.</span>
+	 <div class="flex items-center space-x-4">
+		 <a href="." class="text-[var(--md-sys-color-primary)] hover:underline text-sm font-semibold">Reload</a>
+		 <button class="text-[var(--md-sys-color-error)] hover:text-[var(--md-sys-color-on-error)] text-lg font-bold focus:outline-none" aria-label="Dismiss">ðŸ—™</button>
+	 </div>
  </div>
 
  <!-- âœ… Material Design3 Theme Management Script -->
@@ -62,6 +62,36 @@
 
  <!-- Modal Helper Script -->
  <script src="js/modal.js"></script>
+
+ <!-- Service worker interop (required for update prompt) -->
+ <script src="js/swInterop.js"></script>
+ 
+ <!-- Register service worker. Prefer published Workbox file when present, fallback to dev service-worker.js -->
+ <script>
+ if ('serviceWorker' in navigator) {
+	 window.addEventListener('load', async () => {
+		 try {
+			 // Prefer the Workbox-generated published service worker in production
+			 let swUrl = '/service-worker.published.js';
+			 try {
+				 const res = await fetch(swUrl, { method: 'HEAD' });
+				 if (!res.ok) {
+					 swUrl = '/service-worker.js';
+				 }
+			 } catch (e) {
+				 // If HEAD check fails, fallback to default dev SW
+				 swUrl = '/service-worker.js';
+			 }
+ 
+			 navigator.serviceWorker.register(swUrl)
+			 .then(reg => console.log('Service worker registered', reg))
+			 .catch(err => console.warn('Service worker registration failed', err));
+		 } catch (ex) {
+			 console.warn('Service worker registration error', ex);
+		 }
+	 });
+ }
+ </script>
 
  <!-- Google Maps JS: replace __GOOGLE_MAPS_API_KEY__ at build/deploy time with your environment key. -->
  <!-- Do NOT commit real keys. Use CI secrets / local scripts to inject the key. -->

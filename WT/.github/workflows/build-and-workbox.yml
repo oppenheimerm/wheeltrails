@@ -1,0 +1,97 @@
+name: Build Client and Generate Workbox
+
+on:
+ workflow_dispatch:
+ push:
+ branches: [ main, pwa-appmanifest, webapi-controllers ]
+
+jobs:
+ build-client:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+
+ - name: Setup .NET
+ uses: actions/setup-dotnet@v3
+ with:
+ dotnet-version: '9.0.x'
+
+ - name: Setup Node.js
+ uses: actions/setup-node@v4
+ with:
+ node-version: '18'
+
+ - name: Publish client
+ run: |
+ dotnet publish WT.Client -c Release -o publish
+
+ - name: Install Workbox deps
+ working-directory: WT.Client
+ run: |
+ npm ci --no-audit --no-fund
+
+ - name: Generate Workbox service worker
+ run: |
+ node WT.Client/workbox/build-sw.cjs --publishDir publish
+
+ - name: List publish/wwwroot (debug)
+ run: |
+ echo "-- publish/wwwroot listing --"
+ ls -la publish/wwwroot || true
+
+ - name: Verify workbox runtime exists (linux)
+ run: |
+ if ls publish/wwwroot/workbox-*.js >/dev/null2>&1; then
+ echo "workbox runtime found:"; ls -la publish/wwwroot/workbox-*.js
+ else
+ echo "ERROR: workbox runtime not found in publish/wwwroot" >&2
+ ls -la publish/wwwroot || true
+ exit 1
+ fi
+
+ - name: Verify service-worker.published.js exists (linux)
+ run: |
+ if [ -f publish/wwwroot/service-worker.published.js ]; then
+ echo "service-worker.published.js found"
+ else
+ echo "ERROR: service-worker.published.js not found in publish/wwwroot" >&2
+ ls -la publish/wwwroot || true
+ exit 1
+ fi
+
+ - name: Upload published artifact
+ uses: actions/upload-artifact@v4
+ with:
+ name: wt-client-publish
+ path: publish/wwwroot
+
+ # PowerShell compatible checks (windows runners)
+ - name: Verify workbox runtime exists (windows)
+ if: runner.os == 'Windows'
+ shell: pwsh
+ run: |
+ $pathPattern = 'publish\\wwwroot\\workbox-*.js'
+ Write-Host "Checking for workbox runtime matching: $pathPattern"
+ $files = Get-ChildItem -Path publish\\wwwroot -Filter 'workbox-*.js' -ErrorAction SilentlyContinue
+ if ($files) {
+ Write-Host 'workbox runtime(s) found:'
+ $files | Format-List
+ } else {
+ Write-Error 'ERROR: workbox runtime not found in publish\\wwwroot'
+ Get-ChildItem publish\\wwwroot -Force | Format-List
+ exit 1
+ }
+
+ - name: Verify service-worker.published.js exists (windows)
+ if: runner.os == 'Windows'
+ shell: pwsh
+ run: |
+ $path = 'publish\\wwwroot\\service-worker.published.js'
+ Write-Host "Checking for $path"
+ if (Test-Path $path) {
+ Write-Host 'service-worker.published.js found'
+ } else {
+ Write-Error 'ERROR: service-worker.published.js not found in publish\\wwwroot'
+ Get-ChildItem publish\\wwwroot -Force | Format-List
+ exit 1
+ }

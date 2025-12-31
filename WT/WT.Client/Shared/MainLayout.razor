@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+@using WT.Client.Components
+
+<div class="min-h-screen">
+ <NavBar />
+
+ <div class="pt-16">
+ @Body
+ </div>
+
+ <Footer />
+
+ <!-- Global UI for service worker update prompt -->
+ <ServiceWorkerUpdate />
+</div>

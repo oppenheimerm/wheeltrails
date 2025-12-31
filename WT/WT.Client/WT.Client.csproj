@@ -25,4 +25,12 @@
     <ProjectReference Include="..\WT.Application\WT.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Ensure the development service worker is NOT included in publish output. The Workbox-generated
+         `service-worker.published.js` will be deployed instead. -->
+    <Content Update="wwwroot/service-worker.js">
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
