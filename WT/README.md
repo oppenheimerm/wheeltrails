@@ -17,69 +17,113 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
-## 🔄 Latest updates (v1.4 — Dec27,2025)
+## 🔄 Latest updates (v1.5 — Dec 28, 2025)
 
-Summary of notable changes in this branch (please review and adjust the version/date before publishing):
+Summary of notable changes in this branch:
+
+### Layout & Navigation
+- **New Instagram-Style Sidebar Navigation** (`SideNav.razor`)
+  - Replaced top `NavBar` with a fixed left sidebar for desktop/tablet (hidden on mobile)
+  - **Responsive widths**: 72px (icon-only) at `md`, 220px (full labels) at `xl`, 244px at `2xl`
+  - **Material Design 3 tooltips** for icon-only mode using CSS pseudo-elements
+  - Tooltips appear on hover/focus when in icon-only mode (below `xl` breakpoint)
+  - Uses MD3 inverse surface colors (`--md-sys-color-inverse-surface`, `--md-sys-color-inverse-on-surface`)
+  - Smooth fade transitions (150ms)
+  - Logo, navigation links, user menu, and theme toggle all support tooltips
+- **Mobile Header Simplified**
+  - Minimal fixed header with logo and theme toggle only
+  - No drawer/hamburger menu (navigation moved to bottom TabBar on mobile)
+- **Content Layout Fixed**
+  - Main content area now properly accounts for sidebar width at all breakpoints
+  - Desktop offline banner correctly positioned to not be clipped by sidebar
+  - Tailwind class spacing issues resolved (`xl:left-[220px] 2xl:left-[244px]`)
+
+### SVG Logo Support
+- Added SVG logo (`img/logo-svg.svg`) for better scaling and performance
+- Splash screen updated to use preloaded SVG (`<link rel="preload">`)
+- Logo displayed in light/dark variants throughout the app
+
+### Google Maps API Key Management
+- Created repeatable PowerShell helper script (`WT.Client/scripts/dev-inject.ps1`)
+- Generates `index.html` from `index.html.template` with API key injection
+- Simple Windows wrapper (`WT.Client/scripts/inject-key.cmd`) for easy execution
+- Both files committed to repo; generated `index.html` is git-ignored
+
+### Bug Fixes
+- Fixed Razor parsing errors in FAB inline style attributes
+- Corrected z-index and positioning for desktop offline banner
+- Resolved sidebar width calculation issues in main content area
+
+### Developer Experience
+- Simplified API key injection workflow for local development
+- Improved Material Design 3 tooltip implementation with proper accessibility
+- Better responsive layout consistency across all screen sizes
+
+---
+
+## 🔄 Latest updates (v1.4 — Dec 27, 2025)
+
+Summary of notable changes in the previous branch:
 
 - Floating Action Button (FAB)
- - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
- - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
- - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
- - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
+  - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
+  - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
+  - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
+  - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
 
 - Map & Recorder
- - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
- - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
- - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
+  - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
+  - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
+  - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
 
 - Accessibility & UX
- - Focus-visible rings and improved keyboard flows for FAB and user menus.
- - ARIA attributes and labels added where appropriate.
+  - Focus-visible rings and improved keyboard flows for FAB and user menus.
+  - ARIA attributes and labels added where appropriate.
 
 - CSS & Styling
- - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
+  - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
 
 - JS Interop
- - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
- - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
+  - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
+  - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
 
 - Notes / Pending work
- - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
- - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
- - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
+  - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
+  - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
+  - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
 
 Recorder UX & FAB (what to test)
- - Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
- - Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
- - New recorder flow on `/trails/new` (TrailCreate):
- - Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
- - After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
- - The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
+  - Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
+  - Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
+  - New recorder flow on `/trails/new` (TrailCreate):
+  - Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
+  - After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
+  - The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
 
 IFabService Quick Reference
- - API surface (client):
- - `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
- - `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
- - `void Raise(FabAction action)` — layout uses this to raise actions to pages.
- - `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
+  - API surface (client):
+  - `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
+  - `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
+  - `void Raise(FabAction action)` — layout uses this to raise actions to pages.
+  - `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
 
 Settings & Persistence (recorder)
- - New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
- - `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
- - Recommended server work (before persisting preferences in DB):
- - Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
- - Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
+  - New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
+  - `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
+  - Recommended server work (before persisting preferences in DB):
+  - Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
+  - Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
 
 Recorder interop (JS helpers)
- - `getCurrentPosition()` — one-shot position used to center the map on first render.
- - `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
- - `stopWatchPosition()` — stops the geolocation watch.
+  - `getCurrentPosition()` — one-shot position used to center the map on first render.
+  - `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
+  - `stopWatchPosition()` — stops the geolocation watch.
 
 What to test (quick checklist)
- - Navigate to `/trails/new` — the FAB should appear (page opts-in).
- - Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
- - When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
- - Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
+  - Navigate to `/trails/new` — the FAB should appear (page opts-in).
+  - Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
+  - When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
+  - Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
 
 ***
 
@@ -406,350 +450,6 @@ The API's `AccountController.UploadProfilePicture` implements a robust, producti
 This flow is implemented in `API.Controllers.AccountController.UploadProfilePicture` and mirrors the best-practices documented in the code comments: validate first, upload (streamed), persist, then clean up old resources in a best-effort way.
 
 ---
-
-## 🛠️ Developer Tools & Getting Started
-
-### Prerequisites
-- [.NET9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Visual Studio2022](https://visualstudio.microsoft.com/) (17.8+) or VS Code
-- [Node.js18+](https://nodejs.org/) (for Tailwind CSS build)
-- Modern browser
-
-### Installation & Run
-1. Clone and change directory:
- ```bash
- git clone https://github.com/oppenheimerm/wheeltrails.git
- cd wheeltrails/src/WT
- ```
-
-2. **Configure User Secrets** (for API project)
-   ```bash
-   cd API
-   dotnet user-secrets set "ConnectionStrings:WTConnectionString" "Server=(localdb)\\mssqllocaldb;Database=WTAPIDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=true;"
-   dotnet user-secrets set "JwtSettings:Issuer" "https://localhost:5001"
-   dotnet user-secrets set "JwtSettings:Audience" "https://localhost:5001"
-   dotnet user-secrets set "JwtSettings:Secret" "YourSuperSecretKeyThatIsAtLeast32CharactersLongForHS256Algorithm!"
-   dotnet user-secrets set "AdminUser:FirstName" "Admin"
-   dotnet user-secrets set "AdminUser:Email" "admin@wheeltrails.com"
-   dotnet user-secrets set "AdminUser:Password" "Admin@123456"
-dotnet user-secrets set "ApplicationSettings:RefreshTokenTTL" "90"
-   ```
-
-3. **Configure Firebase Storage** ✨ NEW
-
-**Step1: Create a Firebase Project**
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project" and follow the wizard
-3. Enable Google Analytics (optional)
-
-**Step2: EnableCloud Storage**
-1. In the Firebase console, navigate to **Build** → **Storage**
-2. Click "Get Started"
-3. Choose production mode and select a storage location
-4. Copy your storage bucket URL (format: `your-project.appspot.com`)
-
-**Step3: Generate Service Account Key**
-1. Go to **Project Settings** (gear icon) → **Service Accounts**
-2. Click "Generate New Private Key"
-3. Save the JSON file securely (NEVER commit to source control!)
-4. Copy the entire JSON content
-
-**Step4: Configure User Secrets**
-   ```bash
-   cd API
-   dotnet user-secrets set "Firebase:Bucket" "your-project.appspot.com"
-   dotnet user-secrets set "Firebase:DatabaseUrl" "https://your-project.firebaseio.com"
-   dotnet user-secrets set "Firebase:ServiceAccount" "your-service-account-json"
-   ```
-
-4. **Configure Email Service**
-
-Choose one of the following email service providers based on your needs:
-
-**Option A: Mailtrap (⭐ Recommended for Development/Testing)**
-
-[Mailtrap](https://mailtrap.io) is a safe email testing service that captures emails without sending them to real recipients. Perfect for development!
-
-**Benefits ofMailtrap:**
-- ✅ **Free tier**:500 emails/month,5 inboxes
-- ✅ **Safe testing**: Emails never reach real inboxes
-- ✅ **Email preview**: View how emails look in different clients (Gmail, Outlook, etc.)
-- ✅ **Spam testing**: Check if your emails might be flagged as spam
-- ✅ **HTML validation**: Verify how email templates render
-- ✅ **Team collaboration**: Share inboxes with team members
-- ✅ **API access**: Automate email testing
-
-After configuration, access your captured emails at: [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes)
-
-**Option B: SendGrid (Production)**
-
-If you plan to use SendGrid in production, store the SendGrid API key and related settings in user secrets (local dev) or a secure secret store (Key Vault) for production. Do NOT commit secrets to source control.
-
-From the `API` project directory run the following commands to set up user secrets for SendGrid (example):
-
-```powershell
-cd API
-# SendGrid API key (required)
-dotnet user-secrets set "EmailSettings:SendGridApiKey" "YOUR_SENDGRID_API_KEY"
-# Default From address and display name (optional)
-dotnet user-secrets set "EmailSettings:FromEmail" "noreply@yourdomain.com"
-dotnet user-secrets set "EmailSettings:FromName" "WheelyTrails"
-# Client URL used to build verification/reset links (required for correct links)
-dotnet user-secrets set "EmailSettings:ClientUrl" "https://your-client-url.example"
-```
-
-Notes:
-- On production, store `EmailSettings:SendGridApiKey`, `EmailSettings:FromEmail`, and `EmailSettings:ClientUrl` in your secrets manager (e.g., Azure Key Vault) and configure your deployment to provide them to the API.
-- For local development you can continue to use Mailtrap or configure SendGrid. To test with Mailtrap SMTP you can keep the existing SMTP `EmailService` implementation or use Mailtrap's SMTP relay settings.
-
-## 🔎 Test email endpoint (local)
-A diagnostic endpoint is available to quickly test email sending from the API using your configured email provider.
-
-POST https://localhost:5001/api/account/diagnostic/send-test-email
-
-Body (JSON):
-```json
-{
- "to": "you@example.com",
- "firstName": "Tester",
- "type": "verification",
- "token": "optional-test-token"
-}
-```
-
-- `type` can be `verification` (default) or `reset`.
-- The endpoint uses the registered `IEmailService` (SendGridEmailService if configured) to send the message.
-
-# Response
-````````markdown
-![WheelyTrails Logo](../logo.png)
-# WheelyTrails.Com 🦽🌲
-
-[![.NET Version](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
-[![Blazor](https://img.shields.io/badge/Blazor-WebAssembly-512BD4?logo=blazor)](https://blazor.net/)
-[![PWA](https://img.shields.io/badge/PWA-Enabled-5A0FC8?logo=pwa)](https://web.dev/explore/progressive-web-apps)
-[![Material Design3](https://img.shields.io/badge/Material-Design%203-757575?logo=material-design)](https://m3.material.io/)
-[![Firebase](https://img.shields.io/badge/Firebase-Storage-FFCA28?logo=firebase)](https://firebase.google.com/)
-[![Application Insights](https://img.shields.io/badge/Azure-Application%20Insights-0078D4?logo=microsoft-azure)](https://azure.microsoft.com/en-us/services/monitor/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-
-> Empowering wheelchair users to explore the world, one accessible trail at a time.
-
-## 📖 About
-
-**WheelyTrails** is a community-driven Progressive Web Application (PWA) built with ASP.NET Core Blazor WebAssembly and ASP.NET Core Web API. The platform enables users to discover, share, and rate wheelchair-accessible trails worldwide, fostering an inclusive outdoor experience for everyone.
-
-This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
-
-## 🔄 Latest updates (v1.4 — Dec27,2025)
-
-Summary of notable changes in this branch (please review and adjust the version/date before publishing):
-
-- Floating Action Button (FAB)
- - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
- - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
- - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
- - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
-
-- Map & Recorder
- - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
- - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
- - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
-
-- Accessibility & UX
- - Focus-visible rings and improved keyboard flows for FAB and user menus.
- - ARIA attributes and labels added where appropriate.
-
-- CSS & Styling
- - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
-
-- JS Interop
- - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
- - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
-
-- Notes / Pending work
- - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
- - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
- - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
-
-Recorder UX & FAB (what to test)
- - Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
- - Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
- - New recorder flow on `/trails/new` (TrailCreate):
- - Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
- - After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
- - The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
-
-IFabService Quick Reference
- - API surface (client):
- - `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
- - `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
- - `void Raise(FabAction action)` — layout uses this to raise actions to pages.
- - `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
-
-Settings & Persistence (recorder)
- - New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
- - `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
- - Recommended server work (before persisting preferences in DB):
- - Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
- - Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
-
-Recorder interop (JS helpers)
- - `getCurrentPosition()` — one-shot position used to center the map on first render.
- - `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
- - `stopWatchPosition()` — stops the geolocation watch.
-
-What to test (quick checklist)
- - Navigate to `/trails/new` — the FAB should appear (page opts-in).
- - Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
- - When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
- - Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
-
-***
-
-## 🎨 Design System
-
-WheelyTrails follows **Material Design3 (Material You)** principles with a comprehensive design system built on **Tailwind CSS3.4+**.
-
-### 📐 Design Documentation
-
-For detailed design specifications, implementation guidelines, and component libraries, see:
-
-**[📘 Design System Documentation](Design-Notes.md)**
-
-The design documentation includes:
-- **Color System** - Material3 theme with seed color `#7CAC7E` (nature green)
- - Light, dark, and high-contrast modes
- -30+ color tokens with WCAG AAA compliance
- - Surface elevation system with5 levels
-- **Typography** - Roboto font family with Material3 type scale
-- **Layout & Spacing** - Responsive grid system with iOS safe area support
-- **Components** - Reusable Blazor components (NavBar, ThemeToggle, Buttons, Cards)
-- **Dark Mode** - JavaScript-based theme manager with localStorage persistence
-- **Accessibility** - WCAG2.1/2.2 compliance considerations
-- **PWA Features** - Progressive Web App configuration with offline capabilities
-- **Implementation Guide** - Step-by-step setup instructions for developers
-
-### Key Design Features
-
-- ✨ **Material Design3 Integration** - Generated from Material Theme Builder 
-- 🌗 **Dark Mode Support** - Automatic system preference detection + manual toggle 
-- ♿ **Accessibility First** - WCAG2.1/2.2 compliance considerations 
-- 📱 **Mobile-First Design** - Fixed header/footer, bottom navigation, touch-optimized 
-- 🎨 **Tailwind CSS** - Utility-first framework with Material3 color tokens 
-- 🔄 **Theme Persistence** - User preferences saved to localStorage 
-- 🎯 **iOS Safe Areas** - Proper padding for notch and home indicator
-
---- 
-
-## ✨ Key Features
-
-### 🗺️ Trail Database
-- Comprehensive database of wheelchair-accessible trails worldwide
-- Detailed trail information including:
- - 📍 Location with GPS coordinates
- - 🎯 Difficulty level (Easy, Moderate, Challenging)
- - 📏 Trail length and estimated duration
- - 🛤️ Surface type (paved, gravel, boardwalk, etc.)
- - ♿ Accessibility features (grade, width, rest areas)
- - 🚻 Nearby amenities (parking, restrooms, facilities)
-
-### ⭐ User Reviews and Comments
-- Community-driven comments and feedback system
-- Share personal experiences and accessibility insights
-- Help others make informed trail decisions
-- Comment on trails with300-character limit
-- View comments with user attribution
-- Delete comments when trails are deleted
-
-### 🔍 Search and Filter
-- Advanced search functionality with multiple criteria
-- Filter by:
- - Geographic location and distance
- - Difficulty level and trail length
- - Surface type and accessibility features
- - Amenities and facilities
-- Save favorite searches for quick access
-
-### 🗺️ Trail Maps and Directions
-- Interactive maps powered by mapping APIs
-- Turn-by-turn directions to trailheads
-- Visual trail route overlays
-- Parking location markers
-
-### 📸 Photo Upload & Storage ✨
-- **Firebase Cloud Storage Integration**
- - Secure, scalable cloud storage for images
- - FREE tier:5GB storage,1GB/day bandwidth
- - Global CDN for fast photo delivery
- - Automatic public URL generation
-- **Profile Picture Upload** max size(3 * 1024 * 1024 - 3MB See: WT.Application.Extension.Constants) ✨ NEW
- - User profile photos with automatic optimization
- - Resized to400×400px,80% JPEG quality
- - ~50-100KB per image
- - Stored in user-specific folders: `profile-pictures/{userId}/`
-- **Trail Photo Upload**
- - Community trail photos with visual previews
- - Multiple file upload support (up to5 photos)
- - Resized to1200×1200px,85% JPEG quality
- - ~200-400KB per image
- - Organized by trail: `trail-photos/{trailId}/`
-- **Image Optimization**
- - Server-side processing with SixLabors.ImageSharp
- - Automatic resizing while maintaining aspect ratio
- - JPEG compression for reduced file sizes
-- **Security Features**
- - Server-side upload validation (file size, type)
- - Firebase Security Rules for access control
- - Authenticated uploads only
- - Path traversal protection via filename sanitization
-
-
-### 🔐 Authentication & Security ✨ ENHANCED
-- **JWT Bearer Token Authentication** with ASP.NET Core Identity
- -30-minute JWT token expiration
- -7-day refresh token validity
- - Automatic token refresh on expiration
- - Secure token rotation to prevent reuse
-- **Enhanced Token Management**
- - Automatic refresh token handling in `AccountService`
- - Transparent token refresh when JWT expires (401 Unauthorized)
- - Authorization header management with proper cleanup
-- **Role-Based Authorization**
- - Admin Developer, Admin Editor, User Editor, User roles
-- **User Authentication Features**
- - Secure registration, email verification, password reset
- - Session management with Blazored LocalStorage and custom auth provider
-
-### Identity: Unicode username & email normalization (new)
-- We now support Unicode in usernames and improved email normalization for lookups.
-- What changed in the codebase:
- - `WT.Infrastructure.DependencyInjection.ServiceContainer`:
- - Registers a custom lookup normalizer before Identity is configured:
- - `services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();`
- - Allows non-ASCII usernames by setting:
- - `options.User.AllowedUserNameCharacters = null;`
- - `WT.Infrastructure.Services.UnicodeLookupNormalizer`:
- - Implements `ILookupNormalizer` with:
- - `NormalizeName(string? name)` — applies Unicode compatibility normalization (FormKC) and invariant upper-casing so usernames with accents or emoji are normalized consistently.
- - `NormalizeEmail(string? email)` — normalizes local-part, converts internationalized domain names to ASCII (punycode via `IdnMapping`) and applies invariant upper-casing for stable email lookups.
-- Why this matters:
- - Identity lookup and comparison depend on normalized values (`NormalizedUserName`, `NormalizedEmail`). The custom normalizer ensures usernames and emails containing non-ASCII characters are normalized reliably, preventing unexpected lookup failures for users with accented names or emoji.
-- Caveats & recommendations:
- - DataAnnotations `[EmailAddress]` and some third-party validators may still reject Unicode local-parts. For best UX:
- - Convert the domain to punycode (handled by `NormalizeEmail`) before storing/validating where necessary.
- - Consider a custom email validator that accepts Unicode local-parts or pre-processes input for validation.
- - Existing users: run a small migration or admin script to recompute `NormalizedUserName` and `NormalizedEmail` using the new normalizer so previously created accounts continue to match during login/lookups.
- - Some email providers don't accept non-ASCII local parts; consider this when allowing Unicode in the local part.
--`ILookupNormalizer` Dependency Injection Notes
-	- Register the `ILookupNormalizer` before Identity so Identity consumes the custom normalizer for `NormalizedUserName`/`NormalizedEmail`.
-For development and deployment, see the "Next steps" recommendations in the Technical Notes section below.
-
-<!-- Developer note: UnicodeLookupNormalizer added -->
-
-> Developer note: The project includes a Unicode-aware Identity lookup normalizer implemented in `WT.Infrastructure\Services\UnicodeLookupNormalizer.cs`. This class implements `ILookupNormalizer` and provides `NormalizeName` and `NormalizeEmail` (FormKC normalization + invariant upper-casing, and domain punycode conversion for emails). Register it before Identity is configured via `services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();` so Identity uses the custom normalizer for `NormalizedUserName`/`NormalizedEmail` values.
-
---- 
 
 ## 🛠️ Developer Tools & Getting Started
 

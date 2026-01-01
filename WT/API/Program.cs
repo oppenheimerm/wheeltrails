@@ -49,7 +49,7 @@ builder.Services.AddCors(options =>
         {
             // Development fallback
             policy.WithOrigins(
-                "https://localhost:7186",  // WT.Client (Blazor WASM)
+                "https://localhost:7126",  // WT.Client (Blazor WASM)
                 "https://localhost:7127",  // WT.Admin (Blazor Server)
                 "http://localhost:5041"    // WT.Admin HTTP fallback
             )

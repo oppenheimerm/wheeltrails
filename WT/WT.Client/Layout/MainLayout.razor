@@ -5,117 +5,17 @@
 @inject IFabService FabService
 @inject IJSRuntime JS
 
-<!-- ✨ Material Design 3 Native App Layout with Fixed Header & Footer -->
-<div class="flex flex-col h-screen overflow-hidden bg-[var(--md-sys-color-background)]">
-
-    <!-- 📱 FIXED HEADER (Material 3 Top App Bar) -->
-    <header class="fixed top-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-b border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
-            style="padding-top: var(--safe-area-inset-top);">
-        <NavBar />
-    </header>
-
-    <!-- 📄 SCROLLABLE CONTENT AREA (Hidden Scrollbar for Native Feel) -->
-    <!-- Update main content padding to match navbar -->
-    <main class="flex-1 overflow-y-auto pt-16 pb-20 bg-[var(--md-sys-color-background)] hide-scrollbar">
-        <div class="container mx-auto px-4 py-6 max-w-screen-xl">
-            @Body
-        </div>
-    </main>
-
-    @if (fabVisible)
-    {
-        <!-- Floating Action Buttons (global, layout-level) - desktop only -->
-        <div id="fab-wrapper" class="hidden lg:flex fixed right-4 md:right-6 z-[20000]"
-             style="bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));">
-            <div class="flex flex-col items-end gap-3">
-                <!-- Primary FAB -->
-                <button @onclick="ToggleFabOpen"
-                        class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6 transform transition-transform duration-200"
-                        aria-haspopup="true"
-                        aria-expanded="@fabOpen"
-                        aria-controls="fab-actions"
-                        title="More actions"
-                        aria-label="Open actions menu"
-                        @ref="primaryFabRef">
-                    <span class="material-symbols-rounded text-[22px] transition-transform duration-300"
-                          style="transform: rotate(@(fabOpen ?45 :0)deg);">create</span>
-                    <span class="tip">Actions</span>
-                </button>
-
-                <!-- Actions container -->
-                <div id="fab-actions" class="mt-2 flex flex-col items-end gap-3"
-                     style="display:@(fabOpen ? "flex" : "none")">
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
-                            title="Add POI" aria-label="Add Point of Interest" @onclick="() => FabService.Raise(FabAction.AddPoi)" @ref="firstActionRef">
-                        <span class="material-symbols-rounded">add_location</span>
-                        <span class="tip">Add Point of Interest </span>
-                    </button>
-
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
-                            title="Start/Stop Recording" aria-label="Start or stop recording" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
-                        <span class="material-symbols-rounded">play_circle</span>
-                        <span class="tip">Record</span>
-                    </button>
-
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
-                            title="Submit Trail" aria-label="Submit Trail" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
-                        <span class="material-symbols-rounded">send</span>
-                        <span class="tip">Submit</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile FAB: shown only on small screens, positioned above the TabBar to avoid header overlap -->
-        <div class="flex lg:hidden fixed right-4 bottom-[calc(var(--tabbar-height,4rem)+1rem+env(safe-area-inset-bottom))] z-[20000]">
-            <div class="flex flex-col items-end gap-3">
-                <button @onclick="ToggleFabOpen"
-                        class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6"
-                        aria-haspopup="true"
-                        aria-expanded="@fabOpen"
-                        aria-controls="fab-actions-mobile"
-                        title="More actions"
-                        aria-label="Open actions menu (mobile)">
-                    <span class="material-symbols-rounded text-[22px]">create</span>
-                    <span class="tip">Actions</span>
-                </button>
-
-                <div id="fab-actions-mobile" class="mt-2 flex flex-col items-end gap-3" style="display:@(fabOpen ? "flex" : "none")">
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
-                            title="Add POI" aria-label="Add Point of Interest (mobile)" @onclick="() => FabService.Raise(FabAction.AddPoi)">
-                        <span class="material-symbols-rounded">add_location</span>
-                        <span class="tip">Add Point of Interest </span>
-                    </button>
-
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
-                            title="Start/Stop Recording" aria-label="Start or stop recording (mobile)" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
-                        <span class="material-symbols-rounded">play_circle</span>
-                        <span class="tip">Record</span>
-                    </button>
-
-                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
-                            title="Submit Trail" aria-label="Submit Trail (mobile)" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
-                        <span class="material-symbols-rounded">send</span>
-                        <span class="tip">Submit</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-    }
-
-    <!-- 📱 FIXED FOOTER (Material 3 Navigation Bar) -->
-    <footer class="fixed bottom-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-t border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
-            style="padding-bottom: var(--safe-area-inset-bottom);">
-        <TabBar />
-    </footer>
-
-</div>
-
 @code {
     private bool fabOpen = false;
     private ElementReference primaryFabRef;
     private ElementReference firstActionRef;
     private bool fabVisible = false;
+    private bool isOnline = true;
+
+    private DotNetObjectReference<MainLayout>? offlineDotNetRef;
+
+    // Mobile: use header height, Desktop: no top padding needed
+    private string MainPaddingTop => "var(--header-height, 0px)";
 
     protected override void OnInitialized()
     {
@@ -146,10 +46,10 @@
         {
             // close: remove escape handler and return focus to primary
             _ = Task.Run(async () =>
-            {
-                await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
-                try { await primaryFabRef.FocusAsync(); } catch { /* ignore on mobile */ }
-            });
+      {
+          await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
+          try { await primaryFabRef.FocusAsync(); } catch { /* ignore on mobile */ }
+      });
         }
     }
 
@@ -165,8 +65,208 @@
         }
     }
 
-    public void Dispose()
+    protected override async Task OnInitializedAsync()
     {
+        // Try to set header height once early (for mobile)
+        try
+        {
+            await JS.InvokeVoidAsync("layoutInterop.updateHeaderHeight");
+        }
+        catch
+        {
+            // ignore - JS may not be available yet in some startup scenarios
+        }
+
+        isOnline = await JS.InvokeAsync<bool>("offlineInterop.isOnline");
+
+        // create and store a DotNetObjectReference so we can unregister later
+        offlineDotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync(
+ "offlineInterop.registerStatusChanged",
+          offlineDotNetRef
+        );
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // start layout auto update so --header-height matches rendered header (mobile only)
+            await JS.InvokeVoidAsync("layoutInterop.startAutoUpdate");
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateOnlineStatus(bool online)
+    {
+        isOnline = online;
+        StateHasChanged();
+    }
+
+
+    public async ValueTask DisposeAsync()
+    {
+        // unsubscribe from FabService
         FabService.OnVisibilityChanged -= OnFabVisibilityChanged;
+
+        // stop layout observer
+        try { await JS.InvokeVoidAsync("layoutInterop.stopAutoUpdate"); } catch { }
+
+        // unregister offline listeners and dispose DotNetObjectReference
+        if (offlineDotNetRef is not null)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("offlineInterop.unregisterStatusChanged", offlineDotNetRef);
+            }
+            catch
+            {
+                // ignore failures during dispose
+            }
+            offlineDotNetRef.Dispose();
+            offlineDotNetRef = null;
+        }
     }
 }
+
+<!-- ✨ Material Design3 Native App Layout -->
+<div class="flex flex-col md:flex-row h-screen overflow-hidden bg-[var(--md-sys-color-background)]">
+
+    <!-- 🖥️ DESKTOP/TABLET SIDEBAR (Instagram-style, hidden on mobile) -->
+    <SideNav />
+
+    <!-- 📱 MOBILE TOP BAR (simple, minimal - hidden on tablet/desktop) -->
+    <header class="md:hidden fixed top-0 left-0 right-0 z-50 flex flex-col bg-[var(--md-sys-color-surface-container)] border-b border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
+            style="padding-top: var(--safe-area-inset-top); --header-height:3.5rem;">
+        <!-- Simple mobile header with logo only -->
+        <div class="flex items-center justify-between px-4 py-2 min-h-[56px]">
+            <a href="/" class="flex items-center space-x-2">
+                <img src="./img/assets/logo-light.png" alt="WheelyTrails logo" class="h-7 w-auto object-contain block dark:hidden" />
+                <img src="./img/assets/logo-dark.png" alt="WheelyTrails logo" class="h-7 w-auto object-contain hidden dark:block" />
+                <span class="text-lg font-semibold tracking-tight text-[var(--md-sys-color-on-surface)]">
+                    WheelyTrails
+                </span>
+            </a>
+            <ThemeToggle />
+        </div>
+
+        @if (!isOnline)
+        {
+            <!-- Offline banner inside header so header height includes it -->
+            <div id="offline-notice-mobile" role="status" aria-live="polite" aria-atomic="true"
+                 class="w-full flex items-center gap-3 px-4 py-2 bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] border-t border-[var(--md-sys-color-outline-variant)]">
+                <span class="material-symbols-rounded text-[20px]" aria-hidden="true">wifi_off</span>
+                <span class="text-sm">You're offline</span>
+            </div>
+        }
+    </header>
+
+    <!-- 🖥️ DESKTOP/TABLET OFFLINE BANNER (shown at top of content area) -->
+    @if (!isOnline)
+    {
+        <div id="offline-notice-desktop" role="status" aria-live="polite" aria-atomic="true"
+             class="hidden md:flex fixed left-[72px] xl:left-[220px] 2xl:left-[244px] right-0 z-60 items-center gap-3 px-4 py-2 bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] border-b border-[var(--md-sys-color-outline-variant)]"
+             style="top: env(safe-area-inset-top,0px);">
+            <span class="material-symbols-rounded" aria-hidden="true">wifi_off</span>
+            <span>You're offline — some features may be unavailable</span>
+        </div>
+    }
+
+    <!-- 📄 SCROLLABLE CONTENT AREA -->
+    <!-- Mobile: top padding for header, Tablet/Desktop: left margin for sidebar -->
+    <main class="flex-1 overflow-y-auto pb-20 md:pb-6 bg-[var(--md-sys-color-background)] hide-scrollbar
+       md:ml-[72px] xl:ml-[220px] 2xl:ml-[244px]
+     pt-[var(--header-height)] md:pt-0 @(!isOnline ? "md:pt-12" : "")">
+        <div class="container mx-auto px-4 py-4 md:py-6 max-w-screen-xl">
+            @Body
+        </div>
+    </main>
+
+    @if (fabVisible)
+    {
+        <!-- Floating Action Buttons - positioned relative to sidebar on desktop -->
+        <div id="fab-wrapper" class="hidden md:flex fixed right-4 md:right-6 z-[20000] bottom-6">
+            <div class="flex flex-col items-end gap-3">
+                <!-- Primary FAB -->
+                <button @onclick="ToggleFabOpen"
+                        class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6 transform transition-transform duration-200"
+                        aria-haspopup="true"
+                        aria-expanded="@fabOpen"
+                        aria-controls="fab-actions"
+                        title="More actions"
+                        aria-label="Open actions menu"
+                        @ref="primaryFabRef">
+                    <span class="material-symbols-rounded text-[22px] transition-transform duration-300"
+                          style="transform: rotate(@(fabOpen ? 45 : 0)deg);">create</span>
+                    <span class="tip">Actions</span>
+                </button>
+
+                <!-- Actions container -->
+                <div id="fab-actions" class="mt-2 flex flex-col items-end gap-3"
+                     style=@(fabOpen ? "display:flex" : "display:none")>
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
+                            title="Add POI" aria-label="Add Point of Interest" @onclick="() => FabService.Raise(FabAction.AddPoi)" @ref="firstActionRef">
+                        <span class="material-symbols-rounded">add_location</span>
+                        <span class="tip">Add Point of Interest</span>
+                    </button>
+
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
+                            title="Start/Stop Recording" aria-label="Start or stop recording" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
+                        <span class="material-symbols-rounded">play_circle</span>
+                        <span class="tip">Record</span>
+                    </button>
+
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
+                            title="Submit Trail" aria-label="Submit Trail" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
+                        <span class="material-symbols-rounded">send</span>
+                        <span class="tip">Submit</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile FAB: shown only on small screens, positioned above the TabBar -->
+        <div class="flex md:hidden fixed right-4 bottom-[calc(var(--tabbar-height,4rem)+1rem+env(safe-area-inset-bottom))] z-[20000]">
+            <div class="flex flex-col items-end gap-3">
+                <button @onclick="ToggleFabOpen"
+                        class="fab-tooltip w-14 h-14 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-6"
+                        aria-haspopup="true"
+                        aria-expanded="@fabOpen"
+                        aria-controls="fab-actions-mobile"
+                        title="More actions"
+                        aria-label="Open actions menu (mobile)">
+                    <span class="material-symbols-rounded text-[22px]">create</span>
+                    <span class="tip">Actions</span>
+                </button>
+
+                <div id="fab-actions-mobile" class="mt-2 flex flex-col items-end gap-3" style=@(fabOpen ? "display:flex" : "display:none")>
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] shadow-elevation-3"
+                            title="Add POI" aria-label="Add Point of Interest (mobile)" @onclick="() => FabService.Raise(FabAction.AddPoi)">
+                        <span class="material-symbols-rounded">add_location</span>
+                        <span class="tip">Add Point of Interest</span>
+                    </button>
+
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-secondary)] text-[var(--md-sys-color-on-secondary)] shadow-elevation-3"
+                            title="Start/Stop Recording" aria-label="Start or stop recording (mobile)" @onclick="() => FabService.Raise(FabAction.ToggleRecording)">
+                        <span class="material-symbols-rounded">play_circle</span>
+                        <span class="tip">Record</span>
+                    </button>
+
+                    <button class="fab-tooltip w-12 h-12 rounded-full flex items-center justify-center bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-4"
+                            title="Submit Trail" aria-label="Submit Trail (mobile)" @onclick="() => FabService.Raise(FabAction.SubmitTrail)">
+                        <span class="material-symbols-rounded">send</span>
+                        <span class="tip">Submit</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- 📱 MOBILE FOOTER (Material3 Navigation Bar - hidden on tablet/desktop) -->
+    <footer class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-[var(--md-sys-color-surface-container)] border-t border-[var(--md-sys-color-outline-variant)] shadow-elevation-2"
+            style="padding-bottom: var(--safe-area-inset-bottom);">
+        <TabBar />
+    </footer>
+
+</div>
+

@@ -1,0 +1,174 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline – WheelyTrails</title>
+    <meta name="color-scheme" content="light dark">
+    <style>
+        :root {
+            --bg: #F7FBF2; /* light background */
+            --card: #FFFFFF;
+            --text: #1B1B1F;
+            --muted: #44523A;
+            --accent: #36693D; /* theme primary */
+            --accent-foreground: #FFFFFF;
+            --shadow: rgba(20,20,20,0.06);
+            --radius: 12px;
+            --max-width: 720px;
+            --gap: 1rem;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0F1112; /* very dark */
+                --card: #111317;
+                --text: #E6E6E6;
+                --muted: #AFC3A7;
+                --accent: #5EB77A; /* lighter accent for dark */
+                --accent-foreground: #07210B;
+                --shadow: rgba(0,0,0,0.6);
+            }
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg)92%, black8%));
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .shell {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            width: 100%;
+            max-width: var(--max-width);
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: 08px30px var(--shadow);
+            padding: clamp(1rem,3vw,2rem);
+            display: grid;
+            grid-template-columns: 84px1fr;
+            gap: var(--gap);
+            align-items: center;
+        }
+
+        .icon {
+            width: 84px;
+            height: 84px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, color-mix(in srgb, var(--accent)88%, white12%), var(--accent));
+            color: var(--accent-foreground);
+            font-size: 34px;
+            flex-shrink: 0;
+        }
+
+        .content h1 {
+            margin: 000.25rem0;
+            font-size: 1.25rem;
+            line-height: 1.1;
+            font-weight: 700;
+        }
+
+        .content p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: 0.98rem
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap
+        }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            padding: 0.6rem0.9rem;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .btn-refresh {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid color-mix(in srgb, var(--accent)24%, transparent);
+        }
+
+        .btn-open {
+            background: var(--accent);
+            color: var(--accent-foreground);
+        }
+
+        .hint {
+            margin-top: 0.6rem;
+            font-size: 0.86rem;
+            color: var(--muted)
+        }
+
+        /* make it comfortable on narrow screens */
+        @media (max-width:560px) {
+            .card {
+                grid-template-columns: 64px1fr;
+                padding: 1rem
+            }
+
+            .icon {
+                width: 64px;
+                height: 64px;
+                font-size: 28px;
+                border-radius: 10px
+            }
+        }
+
+        /* high-contrast focus styles */
+        .btn:focus {
+            outline: 3px solid color-mix(in srgb, var(--accent)40%, white60%);
+            outline-offset: 2px
+        }
+    </style>
+</head>
+<body>
+    <main class="shell" role="main">
+        <section class="card" aria-labelledby="offline-title">
+            <div class="icon" aria-hidden="true">📡</div>
+            <div class="content">
+                <h1 id="offline-title">You're Offline</h1>
+                <p>WheelyTrails can't reach the network right now. You can still browse pages you've visited previously, or try reconnecting.</p>
+                <div class="actions" aria-hidden="false">
+                    <button class="btn btn-open" onclick="location.reload(true)" aria-label="Reload the page">Reload</button>
+                    <a class="btn btn-refresh" href="/" role="button" aria-label="Open home page">Open Home</a>
+                </div>
+                <p class="hint">If the app still doesn't load, check your network connection or try again later.</p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
