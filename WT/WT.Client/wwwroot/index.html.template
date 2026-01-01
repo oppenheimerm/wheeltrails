@@ -5,7 +5,7 @@
  <meta charset="utf-8" />
  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
- <!-- âœ¨ iOS Safe Area Support -->
+ <!-- iOS Safe Area Support -->
  <meta name="apple-mobile-web-app-capable" content="yes">
  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
@@ -13,18 +13,18 @@
  <base href="/" />
 
  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
- <!-- âœ… Material Design3 - Roboto Font Family -->
+ <!-- Material Design3 - Roboto Font Family -->
  <link rel="preconnect" href="https://fonts.googleapis.com">
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
- <!-- âœ… Material Symbols (Rounded style for Material3) -->
+ <!-- Material Symbols (Rounded style for Material3) -->
  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
- <!-- âœ… Material Design3 Theme CSS -->
+ <!-- Material Design3 Theme CSS -->
  <link href="css/material-theme/theme.css" rel="stylesheet" />
 
- <!-- âœ… Tailwind CSS (compiled with Material3 tokens) -->
+ <!-- Tailwind CSS (compiled with Material3 tokens) -->
  <link href="css/app.css" rel="stylesheet" />
  <link rel="stylesheet" href="css/app.css" />
 
@@ -36,22 +36,52 @@
  <link rel="manifest" href="manifest.json" />
  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+
+ <!-- Theme color for Android splash and UI chrome -->
+ <meta name="theme-color" content="#36693D" />
+
+ <!-- Preload SVG logo for faster splash paint -->
+ <link rel="preload" href="img/logo-svg.svg" as="image" type="image/svg+xml">
+
+ <!-- Lightweight inline splash styles (shows immediately, no deps) -->
+ <style>
+ :root { --splash-bg-light: #F7FBF2; --splash-bg-dark: #0F1112; --splash-fore-light: #0F1112; --splash-fore-dark: #E6E6E6; }
+ @media (prefers-color-scheme: dark) { :root { --splash-bg: var(--splash-bg-dark); --splash-fore: var(--splash-fore-dark); } }
+ @media (prefers-color-scheme: light) { :root { --splash-bg: var(--splash-bg-light); --splash-fore: var(--splash-fore-light); } }
+ html,body{height:100%;}
+ #splash-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:var(--splash-bg);color:var(--splash-fore);-webkit-font-smoothing:antialiased;transition:opacity .28s ease}
+ #splash-screen.hidden{opacity:0;pointer-events:none}
+ .splash-card{display:flex;flex-direction:column;align-items:center;gap:0.6rem;padding:1.25rem;border-radius:12px}
+ .splash-logo-img{width:72px;height:72px;display:block;object-fit:contain;border-radius:14px}
+ .splash-title{font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700}
+ .splash-sub{font-size:0.95rem;color:rgba(0,0,0,0.6)}
+ @media (prefers-color-scheme: dark){ .splash-sub{color:rgba(255,255,255,0.7)} }
+ </style>
 </head>
 
 <body class="font-roboto bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]">
+ <!-- Splash screen: shown immediately, removed on load or after short timeout -->
+ <div id="splash-screen" role="img" aria-label="WheelyTrails starting">
+ <div class="splash-card">
+ <img src="img/logo-svg.svg" alt="WheelyTrails" class="splash-logo-img" aria-hidden="true" />
+ <div class="splash-title">WheelyTrails</div>
+ <div class="splash-sub">Accessible Outdoor Trails — Loading…</div>
+ </div>
+ </div>
+
  <div id="app">
  <!-- Loading indicator -->
  </div>
 
  <div id="blazor-error-ui" class="hidden fixed bottom-0 left-0 right-0 bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] p-4 flex items-center justify-between shadow-md z-50 invisible">
-	 <span class="text-sm font-medium">An unhandled error has occurred.</span>
-	 <div class="flex items-center space-x-4">
-		 <a href="." class="text-[var(--md-sys-color-primary)] hover:underline text-sm font-semibold">Reload</a>
-		 <button class="text-[var(--md-sys-color-error)] hover:text-[var(--md-sys-color-on-error)] text-lg font-bold focus:outline-none" aria-label="Dismiss">✕</button>
-	 </div>
+ <span class="text-sm font-medium">An unhandled error has occurred.</span>
+ <div class="flex items-center space-x-4">
+ <a href="." class="text-[var(--md-sys-color-primary)] hover:underline text-sm font-semibold">Reload</a>
+ <button class="text-[var(--md-sys-color-error)] hover:text-[var(--md-sys-color-on-error)] text-lg font-bold focus:outline-none" aria-label="Dismiss">✕</button>
+ </div>
  </div>
 
- <!-- âœ… Material Design3 Theme Management Script -->
+ <!-- Material Design3 Theme Management Script -->
  <script src="js/theme.js"></script>
 
  <!-- Blazor WebAssembly Script -->
@@ -63,8 +93,35 @@
  <!-- Modal Helper Script -->
  <script src="js/modal.js"></script>
 
- <!-- Service worker disabled in template for local/VS debugging. -->
- <!-- To enable SW in production builds, re-enable registration or use the published worker. -->
+ <!-- Offline Helper Script -->
+ <script src="js/offline.js"></script>
+
+ <!-- Layout helper: measures header and sets --header-height -->
+ <script src="js/layoutInterop.js"></script>
+
+ <script>
+ // Hide splash when page load finishes or after timeout.
+ (function(){
+ const splash = document.getElementById('splash-screen');
+ if (!splash) return;
+ function hide(){
+ if (!splash.classList.contains('hidden')){
+ splash.classList.add('hidden');
+ // remove from DOM after transition
+ setTimeout(()=>splash.remove(),300);
+ }
+ }
+ window.addEventListener('load', hide);
+ // Also hide after2.5s as a fallback
+ setTimeout(hide,2500);
+ // If Blazor signals ready by attaching to window.Blazor, attempt to hide after start
+ if (window.Blazor && typeof window.Blazor.start === 'function'){
+ try{ window.Blazor.start().then(hide).catch(()=>{}); }catch(e){}
+ }
+ })();
+ </script>
+
+ <!-- NOTE: Service worker registration intentionally omitted in template for local/VS debugging. -->
 
  <!-- Google Maps JS: replace __GOOGLE_MAPS_API_KEY__ at build/deploy time with your environment key. -->
  <!-- Do NOT commit real keys. Use CI secrets / local scripts to inject the key. -->

@@ -1,0 +1,332 @@
+@using Blazored.LocalStorage
+@using System.Security.Claims
+@using WT.Client.Components
+
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IConfiguration Configuration
+@inject IAccountService AccountService
+
+@code {
+    private bool isUserMenuOpen = false;
+    private string? userProfilePicture;
+    private string? userName;
+    private string? profileUsername;
+    private string? userTitle;
+
+    private void ToggleUserMenu()
+    {
+        isUserMenuOpen = !isUserMenuOpen;
+    }
+
+    private void CloseUserMenu()
+    {
+        isUserMenuOpen = false;
+    }
+
+    private string GetNavLinkClass(string href)
+    {
+        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
+        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
+
+        return isActive
+            ? "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)] font-semibold"
+            : "text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors";
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        await ApplyAuthState(authState.User);
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    private async Task ApplyAuthState(ClaimsPrincipal user)
+    {
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            userName = user.Identity?.Name ?? "User";
+            userTitle = user.FindFirst("role")?.Value ?? "Member";
+
+            await AccountService.SetNavBarAuthDataAsync();
+
+            var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+            var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+            profileUsername = navBarAuthData?.ProfileUsername ?? "";
+            userProfilePicture = navBarAuthData?.UserPhoto ?? "";
+        }
+        else
+        {
+            userName = null;
+            userTitle = null;
+            userProfilePicture = null;
+            profileUsername = null;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            var state = await task;
+            await ApplyAuthState(state.User);
+            InvokeAsync(StateHasChanged);
+        }
+        catch { /* ignore or log */ }
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            var localStorageKey = Configuration["ApplicationSettings:LocalStorageKey"];
+            var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+
+            if (!string.IsNullOrEmpty(localStorageKey))
+            {
+                await LocalStorage.RemoveItemAsync(localStorageKey);
+            }
+
+            if (!string.IsNullOrEmpty(navBarLocalStorageKey))
+            {
+                await LocalStorage.RemoveItemAsync(navBarLocalStorageKey);
+            }
+
+            var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
+            await customAuthStateProvider.UpdateAuthenticatedState(null);
+
+            isUserMenuOpen = false;
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Logout error: {ex.Message}");
+            Navigation.NavigateTo("/", forceLoad: true);
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}
+
+<style>
+    /* MD3-style tooltip for icon-only mode */
+    .nav-tooltip {
+        position: relative;
+    }
+
+        .nav-tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--md-sys-color-inverse-surface);
+            color: var(--md-sys-color-inverse-on-surface);
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease, visibility 0.15s ease;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+
+    /* Only show tooltip in icon-only mode (below xl breakpoint) */
+    @@media (max-width: 1279px) {
+        .nav-tooltip:hover::after,
+        .nav-tooltip:focus::after {
+            opacity: 1;
+            visibility: visible;
+        }
+    }
+
+    /* Hide tooltip when labels are visible (xl and above) */
+    @@media (min-width: 1280px) {
+        .nav-tooltip::after {
+            display: none;
+        }
+    }
+</style>
+
+<!-- Instagram-style Desktop Sidebar Navigation -->
+<!-- md: icon-only (narrow), xl: full width with labels -->
+<aside class="hidden md:flex flex-col fixed left-0 top-0 bottom-0
+              w-[72px] xl:w-[220px] 2xl:w-[244px]
+         bg-[var(--md-sys-color-surface)] border-r border-[var(--md-sys-color-outline-variant)]
+    z-40 px-2 xl:px-3 py-6 transition-all duration-200">
+
+    <!-- Logo & Brand -->
+    <div class="px-2 xl:px-3 mb-8 flex justify-center xl:justify-start">
+        <a href="/" class="nav-tooltip flex items-center xl:space-x-3" data-tooltip="WheelyTrails Home">
+            <img src="./img/assets/logo-light.png" alt="WheelyTrails logo" class="h-8 w-auto object-contain block dark:hidden" />
+            <img src="./img/assets/logo-dark.png" alt="WheelyTrails logo" class="h-8 w-auto object-contain hidden dark:block" />
+            <span class="hidden xl:inline text-xl font-semibold tracking-tight text-[var(--md-sys-color-on-surface)]">
+                WheelyTrails
+            </span>
+        </a>
+    </div>
+
+    <!-- Navigation Links -->
+    <nav class="flex-1 flex flex-col gap-1">
+        <a href="/"
+           class="nav-tooltip @GetNavLinkClass("/") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+           data-tooltip="Home">
+            <span class="material-symbols-rounded text-[24px] xl:text-[26px]">home</span>
+            <span class="hidden xl:inline text-base">Home</span>
+        </a>
+
+        <a href="/trails"
+           class="nav-tooltip @GetNavLinkClass("/trails") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+           data-tooltip="Trails">
+            <span class="material-symbols-rounded text-[24px] xl:text-[26px]">landscape</span>
+            <span class="hidden xl:inline text-base">Trails</span>
+        </a>
+
+        <a href="/trails/discover"
+           class="nav-tooltip @GetNavLinkClass("/trails/discover") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+           data-tooltip="Discover">
+            <span class="material-symbols-rounded text-[24px] xl:text-[26px]">explore</span>
+            <span class="hidden xl:inline text-base">Discover</span>
+        </a>
+
+        <a href="/shop"
+           class="nav-tooltip @GetNavLinkClass("/shop") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+           data-tooltip="Shop">
+            <span class="material-symbols-rounded text-[24px] xl:text-[26px]">shopping_bag</span>
+            <span class="hidden xl:inline text-base">Shop</span>
+        </a>
+
+        <AuthorizeView>
+            <Authorized>
+                <!-- Create / Record Trail -->
+                <a href="/trails/record"
+                   class="nav-tooltip @GetNavLinkClass("/trails/record") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+                   data-tooltip="Create Trail">
+                    <span class="material-symbols-rounded text-[24px] xl:text-[26px]">add_circle</span>
+                    <span class="hidden xl:inline text-base">Create</span>
+                </a>
+            </Authorized>
+        </AuthorizeView>
+    </nav>
+
+    <!-- Bottom Section: User Profile & Settings -->
+    <div class="mt-auto pt-4 border-t border-[var(--md-sys-color-outline-variant)]">
+        <AuthorizeView>
+            <Authorized>
+                <!-- User Profile Link -->
+                <div class="relative">
+                    <button @onclick="ToggleUserMenu"
+                            class="nav-tooltip w-full flex items-center justify-center xl:justify-start gap-3 px-2 xl:px-3 py-3 rounded-lg
+   hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                            type="button"
+                            aria-label="User menu"
+                            aria-expanded="@isUserMenuOpen"
+                            data-tooltip="@userName">
+                        @if (!string.IsNullOrEmpty(userProfilePicture))
+                        {
+                            <img src="@userProfilePicture"
+                                 alt="@userName profile picture"
+                                 class="w-7 h-7 xl:w-8 xl:h-8 rounded-full border border-[var(--md-sys-color-outline-variant)] object-cover" />
+                        }
+                        else
+                        {
+                            <span class="material-symbols-rounded text-[24px] xl:text-[28px] text-[var(--md-sys-color-on-surface-variant)]">
+                                account_circle
+                            </span>
+                        }
+                        <span class="hidden xl:inline text-base text-[var(--md-sys-color-on-surface)] truncate flex-1 text-left">
+                            @userName
+                        </span>
+                        <span class="hidden xl:inline material-symbols-rounded text-[20px] text-[var(--md-sys-color-on-surface-variant)]">
+                            more_horiz
+                        </span>
+                    </button>
+
+                    <!-- User Dropdown Menu -->
+                    @if (isUserMenuOpen)
+                    {
+                        <div class="absolute bottom-full left-0 right-0 mb-2 bg-[var(--md-sys-color-surface-container-high)]
+               rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] z-50
+               min-w-[200px] xl:min-w-0"
+                             @onclick:stopPropagation="true">
+                            <div class="py-2">
+                                @if (!string.IsNullOrEmpty(profileUsername))
+                                {
+                                    <a href="/user/@profileUsername"
+                                       class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+                hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                       @onclick="CloseUserMenu">
+                                        <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
+                                            person
+                                        </span>
+                                        Profile
+                                    </a>
+                                }
+
+                                <a href="/account/identity/settings"
+                                   class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
+          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                                   @onclick="CloseUserMenu">
+                                    <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
+                                        settings
+                                    </span>
+                                    Settings
+                                </a>
+
+                                <hr class="my-2 border-[var(--md-sys-color-outline-variant)]" />
+
+                                <button @onclick="HandleLogout"
+                                        class="w-full flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-error)]
+            hover:bg-[var(--md-sys-color-error-container)] transition-colors text-left">
+                                    <span class="material-symbols-rounded text-[20px] mr-3">
+                                        logout
+                                    </span>
+                                    Logout
+                                </button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </Authorized>
+
+            <NotAuthorized>
+                <!-- Login / Sign Up for guests -->
+                <div class="flex flex-col gap-2 px-2 xl:px-3">
+                    <a href="/account/identity/login"
+                       class="nav-tooltip flex items-center justify-center gap-2 px-3 xl:px-4 py-2.5 bg-[var(--md-sys-color-primary)]
+    text-[var(--md-sys-color-on-primary)] rounded-full font-medium
+        hover:shadow-elevation-2 transition-shadow"
+                       data-tooltip="Login">
+                        <span class="xl:hidden material-symbols-rounded text-[20px]">login</span>
+                        <span class="hidden xl:inline">Login</span>
+                    </a>
+                    <a href="/account/identity/register"
+                       class="nav-tooltip flex items-center justify-center gap-2 px-3 xl:px-4 py-2.5 border border-[var(--md-sys-color-outline)]
+    text-[var(--md-sys-color-primary)] rounded-full font-medium
+      hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                       data-tooltip="Sign Up">
+                        <span class="xl:hidden material-symbols-rounded text-[20px]">person_add</span>
+                        <span class="hidden xl:inline">Sign Up</span>
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+
+        <!-- Theme Toggle & Settings -->
+        <div class="flex items-center justify-center xl:justify-between px-2 xl:px-3 py-3 mt-2">
+            <div class="nav-tooltip" data-tooltip="Toggle Theme">
+                <ThemeToggle />
+            </div>
+        </div>
+    </div>
+</aside>
