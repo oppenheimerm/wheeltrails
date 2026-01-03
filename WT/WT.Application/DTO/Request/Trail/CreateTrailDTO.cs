@@ -44,5 +44,15 @@ namespace WT.Application.DTO.Request.Trail
 
         public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
 
+        /// <summary>
+        /// Length of the trail in meters.
+        /// </summary>
+        [Required]
+        public double LengthMeters { get; set; }
+
+        /// <summary>
+        /// Elevation profile data points along the trail.
+        /// </summary>
+        public List<double> ElevationProfile { get; set; } = new();
     }
 }

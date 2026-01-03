@@ -4,6 +4,7 @@ using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Request.Trail;
 using WT.Application.DTO.Response;
+using WT.Application.Extensions;
 using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
@@ -38,6 +39,7 @@ namespace WT.Infrastructure.Repositories
         /// </summary>
         /// <param name="model">DTO containing trail creation data including title, description, location, difficulty, and surface types</param>
         /// <param name="userId">GUID of the authenticated user creating the trail (derived from JWT token)</param>
+        /// <param name="cancellationToken">Cancellation token to observe while waiting for the task to complete</param>
         /// <returns>
         /// An <see cref="APIResponseCreateTrail"/> containing:
         /// - Success: true if trail created successfully, false otherwise
@@ -61,30 +63,39 @@ namespace WT.Infrastructure.Repositories
         /// All exceptions are caught, logged using <see cref="LogException.LogExceptions"/>, 
         /// and returned as error responses without exposing internal details.
         /// </para>
+        /// <para>
+        /// The cancellation token is observed during async operations to support graceful cancellation
+        /// of long-running database operations.
+        /// </para>
         /// </remarks>
-        public async Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, Guid userId)
+        public async Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, Guid userId, CancellationToken cancellationToken = default)
         {
             // using a try -catch block to handle exceptions, create a new instance
             // of WTTrail and populate its properties with data from the CreateTrailDTO model,
             // logging any exceptions that occur during the process, as well as saving the new trail to the database context
             try
             {
-
                 //  TODO Update to include Start, End, Waypoints, LengthMeters, ElevationProfile, PointsOfInterest
 
                 var newTrail = new WTTrail
                 {
                     Title = model.Title,
                     Description = model.Description,
-
-                    /*Latitude = model.Latitude,
-                    Longitude = model.Longitude,*/
+                    Start = model.Start,
+                    End = model.End,
                     Difficulty = model.Difficulty,
                     SurfaceTypes = model.SurfaceTypes,
-                    UserId = userId // Assign the trusted userId from the method parameter
+                    UserId = userId, // Assign the trusted userId from the method parameter
+                    Waypoints = model.Waypoints,
+                    LengthMeters = model.LengthMeters,
+                    ElevationProfile = model.ElevationProfile,
+                    PointsOfInterest = model.PointsOfInterest,
                 };
-                await _context.Trails.AddAsync(newTrail);
-                await _context.SaveChangesAsync();
+
+
+                // Note how we use the cancellationToken in async calls:
+                await _context.Trails.AddAsync(newTrail, cancellationToken);
+                await _context.SaveChangesAsync(cancellationToken);
 
                 // Log trail creation
                 LogException.LogToFile($"Creating trail: {model.Title} by User ID: {userId} at time: {DateTime.UtcNow}");
@@ -93,8 +104,17 @@ namespace WT.Infrastructure.Repositories
                 {
                     Success = true,
                     Message = "Trail created successfully",
-                    TrailId = newTrail.Id,
-                    TrailTitle = newTrail.Title
+                    Trail = newTrail.ToDto()
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                // Log cancellation
+                LogException.LogToFile($"Trail creation cancelled for User ID: {userId} at time: {DateTime.UtcNow}");
+                return new APIResponseCreateTrail
+                {
+                    Success = false,
+                    Message = "Trail creation was cancelled"
                 };
             }
             catch (Exception ex)
@@ -106,7 +126,6 @@ namespace WT.Infrastructure.Repositories
                     Success = false,
                     Message = $"Error creating trail: {ex.Message}"
                 };
-
             }
         }
 

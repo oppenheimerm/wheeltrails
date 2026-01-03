@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using WT.Application.DTO.Request.Account;
+using WT.Application.DTO.Request.Trail;
 using WT.Application.DTO.Response;
 using WT.Domain.Entity;
 
@@ -43,6 +44,8 @@ namespace WT.Application.Services
 
         // ✅ NEW: Update profile photo for authenticated user (client-side calls API)
         Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(UpdateProfilePhotoDTO updateProfilePhotoDTO, CancellationToken cancellationToken = default);
+
+        Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, CancellationToken cancellationToken);
 
         /// <summary>
         /// Method to get navbar authentication data for the currently authenticated user.

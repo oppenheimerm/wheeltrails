@@ -29,20 +29,27 @@ namespace API.Controllers
 
         [HttpPost]
         [Authorize] // ✅ Requires valid JWT token
-        public async Task<IActionResult> CreateTrail([FromBody] CreateTrailDTO model)
+        public async Task<IActionResult> CreateTrail([FromBody] CreateTrailDTO model, CancellationToken cancellationToken)
         {
             try
             {
                 // ✅ SECURITY: Extract userId from authenticated JWT claims
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
                 if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
                 {
-                    return Unauthorized(new { success = false, message = "Invalid user authentication" });
+                    var UnauthorizedResponse = new APIResponseCreateTrail
+                    {
+                        Success = false,
+                        Message = "Invalid user authentication"
+                    };
+                    return Unauthorized(UnauthorizedResponse);
                 }
 
+                // Cancellation token: prefer the explicit token from the client, but also observe HttpContext.RequestAborted
+                var ct = cancellationToken.CanBeCanceled ? cancellationToken : HttpContext.RequestAborted;
+
                 // ✅ Pass trusted userId to repository
-                var response = await _trailRepository.CreateTrailAsync(model, userId);
+                var response = await _trailRepository.CreateTrailAsync(model, userId, cancellationToken);
 
                 if (response.Success == false)
                 {
@@ -56,8 +63,17 @@ namespace API.Controllers
                 {
                     Success = true,
                     Message = "Trail created successfully",
-                    TrailId = response.TrailId,
-                    TrailTitle = response.TrailTitle
+                    Trail = response.Trail
+                });
+            }
+            // hangle cancellation separately
+            catch (OperationCanceledException)
+            {
+                LogException.LogToFile("Trail creation operation was canceled by the client.");
+                return StatusCode(StatusCodes.Status499ClientClosedRequest, new APIResponseCreateTrail()
+                {
+                    Success = false,
+                    Message = "Trail creation was canceled"
                 });
             }
             catch (Exception ex)
