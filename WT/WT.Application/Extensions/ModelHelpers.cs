@@ -57,5 +57,33 @@ namespace WT.Application.Extensions
 
             return _navBarSettings;
         }
+
+        /// <summary>
+        /// Helpers to convert WTTrail entity to TrailDTO.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static TrailDTO ToDto(this WTTrail entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+            var _trail = new TrailDTO
+            {
+                Id = entity.Id,
+                Title = entity.Title,
+                Description = entity.Description,
+                User = entity.User!.ToDto(),
+                Start = entity.Start,
+                End = entity.End,
+                Waypoints = entity.Waypoints,
+                LengthMeters = entity.LengthMeters,
+                ElevationProfile = entity.ElevationProfile,
+                PointsOfInterest = entity.PointsOfInterest,
+                Difficulty = entity.Difficulty,
+                SurfaceTypes = entity.SurfaceTypes,
+                CreatedAt = entity.CreatedAt
+            };
+            return _trail;
+        }
     }
 }

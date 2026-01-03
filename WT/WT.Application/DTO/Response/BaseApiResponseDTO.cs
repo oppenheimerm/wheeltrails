@@ -74,7 +74,8 @@ namespace WT.Application.DTO.Response
     public record APIResponseCreateTrail(
         bool Success = false,
         string Message = null!,
-        Guid? TrailId = null,
-        string? TrailTitle = "") : BaseAPIResponseDTO(Success, Message);
+        TrailDTO? Trail = null!) : BaseAPIResponseDTO(Success, Message);
+
+
 
 }

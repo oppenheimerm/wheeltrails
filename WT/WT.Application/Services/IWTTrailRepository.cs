@@ -14,6 +14,7 @@ namespace WT.Application.Services
         /// </summary>
         /// <param name="model">DTO containing trail creation data including title, description, location, difficulty, and surface types</param>
         /// <param name="userId">GUID of the authenticated user creating the trail (derived from JWT token)</param>
+        /// <param name="cancellationToken">Cancellation token to observe while waiting for the task to complete</param>
         /// <returns>
         /// An <see cref="APIResponseCreateTrail"/> containing:
         /// - Success: true if trail created successfully, false otherwise
@@ -24,8 +25,9 @@ namespace WT.Application.Services
         /// <remarks>
         /// This method validates the user ID from the authentication context and logs trail creation events.
         /// All exceptions are caught, logged using <see cref="LogException"/>, and returned as error responses.
+        /// The cancellation token is observed during async database operations to support graceful cancellation.
         /// </remarks>
-        Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, Guid userId);
+        Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, Guid userId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Adds a user's "like" to a trail with an optional rating.
