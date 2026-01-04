@@ -1,0 +1,242 @@
+﻿@using System.Net.Http.Headers
+@using System.Text.Json
+@using Microsoft.AspNetCore.Http
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IJSRuntime JSRuntime
+@inject IAccountService AccountService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject IConfiguration Configuration
+
+@page "/trails/{TrailId:guid}/photos"
+<PageTitle>WheelyTrails - Add a Photo</PageTitle>
+
+@code {
+    private List<string> photos = new();
+    private CancellationTokenSource? cts;
+    private bool isUploading = false;
+    private int progress = 0;
+    private string? currentFileName;
+
+    private const int MaxPhotos = 5; // limit per trail per user
+
+    [Parameter] public Guid TrailId { get; set; }
+
+    private ElementReference fileInputRef;
+
+    private MemoryStream? uploadMemoryStream;
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        if (isUploading) return;
+        var file = e.File;
+        if (file is null) return;
+
+        if (photos.Count >= MaxPhotos)
+        {
+            ShowToast("Photo limit reached", false);
+            return;
+        }
+
+        // Basic client-side size validation
+        if (file.Size <= 0)
+        {
+            ShowToast("Selected file is empty", false);
+            return;
+        }
+
+        if (file.Size > WT.Application.Extensions.Constants.FirebaseUploadConstants.MaxTrailPhotoSize)
+        {
+            ShowToast($"File exceeds maximum size of {WT.Application.Extensions.Constants.FirebaseUploadConstants.MaxTrailPhotoSize / (1024 * 1024)} MB", false);
+            return;
+        }
+
+        // Prepare cancellation token for upload
+        cts?.Dispose();
+        cts = new CancellationTokenSource();
+
+        // Convert IBrowserFile -> IFormFile by buffering into memory stream (kept until upload completes)
+        uploadMemoryStream = new MemoryStream();
+        try
+        {
+            // Use the same maxAllowedSize to avoid streaming too much
+            await file.OpenReadStream(WT.Application.Extensions.Constants.FirebaseUploadConstants.MaxTrailPhotoSize).CopyToAsync(uploadMemoryStream, cts.Token);
+            uploadMemoryStream.Position = 0;
+        }
+        catch (OperationCanceledException)
+        {
+            uploadMemoryStream?.Dispose();
+            uploadMemoryStream = null;
+            ShowToast("Upload cancelled", false);
+            return;
+        }
+        catch (Exception ex)
+        {
+            uploadMemoryStream?.Dispose();
+            uploadMemoryStream = null;
+            Console.WriteLine($"Failed to read file: {ex.Message}");
+            ShowToast("Failed to read selected file", false);
+            return;
+        }
+
+        // Progress reporter
+        var progressReporter = new Progress<int>(p =>
+        {
+            progress = p;
+            InvokeAsync(StateHasChanged);
+        });
+
+        isUploading = true;
+        progress = 0;
+        currentFileName = file.Name;
+        StateHasChanged();
+
+        try
+        {
+            // Call client-side AccountService which accepts a Stream and uploads to API
+            // Ensure stream position is0
+            if (uploadMemoryStream != null && uploadMemoryStream.CanSeek) uploadMemoryStream.Position = 0;
+            var result = await AccountService.UploadTrailPhotoAsync(TrailId, uploadMemoryStream!, file.Name, file.ContentType, progressReporter, cts.Token);
+
+            if (result.Success)
+            {
+                // Append cache-busting query param
+                photos.Add(result.PhotoUrl + "?v=" + Guid.NewGuid());
+                ShowToast("Photo uploaded", true);
+            }
+            else
+            {
+                ShowToast(result.Message ?? "Upload failed", false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ShowToast("Upload cancelled", false);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Upload error: {ex.Message}");
+            ShowToast("Upload failed: " + ex.Message, false);
+        }
+        finally
+        {
+            isUploading = false;
+            currentFileName = null;
+            progress = 0;
+
+            try { uploadMemoryStream?.Dispose(); } catch { }
+            uploadMemoryStream = null;
+
+            cts?.Dispose(); cts = null;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void CancelUpload()
+    {
+        try
+        {
+            cts?.Cancel();
+        }
+        catch { }
+    }
+
+    private string? toastMessage;
+    private bool toastSuccess;
+
+    private void ShowToast(string message, bool success)
+    {
+        toastMessage = message;
+        toastSuccess = success;
+        InvokeAsync(StateHasChanged);
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(3000);
+            toastMessage = null;
+            await InvokeAsync(StateHasChanged);
+        });
+    }
+
+    public class PhotoUploadResponse
+    {
+        public Guid Id { get; set; }
+        public string Url { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+    }
+
+    private void Done()
+    {
+        Nav.NavigateTo($"/trails/{TrailId}");
+    }
+}
+
+<div class="max-w-3xl mx-auto px-4 py-6">
+    <div class="bg-[var(--md-sys-color-surface-container-lowest)] rounded-xl shadow-elevation-2 p-6">
+        <h2 class="text-lg font-semibold mb-2">Add Photos for this Trail</h2>
+        <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mb-4">Upload images of the trail. Limit: @MaxPhotos photos per user.</p>
+
+        <div class="grid grid-cols-1 gap-4">
+            <div>
+                <label class="wt-form-lbl">Select image</label>
+                <InputFile id="trail-photo-input" OnChange="HandleFileSelected" accept="image/*" class="wt-form-input" disabled="@isUploading" />
+            </div>
+
+            @*
+
+            Uploading UI
+            - Visible only when `isUploading` is true.
+            - Shows the currently uploading filename (`currentFileName`).
+            - Visual progress bar width is bound to the `progress` integer (0-100).
+            - The Cancel button calls `CancelUpload`, which cancels the active CancellationTokenSource
+            used during the upload and triggers cleanup in the upload handler.
+            - Progress updates are reported via a `Progress<int>` instance passed to the upload service.
+            Accessibility notes:
+            - The inner progress element includes `role="progressbar"` and ARIA attributes so
+            assistive technologies can announce upload progress.
+
+            *@
+            @if (isUploading)
+            {
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <div class="text-sm">Uploading <strong>@currentFileName</strong></div>
+                        <div class="w-full bg-[var(--md-sys-color-surface-container)] rounded-full h-3 mt-2 overflow-hidden" aria-hidden="false">
+                            <div class="h-3 bg-[var(--md-sys-color-primary)]" style="width:@(progress)%" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@progress" aria-label="Upload progress"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="wt-btn-outline" @onclick="CancelUpload">Cancel</button>
+                    </div>
+                </div>
+            }
+
+            @if (photos.Count > 0)
+            {
+                <div>
+                    <h3 class="text-sm font-medium mb-2">Uploaded Photos</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        @foreach (var p in photos)
+                        {
+                            <div class="rounded-md overflow-hidden border border-[var(--md-sys-color-outline-variant)]">
+                                <img src="@p" alt="Uploaded photo" class="w-full h-32 object-cover block" />
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <div class="pt-2">
+                <button class="wt-btn" @onclick="Done">Done</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(toastMessage))
+{
+    <div class="fixed bottom-4 right-4 z-50">
+        <div class="px-4 py-2 rounded-full @((toastSuccess ? "bg-green-500" : "bg-red-500")) text-white text-sm shadow-md transition-all duration-300">
+            @toastMessage
+        </div>
+    </div>
+}

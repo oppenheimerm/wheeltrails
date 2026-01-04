@@ -129,7 +129,8 @@
                     await AccountService.SetNavBarAuthDataAsync();
 
                     var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
-                    profilePhotoUrl = navBarAuthData?.UserPhoto;
+                    profilePhotoUrl = navBarAuthData?.UserPhoto + $"?v={Guid.NewGuid()}";
+                    ;
                 }
             }
             catch (Exception ex)

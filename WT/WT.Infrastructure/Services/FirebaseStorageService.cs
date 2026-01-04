@@ -72,21 +72,27 @@ namespace WT.Infrastructure.Services
         /// Uploads profile picture: max 400x400px, 80% JPEG quality.
         /// Path: profile-pictures/{userId}/{uniqueFileName}
         /// </summary>
-        public async Task<string> UploadProfilePictureAsync(Stream stream, string fileName, Guid userId)
+        public async Task<string> UploadProfilePictureAsync(Stream stream, string fileName, Guid userId, CancellationToken cancellationToken = default)
         {
             try
             {
                 // Optimize image for profile picture (smaller size, lower quality)
-                using var optimizedStream = await OptimizeImageAsync(stream, maxWidth: 400, maxHeight: 400, quality: 80);
+                using var optimizedStream = await OptimizeImageAsync(stream, maxWidth: 400, maxHeight: 400, quality: 80, cancellationToken);
 
                 // ✅ CORRECT: Guaranteed unique filenames
                 var uniqueFileName = $"{Guid.NewGuid()}_{SanitizeFileName(fileName)}";
                 var objectName = $"profile-pictures/{userId}/{uniqueFileName}";
 
-                var downloadUrl = await UploadToFirebaseAsync(optimizedStream, objectName, "image/jpeg");
+                var downloadUrl = await UploadToFirebaseAsync(optimizedStream, objectName, "image/jpeg", cancellationToken);
 
                 LogException.LogToFile($"✅ Profile picture uploaded: {objectName} (User: {userId}) at {DateTime.UtcNow}");
                 return downloadUrl;
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation
+                LogException.LogToFile($"❌ Profile picture upload canceled for User: {userId} at {DateTime.UtcNow}");
+                throw;
             }
             catch (Exception ex)
             {
@@ -99,21 +105,27 @@ namespace WT.Infrastructure.Services
         /// Uploads trail photo: max 1200x1200px, 85% JPEG quality.
         /// Path: trail-photos/{trailId}/{uniqueFileName}
         /// </summary>
-        public async Task<string> UploadTrailPhotoAsync(Stream stream, string fileName, Guid trailId)
+        public async Task<string> UploadTrailPhotoAsync(Stream stream, string fileName, Guid trailId, CancellationToken cancellationToken = default)
         {
             try
             {
                 // Optimize image for trail photo (larger size, higher quality)
-                using var optimizedStream = await OptimizeImageAsync(stream, maxWidth: 1200, maxHeight: 1200, quality: 85);
+                using var optimizedStream = await OptimizeImageAsync(stream, maxWidth: 1200, maxHeight: 1200, quality: 85, cancellationToken);
 
                 // ✅ CORRECT: Guaranteed unique filenames
                 var uniqueFileName = $"{Guid.NewGuid()}_{SanitizeFileName(fileName)}";
                 var objectName = $"trail-photos/{trailId}/{uniqueFileName}";
 
-                var downloadUrl = await UploadToFirebaseAsync(optimizedStream, objectName, "image/jpeg");
+                var downloadUrl = await UploadToFirebaseAsync(optimizedStream, objectName, "image/jpeg", cancellationToken);
 
                 LogException.LogToFile($"✅ Trail photo uploaded: {objectName} (Trail: {trailId}) at {DateTime.UtcNow}");
                 return downloadUrl;
+            }
+            catch (OperationCanceledException)
+            {
+                // Handle cancellation
+                LogException.LogToFile($"❌ Trail photo upload canceled for Trail: {trailId} at {DateTime.UtcNow}");
+                throw;
             }
             catch (Exception ex)
             {
@@ -179,7 +191,7 @@ namespace WT.Infrastructure.Services
         /// Core Firebase upload using Google Cloud Storage Client.
         /// Makes objects publicly readable via PredefinedAcl.
         /// </summary>
-        private async Task<string> UploadToFirebaseAsync(Stream stream, string objectName, string contentType)
+        private async Task<string> UploadToFirebaseAsync(Stream stream, string objectName, string contentType, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -192,7 +204,8 @@ namespace WT.Infrastructure.Services
                     options: new UploadObjectOptions
                     {
                         PredefinedAcl = PredefinedObjectAcl.PublicRead // Make publicly accessible
-                    }
+                    },
+                    cancellationToken: cancellationToken
                 );
 
                 // Return public URL
@@ -210,9 +223,9 @@ namespace WT.Infrastructure.Services
         /// Optimizes image using SixLabors.ImageSharp.
         /// Resizes maintaining aspect ratio and compresses with JPEG encoding.
         /// </summary>
-        private async Task<MemoryStream> OptimizeImageAsync(Stream inputStream, int maxWidth, int maxHeight, int quality)
+        private async Task<MemoryStream> OptimizeImageAsync(Stream inputStream, int maxWidth, int maxHeight, int quality, CancellationToken cancellationToken = default)
         {
-            using var image = await Image.LoadAsync(inputStream);
+            using var image = await Image.LoadAsync(inputStream, cancellationToken);
 
             // ✅ Calculate aspect ratio to avoid distortion
             var ratioX = (double)maxWidth / image.Width;
@@ -230,7 +243,7 @@ namespace WT.Infrastructure.Services
             // ✅ Compress with JPEG
             var outputStream = new MemoryStream();
             var encoder = new JpegEncoder { Quality = quality };
-            await image.SaveAsync(outputStream, encoder);
+            await image.SaveAsync(outputStream, encoder, cancellationToken);
 
             outputStream.Position = 0;
             return outputStream;

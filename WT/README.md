@@ -21,6 +21,25 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 
 Summary of notable changes in this branch:
 
+### File Upload Cancellation Support ✨ NEW
+- **CancellationToken Propagation**
+ - File storage service (`IFileStorageService`) methods now accept optional `CancellationToken` parameters
+ - Controllers propagate `HttpContext.RequestAborted` to all upload operations
+ - Enables graceful cancellation of image processing and cloud storage uploads
+- **Benefits**
+ - Prevents wasted server resources when clients disconnect during uploads
+ - Reduces CPU, memory, and bandwidth usage for abandoned requests
+ - Proper cleanup of streams and temporary buffers
+- **Implementation Details**
+ - `UploadProfilePictureAsync` and `UploadTrailPhotoAsync` in `FirebaseStorageService` updated
+ - Cancellation tokens propagated to ImageSharp image processing operations
+ - Google Cloud Storage upload operations honor cancellation tokens
+ - Controllers handle `OperationCanceledException` and return HTTP499 responses
+- **Code Documentation**
+ - Added JSDoc-style documentation to `uploader.js` (client-side XHR uploader)
+ - Documented DotNet interop callbacks and abort semantics
+ - Added ARIA attributes to progress bars in upload UI components
+
 ### Layout & Navigation
 - **New Instagram-Style Sidebar Navigation** (`SideNav.razor`)
   - Replaced top `NavBar` with a fixed left sidebar for desktop/tablet (hidden on mobile)
@@ -218,12 +237,31 @@ The design documentation includes:
  - Server-side processing with SixLabors.ImageSharp
  - Automatic resizing while maintaining aspect ratio
  - JPEG compression for reduced file sizes
+- **Cancellation & Request Abort Handling** ✨ NEW
+ - Upload methods now accept a `CancellationToken` parameter
+ - Controllers propagate `HttpContext.RequestAborted` to enable graceful cancellation
+ - Image processing (ImageSharp) and cloud storage uploads can be aborted when client disconnects
+ - Prevents wasted server resources on cancelled requests
+ - Controllers handle `OperationCanceledException` and return HTTP499 (Client Closed Request)
+ - Example server-side implementation:
+   ```csharp
+   var ct = HttpContext.RequestAborted;
+   using var stream = file.OpenReadStream();
+   try
+   {
+       var url = await _fileStorageService.UploadTrailPhotoAsync(stream, fileName, trailId, ct);
+   }
+   catch (OperationCanceledException) when (ct.IsCancellationRequested)
+   {
+  return StatusCode(499, new { success = false, message = "Upload canceled" });
+   }
+   ```
 - **Security Features**
  - Server-side upload validation (file size, type)
  - Firebase Security Rules for access control
  - Authenticated uploads only
  - Path traversal protection via filename sanitization
-
+ - Magic bytes validation to prevent MIME type spoofing
 
 ### 🔐 Authentication & Security ✨ ENHANCED
 - **JWT Bearer Token Authentication** with ASP.NET Core Identity
@@ -289,7 +327,8 @@ The API now uses an in-memory cache for lightweight, per-user navbar data (displ
 - TTL and eviction
  - Use a short TTL (5–15 minutes) to balance freshness vs. performance. The project uses10 minutes by default.
  - Example options: `AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)` and `Priority = CacheItemPriority.Normal`.
- - Optionally add `Size` to cache entries and configure `MemoryCacheOptions.SizeLimit` in `Program.cs` for memory pressure control.- What to cache
+ - Optionally add `Size` to cache entries and configure `MemoryCacheOptions.SizeLimit` in `Program.cs` for memory pressure control.
+- What to cache
  - Small, non-sensitive UI data used to render the NavBar (e.g., `DisplayName`, `ProfilePicture`, `ProfileUsername`, `MemberSince`).
  - Do NOT cache emails, tokens, passwords, or any PII that shouldn't be shared.
 

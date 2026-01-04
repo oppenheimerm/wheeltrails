@@ -20,6 +20,8 @@ namespace WT.Application.Extensions
             /// Maximum allowed size for profile picture uploads in bytes.
             /// </summary>
             public const long MaxProfilePictureSize = 3 * 1024 * 1024; // 3MB
+
+            public const long MaxTrailPhotoSize = 5 * 1024 * 1024; // 5MB
         }
 
     }

@@ -13,8 +13,9 @@
         /// <param name="stream">Image file stream</param>
         /// <param name="fileName">Original file name</param>
         /// <param name="userId">User ID for folder organization</param>
+        /// <param name="cancellationToken">Optional cancellation token to abort processing and upload</param>
         /// <returns>Public URL of uploaded profile picture</returns>
-        Task<string> UploadProfilePictureAsync(Stream stream, string fileName, Guid userId);
+        Task<string> UploadProfilePictureAsync(Stream stream, string fileName, Guid userId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Uploads a trail photo with automatic optimization.
@@ -23,8 +24,9 @@
         /// <param name="stream">Image file stream</param>
         /// <param name="fileName">Original file name</param>
         /// <param name="trailId">Trail ID for folder organization</param>
+        /// <param name="cancellationToken">Optional cancellation token to abort processing and upload</param>
         /// <returns>Public URL of uploaded trail photo</returns>
-        Task<string> UploadTrailPhotoAsync(Stream stream, string fileName, Guid trailId);
+        Task<string> UploadTrailPhotoAsync(Stream stream, string fileName, Guid trailId, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes a file from Firebase Storage.

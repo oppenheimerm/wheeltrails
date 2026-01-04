@@ -7,7 +7,8 @@
     "watch:css": "npx tailwindcss -i ./wwwroot/css/input.css -o ./wwwroot/css/app.css --watch",
     "inject-key": "node ../scripts/inject-google-key.js",
     "build:with-key": "npm run inject-key && npm run build",
-    "build:workbox": "workbox injectManifest --swSrc workbox/service-worker.src.js --swDest wwwroot/service-worker.published.js --globDirectory wwwroot --globPatterns \"**/*.{html,js,css,png,svg,wasm,woff2,woff,eot,ttf,dll}\""
+    "build:workbox": "workbox injectManifest --swSrc workbox/service-worker.src.js --swDest wwwroot/service-worker.published.js --globDirectory wwwroot --globPatterns \"**/*.{html,js,css,png,svg,wasm,woff2,woff,eot,ttf,dll}\"",
+    "bump": "node scripts/bump-version.js"
   },
   "keywords": [],
   "author": "",

@@ -30,13 +30,13 @@ namespace WT.Application.Services
         private readonly IConfiguration _configuration;
 
 
-        public AccountService(HttpClient httpClient, IConfiguration config, ILocalStorageService localStorage) : base(httpClient, config,localStorage)
+        public AccountService(HttpClient httpClient, IConfiguration config, ILocalStorageService localStorage) : base(httpClient, config, localStorage)
         {
             _httpClient = httpClient;
             _localStorage = localStorage;
             _configuration = config;
         }
-        
+
         /// <summary>
         /// Gets account settings for the currently authenticated user.
         /// Implements retry logic for transient errors and token refresh for auth failures.
@@ -45,7 +45,7 @@ namespace WT.Application.Services
         {
             const int maxRetries = 3; // For transient errors only
             int currentAttempt = 0;
-            
+
             try
             {
                 // Get JWT token from local storage
@@ -62,7 +62,7 @@ namespace WT.Application.Services
                 }
 
                 var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-                
+
                 if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
                 {
                     Console.WriteLine("❌ Invalid authentication data or missing JWT token");
@@ -74,7 +74,7 @@ namespace WT.Application.Services
                 }
 
                 // Set the JWT token in the Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization = 
+                _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
 
                 Console.WriteLine($"🔑 Fetching account settings (Attempt 1/{maxRetries})");
@@ -86,7 +86,7 @@ namespace WT.Application.Services
                 while (currentAttempt < maxRetries)
                 {
                     currentAttempt++;
-                    
+
                     try
                     {
                         response = await _httpClient.GetAsync("api/account/identity/settings");
@@ -102,18 +102,18 @@ namespace WT.Application.Services
                         if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
                         {
                             Console.WriteLine("⚠️ Token expired, attempting refresh...");
-                            
+
                             var refreshedToken = await GetRefreshTokenAsync();
-                            
+
                             if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
                             {
                                 Console.WriteLine("✅ Token refreshed, retrying request...");
                                 tokenWasRefreshed = true;
-                                
+
                                 // Update Authorization header with new token
-                                _httpClient.DefaultRequestHeaders.Authorization = 
+                                _httpClient.DefaultRequestHeaders.Authorization =
                                     new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
-                                
+
                                 // Don't increment attempt counter for auth retry
                                 currentAttempt--;
                                 continue; // Retry immediately
@@ -164,7 +164,7 @@ namespace WT.Application.Services
                     catch (HttpRequestException ex)
                     {
                         Console.WriteLine($"⚠️ Network error on attempt {currentAttempt}/{maxRetries}: {ex.Message}");
-                        
+
                         if (currentAttempt < maxRetries)
                         {
                             var delayMs = currentAttempt * 1000;
@@ -187,13 +187,13 @@ namespace WT.Application.Services
                 // Check final response status
                 if (response == null || !response.IsSuccessStatusCode)
                 {
-                    var errorContent = response != null 
-                        ? await response.Content.ReadAsStringAsync() 
+                    var errorContent = response != null
+                        ? await response.Content.ReadAsStringAsync()
                         : "No response received";
-                    
+
                     Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
                     Console.WriteLine($"Error details: {errorContent}");
-                    
+
                     return new APIResponseViewAccountSettings
                     {
                         Success = false,
@@ -203,7 +203,7 @@ namespace WT.Application.Services
 
                 // Deserialize successful response
                 var result = await response.Content.ReadFromJsonAsync<APIResponseViewAccountSettings>();
-                
+
                 if (result == null)
                 {
                     Console.WriteLine("❌ Failed to deserialize response");
@@ -235,7 +235,7 @@ namespace WT.Application.Services
         {
             // ✅ Use relative URL - HttpClient.BaseAddress already set
             var response = await _httpClient.PostAsJsonAsync("api/account/identity/create", model);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to register" };
         }
 
@@ -245,7 +245,7 @@ namespace WT.Application.Services
             {
                 // ✅ Use relative URL - HttpClient.BaseAddress already set to https://localhost:5001
                 var response = await _httpClient.PostAsJsonAsync("api/account/identity/login", model);
-                
+
                 // Check if the response was successful
                 if (!response.IsSuccessStatusCode)
                 {
@@ -258,24 +258,25 @@ namespace WT.Application.Services
                     // check if friendlyError is not null and has a message
                     if (friendlyError != null && !string.IsNullOrEmpty(friendlyError.Message))
                     {
-                        return new APIResponseAuthentication 
-                        { 
-                            Success = false, 
-                            Message = friendlyError.Message 
+                        return new APIResponseAuthentication
+                        {
+                            Success = false,
+                            Message = friendlyError.Message
                         };
                     }
-                    else { 
-                        return new APIResponseAuthentication 
-                        { 
-                            Success = false, 
-                            Message = $"Login failed: {response.StatusCode}" 
+                    else
+                    {
+                        return new APIResponseAuthentication
+                        {
+                            Success = false,
+                            Message = $"Login failed: {response.StatusCode}"
                         };
                     }
 
                 }
-                
+
                 var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
-                
+
                 // Log success (but not sensitive data)
                 if (result?.Success == true)
                 {
@@ -285,23 +286,23 @@ namespace WT.Application.Services
                 {
                     Console.WriteLine($"❌ Login failed: {result?.Message}");
                 }
-                
-                return result ?? new APIResponseAuthentication 
-                { 
-                    Success = false, 
-                    Message = "Login failed. Please try again." 
+
+                return result ?? new APIResponseAuthentication
+                {
+                    Success = false,
+                    Message = "Login failed. Please try again."
                 };
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"🔥 Exception in LoginAsync: {ex.Message}");
                 LogException.LogExceptions(ex);
-                
-                return new APIResponseAuthentication 
-                { 
+
+                return new APIResponseAuthentication
+                {
                     Success = false,
                     // Never return sensitive exception details to the caller, just a generic message
-                    Message = "Login error. Please try again." 
+                    Message = "Login error. Please try again."
                 };
             }
         }
@@ -310,34 +311,34 @@ namespace WT.Application.Services
         {
             var request = new { Token = token };
             var response = await _httpClient.PostAsJsonAsync("api/account/identity/refresh-token", request);
-            return await response.Content.ReadFromJsonAsync<APIResponseAuthentication>() 
+            return await response.Content.ReadFromJsonAsync<APIResponseAuthentication>()
                    ?? new APIResponseAuthentication { Success = false, Message = "Token refresh failed" };
         }
 
         public async Task<BaseAPIResponseDTO> CreateRoleASync(CreateRoleDTO model)
         {
             var response = await _httpClient.PostAsJsonAsync("api/account/create-role", model);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to create role" };
         }
 
         public async Task<IEnumerable<RoleDTO>> GetRolesAsync()
         {
-            return await _httpClient.GetFromJsonAsync<IEnumerable<RoleDTO>>("api/account/roles") 
+            return await _httpClient.GetFromJsonAsync<IEnumerable<RoleDTO>>("api/account/roles")
                    ?? Enumerable.Empty<RoleDTO>();
         }
 
         public async Task<BaseAPIResponseDTO> AddUserToRoleAsync(Guid userId, CreateRoleDTO model)
         {
             var response = await _httpClient.PostAsJsonAsync($"api/account/{userId}/add-role", model);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to add user to role" };
         }
 
         public async Task<BaseAPIResponseDTO> CreateAdmin()
         {
             var response = await _httpClient.PostAsync("api/account/create-admin", null);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to create admin" };
         }
 
@@ -351,14 +352,14 @@ namespace WT.Application.Services
         public async Task<BaseAPIResponseDTO> ForgotPasswordAsync(ForgotPasswordDTO model)
         {
             var response = await _httpClient.PostAsJsonAsync("api/account/forgot-password", model);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to process password reset request" };
         }
 
         public async Task<BaseAPIResponseDTO> ResetPasswordAsync(ResetPasswordDTO model)
         {
             var response = await _httpClient.PostAsJsonAsync("api/account/reset-password", model);
-            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>() 
+            return await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>()
                    ?? new BaseAPIResponseDTO { Success = false, Message = "Failed to reset password" };
         }
 
@@ -373,14 +374,15 @@ namespace WT.Application.Services
             const int maxRetries = 3; // For transient errors only
             int currentAttempt = 0;
 
-            try {
+            try
+            {
                 // Get JWT token from local storage
                 var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
 
                 if (string.IsNullOrEmpty(authData))
                 {
                     Console.WriteLine("❌ No authentication data in local storage");
-                    return new BaseAPIResponseDTO
+                    return new APIResponseViewAccountSettings
                     {
                         Success = false,
                         Message = "User is not authenticated"
@@ -582,7 +584,8 @@ namespace WT.Application.Services
             NavBarSettingsDTO? navBarSettingsDTO;
             Console.WriteLine("✅ AccountService:SetNavBarAuthDataAsync CALLED!");
 
-            try {
+            try
+            {
                 var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
 
                 if (string.IsNullOrEmpty(authData))
@@ -733,15 +736,15 @@ namespace WT.Application.Services
 
 
                     }
-                }               
-                
+                }
+
 
             }
             catch (HttpRequestException ex)
             {
                 Console.WriteLine($"⚠️ Network error in GetNavBarAuthDataAsync: {ex.Message}");
                 LogException.LogExceptions(ex);
-                
+
             }
             catch (Exception ex)
             {
@@ -758,13 +761,13 @@ namespace WT.Application.Services
             try
             {
                 var response = await _httpClient.GetAsync($"/api/account/user/{Uri.EscapeDataString(profileUsername)}");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<UserProfileResponse>();
                     return result?.User;
                 }
-                
+
                 return null;
             }
             catch (Exception ex)
@@ -811,7 +814,7 @@ namespace WT.Application.Services
                     try
                     {
                         // ✅ Use relative URL - HttpClient.BaseAddress already set
-                        response = await _httpClient.GetAsync($"/api/account/user/{Uri.EscapeDataString(profileUsername)}");;
+                        response = await _httpClient.GetAsync($"/api/account/user/{Uri.EscapeDataString(profileUsername)}"); ;
                         Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
                         LogException.LogToConsole($"📡 Response status in ViewProfileByUsernameAsync (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
 
@@ -829,7 +832,7 @@ namespace WT.Application.Services
                                 var delayMs = currentAttempt * 1000; // Progressive backoff: 1s, 2s, 3s
                                 Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
                                 LogException.LogToConsole($"⚠️ Server error {response.StatusCode} in ViewProfileByUsernameAsync, retrying in {delayMs}ms...");
-                                await Task.Delay(delayMs);
+                                await Task.Delay(delayMs, cancellationToken);
                                 continue; // Retry
                             }
                             else
@@ -856,7 +859,7 @@ namespace WT.Application.Services
                         {
                             var delayMs = currentAttempt * 1000;
                             Console.WriteLine($"Retrying in {delayMs}ms...");
-                            await Task.Delay(delayMs);
+                            await Task.Delay(delayMs, cancellationToken);
                             continue; // Retry
                         }
                         else
@@ -939,8 +942,8 @@ namespace WT.Application.Services
         // Our CreateTrailService implementation
         public async Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, CancellationToken cancellationToken)
         {
-            const int maxRetries =3; // For transient errors only
-            int currentAttempt =0;
+            const int maxRetries = 3; // For transient errors only
+            int currentAttempt = 0;
 
             // validate model client-side before sending to API
             var modelValid = IsCreateTrailRequestValid(model);
@@ -995,11 +998,11 @@ namespace WT.Application.Services
                         }
 
                         // Handle 5xx transient errors
-                        if ((int)response.StatusCode >=500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
                         {
                             if (currentAttempt < maxRetries)
                             {
-                                var delayMs = currentAttempt *1000;
+                                var delayMs = currentAttempt * 1000;
                                 Console.WriteLine($"⚠️ Server error {response.StatusCode}, retrying in {delayMs}ms...");
                                 await Task.Delay(delayMs, cancellationToken);
                                 continue;
@@ -1028,7 +1031,7 @@ namespace WT.Application.Services
 
                         if (currentAttempt < maxRetries)
                         {
-                            var delayMs = currentAttempt *1000;
+                            var delayMs = currentAttempt * 1000;
                             Console.WriteLine($"Retrying in {delayMs}ms...");
                             await Task.Delay(delayMs, cancellationToken);
                             continue; // Retry
@@ -1071,13 +1074,13 @@ namespace WT.Application.Services
             try
             {
                 var response = await _httpClient.GetAsync($"/api/account/profile-username/check/{Uri.EscapeDataString(profileUsername)}");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
                     var result = await response.Content.ReadFromJsonAsync<ProfileUsernameCheckResponse>();
                     return result?.IsAvailable ?? false;
                 }
-                
+
                 return false;
             }
             catch (Exception ex)
@@ -1092,13 +1095,13 @@ namespace WT.Application.Services
             try
             {
                 var response = await _httpClient.GetAsync($"/api/account/profile-username/validate/{Uri.EscapeDataString(profileUsername)}");
-                
+
                 if (response.IsSuccessStatusCode)
                 {
-                    return await response.Content.ReadFromJsonAsync<UsernameValidationResultDTO>() 
+                    return await response.Content.ReadFromJsonAsync<UsernameValidationResultDTO>()
                         ?? new UsernameValidationResultDTO { IsValid = false, Message = "Validation failed" };
                 }
-                
+
                 return new UsernameValidationResultDTO { IsValid = false, Message = "Unable to validate username" };
             }
             catch (Exception ex)
@@ -1164,7 +1167,7 @@ namespace WT.Application.Services
                 Console.WriteLine($"🔑 Atempting to upload profile photo for user: (Attempt 1/{maxRetries})");
                 LogException.LogToConsole($"🔑 Attempting to upload profile photo in UpdateProfilePictureUrlAsync (Attempt 1/{maxRetries})");
 
-                
+
                 // Prepare multipart form data content
                 var content = new MultipartFormDataContent();
                 var fileContent = new StreamContent(updateProfilePhotoDTO.ProfilePhoto!.OpenReadStream());
@@ -1314,14 +1317,14 @@ namespace WT.Application.Services
                 }
 
                 // Deserialize successful response
-                //_operationResponse = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
+                //_operation_response = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
                 var result = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>();
 
                 if (result == null)
                 {
                     Console.WriteLine("❌ Failed to deserialize response");
                     LogException.LogToConsole("❌ Failed to deserialize response in UpdateProfilePictureUrlAsync.");
-                    return new APIResponseUploadPhoto   
+                    return new APIResponseUploadPhoto
                     {
                         Success = false,
                         Message = "Failed to process server response"
@@ -1332,6 +1335,17 @@ namespace WT.Application.Services
                 LogException.LogToConsole("✅ Updated profile picture for user: {authLocalStorageDTO.ProfileUsername} successfully, (took {currentAttempt} attempt(s))");
                 return result;
 
+            }
+            // Catch operation cancelled
+            catch (OperationCanceledException)
+            {
+                // Client disconnected or request was cancelled
+                Console.WriteLine("⚠️ Operation cancelled in UpdateProfilePictureUrlAsync");
+                return new APIResponseUploadPhoto
+                {
+                    Success = false,
+                    Message = "The operation was cancelled."
+                };
             }
             catch (Exception ex)
             {
@@ -1347,6 +1361,120 @@ namespace WT.Application.Services
             }
         }
 
+
+        public async Task<APIResponseUploadPhoto> UploadTrailPhotoAsync(Guid trailId, System.IO.Stream fileStream, string fileName, string? contentType = null, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+        {
+            const int maxRetries = 3;
+            int currentAttempt = 0;
+
+            if (fileStream == null || !fileStream.CanRead)
+            {
+                return new APIResponseUploadPhoto { Success = false, Message = "No file provided" };
+            }
+
+            try
+            {
+                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
+                if (string.IsNullOrEmpty(authData))
+                    return new APIResponseUploadPhoto { Success = false, Message = "User is not authenticated" };
+
+                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
+                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
+                    return new APIResponseUploadPhoto { Success = false, Message = "User is not authenticated" };
+
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
+
+                HttpResponseMessage? response = null;
+                bool tokenWasRefreshed = false;
+
+                while (currentAttempt < maxRetries)
+                {
+                    currentAttempt++;
+
+                    try
+                    {
+                        // build multipart content for this attempt
+                        using var content = new MultipartFormDataContent();
+                        var streamContent = new StreamContent(fileStream);
+                        try { streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType ?? "application/octet-stream"); } catch { }
+                        content.Add(new StringContent(trailId.ToString(), Encoding.UTF8, MediaTypeNames.Text.Plain), "TrailId");
+                        content.Add(streamContent, "TrailPhoto", fileName);
+                        if (!string.IsNullOrEmpty(contentType))
+                            content.Add(new StringContent(contentType, Encoding.UTF8, MediaTypeNames.Text.Plain), "ContentType");
+
+                        response = await _httpClient.PostAsync("api/trails/upload-trail-photo", content, cancellationToken);
+
+                        if (response.IsSuccessStatusCode)
+                            break;
+
+                        if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
+                        {
+                            var refreshedToken = await GetRefreshTokenAsync();
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            {
+                                tokenWasRefreshed = true;
+                                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                currentAttempt--;
+                                continue;
+                            }
+                            else
+                            {
+                                return new APIResponseUploadPhoto { Success = false, Message = "Session expired. Please log in again." };
+                            }
+                        }
+
+                        if (CheckIfUnauthorized(response) && tokenWasRefreshed)
+                        {
+                            return new APIResponseUploadPhoto { Success = false, Message = "Authentication failed. Please log in again." };
+                        }
+
+                        if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
+                        {
+                            if (currentAttempt < maxRetries)
+                            {
+                                await Task.Delay(currentAttempt * 1000, cancellationToken);
+                                continue;
+                            }
+                            else
+                                break;
+                        }
+
+                        break;
+                    }
+                    catch (HttpRequestException)
+                    {
+                        if (currentAttempt < maxRetries)
+                        {
+                            await Task.Delay(currentAttempt * 1000, cancellationToken);
+                            continue;
+                        }
+                        return new APIResponseUploadPhoto { Success = false, Message = "Network error. Please check your connection and try again." };
+                    }
+                }
+
+                if (response == null || !response.IsSuccessStatusCode)
+                {
+                    var errorContent = response != null ? await response.Content.ReadAsStringAsync(cancellationToken) : "No response received";
+                    Console.WriteLine($"❌ Final response failed: {response?.StatusCode}");
+                    Console.WriteLine($"Error details: {errorContent}");
+                    return new APIResponseUploadPhoto { Success = false, Message = $"Unable to upload trail photo. Status: {response?.StatusCode}. {errorContent}" };
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<APIResponseUploadPhoto>(cancellationToken: cancellationToken);
+                return result ?? new APIResponseUploadPhoto { Success = false, Message = "Failed to parse server response" };
+            }
+            catch (OperationCanceledException)
+            {
+                return new APIResponseUploadPhoto { Success = false, Message = "Upload cancelled" };
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new APIResponseUploadPhoto { Success = false, Message = "An unexpected error occurred during upload" };
+            }
+        }
+
+
         /// <summary>
         /// Helper method to validate CreateTrailDTO on client side before sending to API.
         /// </summary>
@@ -1361,26 +1489,26 @@ namespace WT.Application.Services
 
             // Additional domain checks not covered by attributes
             if (model.Start == null)
-                return(false, "Start coordinate is required.");
+                return (false, "Start coordinate is required.");
 
             if (model.End == null)
-                return(false, "End coordinate is required.");
+                return (false, "End coordinate is required.");
 
             if (model.Waypoints == null || model.Waypoints.Count < 2)
-                return(false, "Waypoints must contain at least two coordinates (start and end).");
+                return (false, "Waypoints must contain at least two coordinates (start and end).");
 
             if (model.LengthMeters <= 0)
-                return(false, "LengthMeters must be greater zero.");
-            if(model.Title != null && model.Title.Length > 150)
+                return (false, "LengthMeters must be greater zero.");
+            if (model.Title != null && model.Title.Length > 150)
             {
                 return (false, "Title exceeds maximum length of 150 characters.");
             }
-            if(model.Description != null && model.Description.Length > 600)
+            if (model.Description != null && model.Description.Length > 600)
             {
                 return (false, "Description exceeds maximum length of 600 characters.");
             }
             //test if waypoints are not null
-            if(model.Waypoints.Any(wp => wp == null))
+            if (model.Waypoints.Any(wp => wp == null))
             {
                 return (false, "Waypoints cannot contain null values.");
             }

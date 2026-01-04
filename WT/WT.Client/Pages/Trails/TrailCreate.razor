@@ -2,39 +2,38 @@
 
 @using WT.Application.DTO.Request.Trail
 @using WT.Domain.Geo
+@using WT.Domain.Enums
 @using WT.Client.Services
+
 @inject IJSRuntime JS
 @inject IFabService FabService
 @inject NavigationManager NavigationManager
+@inject IAccountService AccountService
+
 @implements IDisposable
 
 <PageTitle>WheelyTrails - Add a new trail</PageTitle>
 
 @code {
     private bool isRecording = false;
-    // UI state for confirmation modal and recording banner
     private bool showRecordingConfirm = false;
     private bool showRecordingBanner = false;
     private List<WTLatLng> Waypoints { get; set; } = new();
     private List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
     private WTLatLng? lastKnownPosition;
 
-    // time tracking for recording (supports pause/resume)
     private DateTime? TimeStart { get; set; }
     private DateTime? TimeEnd { get; set; }
-    // accumulated elapsed time across paused sessions
     private TimeSpan TimeAccumulated { get; set; } = TimeSpan.Zero;
 
-    // Elapsed time includes accumulated + current running interval when recording
     private TimeSpan ElapsedTime => TimeAccumulated + (isRecording && TimeStart.HasValue ? (DateTime.UtcNow - TimeStart.Value) : TimeSpan.Zero);
 
-    // Human readable display for UI (mm:ss or h:mm:ss)
     private string ElapsedTimeDisplay
     {
         get
         {
             var ts = ElapsedTime;
-            if (ts.TotalHours >=1)
+            if (ts.TotalHours >= 1)
                 return string.Format("{0}:{1:00}:{2:00}", (int)ts.TotalHours, ts.Minutes, ts.Seconds);
             return string.Format("{0:00}:{1:00}", (int)ts.TotalMinutes, ts.Seconds);
         }
@@ -42,6 +41,10 @@
 
     private DotNetObjectReference<TrailCreate>? dotNetRef;
     private CreateTrailDTO? NewTrail { get; set; }
+    private EditContext? editContext;
+
+    private CancellationTokenSource? cts;
+    private bool metadataCollapsed = false;
 
     private string? errorMessage;
     private string? successMessage;
@@ -53,25 +56,40 @@
         {
             dotNetRef = DotNetObjectReference.Create(this);
 
-            // Try to get a one-shot current position to center the map, fall back to London
             try
             {
                 var pos = await JS.InvokeAsync<Geoposition>("getCurrentPosition");
-                await JS.InvokeVoidAsync("initMap", dotNetRef, "map", pos.lat, pos.lng,16);
+                await JS.InvokeVoidAsync("initMap", dotNetRef, "map", pos.lat, pos.lng, 16);
             }
             catch
             {
-                // fallback center (London)
-                await JS.InvokeVoidAsync("initMap", dotNetRef, "map",51.5074, -0.1278,14);
+                await JS.InvokeVoidAsync("initMap", dotNetRef, "map", 51.5074, -0.1278, 14);
             }
 
-            // Subscribe to FAB actions raised from the layout-level FAB (pages opt-in)
             FabService.OnFabAction += HandleFabAction;
-
-            // Make the global FAB visible for this page (opt-in). The layout listens
-            // to FabService.OnVisibilityChanged and will render the FAB when Show() is called.
             FabService.Show();
+
+            // Load persisted POIs
+            try
+            {
+                var persisted = await JS.InvokeAsync<WTPointOfInterest[]?>("poiStorage.getAllPois");
+                if (persisted != null)
+                {
+                    foreach (var p in persisted)
+                    {
+                        PointsOfInterest.Add(p);
+                        await JS.InvokeVoidAsync("addPoiMarker", p);
+                    }
+                }
+            }
+            catch { }
         }
+    }
+
+    protected override void OnInitialized()
+    {
+        NewTrail = new CreateTrailDTO();
+        editContext = new EditContext(NewTrail);
     }
 
     private void HandleFabAction(FabAction action)
@@ -97,79 +115,66 @@
     {
         if (!isRecording)
         {
-            // Show confirmation modal before starting recording so users understand battery impact
             showRecordingConfirm = true;
             StateHasChanged();
             return;
         }
 
-        // If already recording, stop
         await StopRecordingAsync();
     }
 
-    // Called when user confirms they want to start recording from the modal
     private async Task StartRecordingAsync()
     {
         showRecordingConfirm = false;
-
-        // START or RESUME recording
         isRecording = true;
         errorMessage = null;
 
-        // If this is a fresh start (no previous start and no accumulated), clear previous data
         if (!TimeStart.HasValue && TimeAccumulated == TimeSpan.Zero)
         {
             Waypoints.Clear();
             PointsOfInterest.Clear();
         }
 
-        // mark start time (resume if previously paused)
         TimeStart = DateTime.UtcNow;
         TimeEnd = null;
 
-        // start high-accuracy watch and pass updates to .NET
-        await JS.InvokeVoidAsync("startWatchPosition", dotNetRef, new { enableHighAccuracy = true, maximumAge =0, timeout =5000 });
-
-        // show persistent small banner while recording
+        await JS.InvokeVoidAsync("startWatchPosition", dotNetRef, new { enableHighAccuracy = true, maximumAge = 0, timeout = 5000 });
         showRecordingBanner = true;
-
         StateHasChanged();
     }
 
     private async Task StopRecordingAsync()
     {
-        // PAUSE / STOP recording
         isRecording = false;
         await JS.InvokeVoidAsync("stopWatchPosition");
 
-        // record end time and accumulate elapsed
         TimeEnd = DateTime.UtcNow;
         if (TimeStart.HasValue)
         {
             TimeAccumulated += (TimeEnd.Value - TimeStart.Value);
-            TimeStart = null; // clear running start
+            TimeStart = null;
         }
 
-        // hide banner
         showRecordingBanner = false;
 
-        if (Waypoints.Count >0)
+        if (Waypoints.Count > 0)
         {
             var start = Waypoints.First();
             var end = Waypoints.Last();
 
-            // Prepare DTO for later submission
             NewTrail = new CreateTrailDTO
             {
                 Start = start,
                 End = end,
                 Waypoints = Waypoints.ToList(),
                 PointsOfInterest = PointsOfInterest.ToList(),
-                Description = "My recorded trail",
-                Title = "New Trail",
-                Difficulty = Domain.Enums.TrailDifficulty.Easy,
-                SurfaceTypes = Domain.Enums.SurfaceType.Paved
+                Description = NewTrail?.Description ?? "Recorded trail",
+                Title = NewTrail?.Title ?? "Recorded Trail",
+                Difficulty = NewTrail?.Difficulty ?? TrailDifficulty.Easy,
+                SurfaceTypes = NewTrail?.SurfaceTypes ?? SurfaceType.Paved
             };
+
+            editContext = new EditContext(NewTrail);
         }
 
         StateHasChanged();
@@ -180,22 +185,59 @@
     {
         lastKnownPosition = point;
         Waypoints.Add(point);
-
         await JS.InvokeVoidAsync("updateTrailPath", Waypoints);
         StateHasChanged();
     }
 
     private async Task AddPoi()
     {
-        if (lastKnownPosition is null)
-            return;
-
-        var poi = new WTPointOfInterest(lastKnownPosition, "VIEW", "Generic POI");
-
+        if (lastKnownPosition is null) return;
+        var poi = new WTPointOfInterest(lastKnownPosition, "VIEW", "");
         PointsOfInterest.Add(poi);
-
         await JS.InvokeVoidAsync("addPoiMarker", poi);
         StateHasChanged();
+    }
+
+    private async Task OnPoiSave(WTPointOfInterest poi)
+    {
+        poiEditorOpen = false; // if using editor
+        editingPoi = null;
+        await JS.InvokeVoidAsync("updatePoiMarker", poi);
+        try { await JS.InvokeVoidAsync("poiStorage.savePoi", poi); } catch { }
+        StateHasChanged();
+    }
+
+    private WTPointOfInterest? editingPoi;
+    private bool poiEditorOpen = false;
+
+    private async Task DeletePoi(WTPointOfInterest poi)
+    {
+        PointsOfInterest.Remove(poi);
+        try { await JS.InvokeVoidAsync("removePoiMarker", poi.Id); } catch { }
+        try { await JS.InvokeVoidAsync("poiStorage.deletePoi", poi.Id); } catch { }
+        StateHasChanged();
+    }
+
+    private void GoToSettingsFromModal()
+    {
+        showRecordingConfirm = false;
+        NavigationManager.NavigateTo("/account/identity/settings");
+    }
+
+    private Task OnPoiCancel()
+    {
+        poiEditorOpen = false;
+        editingPoi = null;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private async Task EditPoi(WTPointOfInterest poi)
+    {
+        editingPoi = poi;
+        poiEditorOpen = true;
+        StateHasChanged();
+        await Task.CompletedTask;
     }
 
     private async Task SubmitTrail()
@@ -206,47 +248,112 @@
         if (isSubmitting) return;
         isSubmitting = true;
 
-        // Simple client-side validation for demo UI
-        if (Waypoints.Count < 2)
-        {
-            errorMessage = "Please record at least two points (start and end) before submitting.";
-            isSubmitting = false;
-            StateHasChanged();
-            return;
-        }
-
-        if (NewTrail is null)
-        {
-            var start = Waypoints.First();
-            var end = Waypoints.Last();
-            NewTrail = new CreateTrailDTO
-            {
-                Start = start,
-                End = end,
-                Waypoints = Waypoints.ToList(),
-                PointsOfInterest = PointsOfInterest.ToList(),
-                Description = "Recorded trail",
-                Title = "Recorded Trail",
-                Difficulty = Domain.Enums.TrailDifficulty.Easy,
-                SurfaceTypes = Domain.Enums.SurfaceType.Paved
-            };
-        }
-
         try
         {
-            // TODO: wire up backend call (TrailService.SaveTrail)
-            await Task.Delay(400); // simulate async work
-            successMessage = "Trail submitted (UI demo). Backend integration pending.";
+            if (Waypoints.Count < 2)
+            {
+                errorMessage = "Please record at least two points (start and end) before submitting.";
+                return;
+            }
+
+            // ensure NewTrail exists and is up to date
+            if (NewTrail == null)
+            {
+                var start = Waypoints.First();
+                var end = Waypoints.Last();
+                NewTrail = new CreateTrailDTO
+                {
+                    Start = start,
+                    End = end,
+                    Waypoints = Waypoints.ToList(),
+                    PointsOfInterest = PointsOfInterest.ToList(),
+                    Title = "Recorded Trail",
+                    Description = "Recorded trail",
+                    Difficulty = TrailDifficulty.Easy,
+                    SurfaceTypes = SurfaceType.Paved
+                };
+                editContext = new EditContext(NewTrail);
+            }
+
+            // update route-related fields and compute length
+            NewTrail.Start = Waypoints.First();
+            NewTrail.End = Waypoints.Last();
+            NewTrail.Waypoints = Waypoints.ToList();
+            NewTrail.PointsOfInterest = PointsOfInterest.ToList();
+
+            double lengthMeters = 0;
+            for (int i = 0; i < Waypoints.Count - 1; i++)
+            {
+                lengthMeters += CalculateDistance(Waypoints[i], Waypoints[i + 1]);
+            }
+            NewTrail.LengthMeters = lengthMeters;
+            if (NewTrail.ElevationProfile == null) NewTrail.ElevationProfile = new List<double>();
+
+            // create cancellation token source
+            cts = new CancellationTokenSource();
+            var response = await AccountService.CreateTrailAsync(NewTrail, cts.Token);
+
+            if (response.Success)
+            {
+                successMessage = $"Trail '{response.Trail?.Title}' created successfully!";
+
+                try
+                {
+                    foreach (var poi in PointsOfInterest)
+                    {
+                        await JS.InvokeVoidAsync("poiStorage.deletePoi", poi.Id);
+                    }
+                }
+                catch { }
+
+                Waypoints.Clear();
+                PointsOfInterest.Clear();
+                TimeAccumulated = TimeSpan.Zero;
+                var createdId = response.Trail?.Id ?? Guid.Empty;
+                NewTrail = null;
+                editContext = null;
+                lastKnownPosition = null;
+
+                if (createdId != Guid.Empty)
+                {
+                    NavigationManager.NavigateTo($"/trails/{createdId}/photos");
+                }
+                else
+                {
+                    NavigationManager.NavigateTo("/trails");
+                }
+            }
+            else
+            {
+                errorMessage = response.Message ?? "Failed to create trail. Please try again.";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            errorMessage = "Trail submission was cancelled.";
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = "Network error. Please check your connection and try again.";
+            Console.WriteLine($"Network error in SubmitTrail: {ex.Message}");
         }
         catch (Exception ex)
         {
-            errorMessage = "Failed to submit trail: " + ex.Message;
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+            Console.WriteLine($"Error in SubmitTrail: {ex}");
         }
         finally
         {
+            try { cts?.Dispose(); } catch { }
+            cts = null;
             isSubmitting = false;
             StateHasChanged();
         }
+    }
+
+    private void CancelSubmit()
+    {
+        cts?.Cancel();
     }
 
     private string LastPositionDisplay => lastKnownPosition is null ? "N/A" : string.Format("{0:F5}, {1:F5}", lastKnownPosition.Lat, lastKnownPosition.Lng);
@@ -254,29 +361,51 @@
     public void Dispose()
     {
         dotNetRef?.Dispose();
-        // Unsubscribe from FAB actions and hide the FAB when leaving the page to
-        // avoid showing it on unrelated pages.
         FabService.OnFabAction -= HandleFabAction;
         FabService.Hide();
     }
-    
-    private class Geoposition
+
+    private double CalculateDistance(WTLatLng point1, WTLatLng point2)
     {
-        public double lat { get; set; }
-        public double lng { get; set; }
+        const double R = 6371000; // Earth's radius in meters
+        var lat1Rad = point1.Lat * Math.PI / 180;
+        var lat2Rad = point2.Lat * Math.PI / 180;
+        var deltaLat = (point2.Lat - point1.Lat) * Math.PI / 180;
+        var deltaLng = (point2.Lng - point1.Lng) * Math.PI / 180;
+
+        var a = Math.Sin(deltaLat / 2) * Math.Sin(deltaLat / 2) + Math.Cos(lat1Rad) * Math.Cos(lat2Rad) * Math.Sin(deltaLng / 2) * Math.Sin(deltaLng / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return R * c;
     }
 
-    // Navigate to account settings from the confirmation modal so the user
-    // can change recording defaults (e.g., GPS accuracy). Closes the modal
-    // before navigating.
-    private void GoToSettingsFromModal()
+    private void ToggleSurface(SurfaceType surface, object? value)
     {
-        showRecordingConfirm = false;
-        NavigationManager.NavigateTo("/account/identity/settings");
+        if (NewTrail == null) return;
+
+        bool isChecked;
+        try
+        {
+            isChecked = Convert.ToBoolean(value);
+        }
+        catch
+        {
+            isChecked = false;
+        }
+
+        if (isChecked)
+            NewTrail.SurfaceTypes |= surface;
+        else
+            NewTrail.SurfaceTypes &= ~surface;
+
+        // Notify EditContext of the change
+        editContext?.NotifyFieldChanged(new FieldIdentifier(NewTrail, nameof(NewTrail.SurfaceTypes)));
     }
+
+    private class Geoposition { public double lat { get; set; } public double lng { get; set; } }
 }
 
-<!-- Page layout: respect Top App Bar offset (pt-16), Material3 color tokens and Tailwind utilities -->
+<!-- Layout -->
 <div class="min-h-screen pt-16 bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]" id="trail-stage">
     <div class="max-w-6xl mx-auto px-4 py-12" id="trail-stage-inner">
         <div class="grid md:grid-cols-2 gap-8 items-start">
@@ -295,7 +424,7 @@
 
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container]">@errorMessage</div>
+                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">@errorMessage</div>
                     }
 
                     @if (!string.IsNullOrEmpty(successMessage))
@@ -325,57 +454,144 @@
                     </div>
 
                     <div class="flex gap-3">
-                        <button class="wt-btn-outline" @onclick="ToggleRecording">
-                            @(isRecording ? "Stop recording" : "Start recording")
-                        </button>
+                        <button class="wt-btn-outline" @onclick="ToggleRecording">@(isRecording ? "Stop recording" : "Start recording")</button>
+                        <button class="wt-btn-outline" @onclick="AddPoi" disabled="@(lastKnownPosition is null || !isRecording)">Add POI</button>
 
-                        <button class="wt-btn-outline" @onclick="AddPoi" disabled="@(lastKnownPosition is null || !isRecording)">
-                            Add POI
-                        </button>
+                        <button class="wt-btn" @onclick="SubmitTrail" disabled="@(isSubmitting)">@(isSubmitting ? "Submitting..." : "Submit")</button>
 
-                        <button class="wt-btn" @onclick="SubmitTrail" disabled="@(isSubmitting)">
-                            @(isSubmitting ? "Submitting..." : "Submit")
-                        </button>
+                        @if (isSubmitting)
+                        {
+                            <button class="wt-btn-outline" @onclick="CancelSubmit">Cancel</button>
+                        }
                     </div>
 
                     <hr class="my-4" />
 
-                    <h3 class="text-sm font-medium">Notes</h3>
-                    <p class="text-xs text-[var(--md-sys-color-on-surface-variant)] mt-2">This is a UI demo. Backend save will be wired later.</p>
+                    <div id="addi-medata-wrap">
+                        <button class="wt-btn md:hidden mb-3" @onclick="() => metadataCollapsed = !metadataCollapsed">@(metadataCollapsed ? "Show details" : "Hide details")</button>
+
+                        <div class="@(metadataCollapsed ? "hidden md:block" : "block")">
+                            @if (NewTrail != null && editContext != null)
+                            {
+                                <EditForm EditContext="editContext">
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary />
+
+                                    <div class="grid gap-4">
+                                        <div>
+                                            <label class="wt-form-lbl">Title</label>
+                                            <InputText @bind-Value="NewTrail.Title" class="wt-form-input" maxlength="150" />
+                                            <ValidationMessage For="() => NewTrail.Title" />
+                                        </div>
+
+                                        <div>
+                                            <label class="wt-form-lbl">Description</label>
+                                            <InputTextArea @bind-Value="NewTrail.Description" class="wt-form-input" maxlength="600" rows="2" />
+                                            <ValidationMessage For="() => NewTrail.Description" />
+                                        </div>
+
+                                        <div>
+                                            <label class="wt-form-lbl">Difficulty</label>
+                                            <InputSelect @bind-Value="NewTrail.Difficulty" class="wt-form-input-dd">
+                                                @foreach (var d in Enum.GetValues<TrailDifficulty>())
+                                                {
+                                                    <option value="@d">@d</option>
+                                                }
+                                            </InputSelect>
+                                            <ValidationMessage For="() => NewTrail.Difficulty" />
+                                        </div>
+
+                                        <div>
+                                            <label class="wt-form-lbl">Surface Types</label>
+                                            <div class="flex flex-wrap gap-2">
+                                                @foreach (var s in Enum.GetValues<SurfaceType>())
+                                                {
+                                                    if (s == SurfaceType.None) continue;
+                                                    <label class="inline-flex items-center mr-3">
+                                                        <input type="checkbox"
+                                                               checked="@(((NewTrail?.SurfaceTypes ?? SurfaceType.None) & s) == s)"
+                                                               @onchange="(ChangeEventArgs e) => ToggleSurface(s, e.Value)" />
+                                                        <span class="ml-2 text-sm">@s</span>
+                                                    </label>
+                                                }
+                                            </div>
+                                            <ValidationMessage For="() => NewTrail.SurfaceTypes" />
+                                        </div>
+                                    </div>
+
+                                    <div class="flex justify-end gap-3 mt-4">
+                                        <button type="button" class="wt-btn" @onclick="() => metadataCollapsed = true">Done</button>
+                                    </div>
+                                </EditForm>
+                            }
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Floating Action Buttons removed - FAB is rendered at layout level via IFabService -->
 </div>
 
 @* Confirmation Modal *@
 @if (showRecordingConfirm)
 {
- <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
- <div class="bg-white dark:bg-harp-900 rounded-xl shadow-elevation-4 max-w-md w-full p-6">
- <h3 class="text-lg font-semibold text-wt-black-900 dark:text-white">Recording uses GPS</h3>
- <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mt-3">Recording uses your device GPS and may reduce battery life. High accuracy mode provides better tracks but uses more power. Continue?</p>
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+        <div class="bg-white dark:bg-harp-900 rounded-xl shadow-elevation-4 max-w-md w-full p-6">
+            <h3 class="text-lg font-semibold text-wt-black-900 dark:text-white">Recording uses GPS</h3>
+            <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mt-3">Recording uses your device GPS and may reduce battery life. High accuracy mode provides better tracks but uses more power. Continue?</p>
 
- <div class="mt-6 flex justify-end gap-3">
- <button class="wt-btn-outline" @onclick="() => { showRecordingConfirm = false; StateHasChanged(); }">Cancel</button>
- <button class="wt-btn-outline" @onclick="GoToSettingsFromModal">Change defaults in Settings</button>
- <button class="wt-btn" @onclick="StartRecordingAsync">Continue</button>
- </div>
- </div>
- </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button class="wt-btn-outline" @onclick="() => { showRecordingConfirm = false; StateHasChanged(); }">Cancel</button>
+                <button class="wt-btn-outline" @onclick="GoToSettingsFromModal">Change defaults in Settings</button>
+                <button class="wt-btn" @onclick="StartRecordingAsync">Continue</button>
+            </div>
+        </div>
+    </div>
 }
 
 @* Persistent recording banner/chip *@
 @if (showRecordingBanner)
 {
- <div class="fixed left-1/2 transform -translate-x-1/2 bottom-[calc(var(--tabbar-height,4rem)+3.25rem)] z-40">
- <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] shadow-elevation-3">
- <span class="material-symbols-rounded">my_location</span>
- <span class="text-sm">Recording — GPS in use. Tap to stop. (May affect battery)</span>
- <button class="ml-4 wt-btn-outline text-sm" @onclick="StopRecordingAsync">Stop</button>
- </div>
- </div>
+    <div class="fixed left-1/2 transform -translate-x-1/2 bottom-[calc(var(--tabbar-height,4rem)+3.25rem)] z-40">
+        <div class="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)] shadow-elevation-3">
+            <span class="material-symbols-rounded">my_location</span>
+            <span class="text-sm">Recording — GPS in use. Tap to stop. (May affect battery)</span>
+            <button class="ml-4 wt-btn-outline text-sm" @onclick="StopRecordingAsync">Stop</button>
+        </div>
+    </div>
 }
+
+@* POI Editor bottom sheet (if present) *@
+<PoiEditor Poi="@editingPoi" IsOpen="@poiEditorOpen" OnSave="@OnPoiSave" OnCancel="@OnPoiCancel" />
+
+<!-- POI list -->
+<div class="max-w-6xl mx-auto px-4 py-4">
+    <div id="poi-detail-wrap" class="bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface-container)] rounded-xl shadow-elevation-3 p-6 max-w-xl mx-auto min-h-[120px] border border-[var(--md-sys-color-outline-variant)]" role="region" aria-label="Points of Interest">
+        <h4 class="font-semibold mb-2">Points of Interest</h4>
+        @if (PointsOfInterest.Count == 0)
+        {
+            <div class="text-sm text-[var(--md-sys-color-on-surface-variant)]">No POIs yet. Add one while recording.</div>
+        }
+        else
+        {
+            <ul class="space-y-3">
+                @foreach (var poi in PointsOfInterest)
+                {
+                    <li class="flex items-center justify-between p-3 bg-white dark:bg-[var(--md-sys-color-surface)] rounded-md">
+                        <div class="flex-1">
+                            <div class="font-medium">@poi.Type</div>
+                            <div class="text-xs text-[var(--md-sys-color-on-surface-variant)]">@poi.Notes</div>
+                            <div class="text-xs text-[var(--md-sys-color-on-surface-variant)] mt-1">@string.Format("{0:F5}, {1:F5}", poi.Location.Lat, poi.Location.Lng)</div>
+                        </div>
+                        <div class="flex items-center gap-2 ml-4">
+                            <button class="wt-btn-outline text-sm" @onclick="() => EditPoi(poi)">Edit</button>
+                            <button class="wt-btn-outline text-sm" @onclick="() => DeletePoi(poi)">Delete</button>
+                        </div>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+</div>
 
