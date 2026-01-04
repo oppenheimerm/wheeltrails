@@ -54,7 +54,7 @@
             var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
             var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
             profileUsername = navBarAuthData?.ProfileUsername ?? "";
-            userProfilePicture = navBarAuthData?.UserPhoto ?? "";
+            userProfilePicture = navBarAuthData?.UserPhoto + "?v=" + Guid.NewGuid().ToString() ?? "";
         }
         else
         {
@@ -73,7 +73,7 @@
         {
             var state = await task;
             await ApplyAuthState(state.User);
-            InvokeAsync(StateHasChanged);
+            await InvokeAsync(StateHasChanged);
         }
         catch { /* ignore or log */ }
     }
@@ -209,8 +209,8 @@
         <AuthorizeView>
             <Authorized>
                 <!-- Create / Record Trail -->
-                <a href="/trails/record"
-                   class="nav-tooltip @GetNavLinkClass("/trails/record") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
+                <a href="/trails/new"
+                   class="nav-tooltip @GetNavLinkClass("/trails/new") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
                    data-tooltip="Create Trail">
                     <span class="material-symbols-rounded text-[24px] xl:text-[26px]">add_circle</span>
                     <span class="hidden xl:inline text-base">Create</span>
@@ -256,15 +256,15 @@
                     @if (isUserMenuOpen)
                     {
                         <div class="absolute bottom-full left-0 right-0 mb-2 bg-[var(--md-sys-color-surface-container-high)]
-               rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] z-50
-               min-w-[200px] xl:min-w-0"
+                   rounded-xl shadow-elevation-3 border border-[var(--md-sys-color-outline-variant)] z-50
+                   min-w-[200px] xl:min-w-0"
                              @onclick:stopPropagation="true">
                             <div class="py-2">
                                 @if (!string.IsNullOrEmpty(profileUsername))
                                 {
                                     <a href="/user/@profileUsername"
                                        class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
-                hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+                        hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
                                        @onclick="CloseUserMenu">
                                         <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
                                             person
@@ -275,7 +275,7 @@
 
                                 <a href="/account/identity/settings"
                                    class="flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-on-surface)]
-          hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
+              hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors"
                                    @onclick="CloseUserMenu">
                                     <span class="material-symbols-rounded text-[20px] mr-3 text-[var(--md-sys-color-on-surface-variant)]">
                                         settings
@@ -287,7 +287,7 @@
 
                                 <button @onclick="HandleLogout"
                                         class="w-full flex items-center px-4 py-3 text-sm text-[var(--md-sys-color-error)]
-            hover:bg-[var(--md-sys-color-error-container)] transition-colors text-left">
+                hover:bg-[var(--md-sys-color-error-container)] transition-colors text-left">
                                     <span class="material-symbols-rounded text-[20px] mr-3">
                                         logout
                                     </span>

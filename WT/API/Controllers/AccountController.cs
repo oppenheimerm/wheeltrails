@@ -311,7 +311,29 @@ namespace API.Controllers
                     return StatusCode(499, new APIResponseUploadPhoto { Success = false, Message = "Client disconnected" }); //499 Client Closed Request (non-standard)
                 }
 
-                newFileUrl = await _fileStorageService.UploadProfilePictureAsync(stream, model.ProfilePhoto.FileName, userGuid);
+                // Server-side magic-bytes check to reduce spoofed MIME uploads, which is when a file is given a
+                // false extension or content-type this is not foolproof but adds a layer of protection
+                try
+                {
+                    // Ensure stream is positioned to start
+                    if (stream.CanSeek) stream.Seek(0, System.IO.SeekOrigin.Begin);
+                    var isValid = WT.Application.Extensions.ImageUtils.IsValidImageStream(stream, model.ProfilePhoto.ContentType);
+                    if (!isValid)
+                    {
+                        return BadRequest(new APIResponseUploadPhoto { Success = false, Message = "Invalid image file" });
+                    }
+                    // Reset position for upload
+                    if (stream.CanSeek) stream.Seek(0, System.IO.SeekOrigin.Begin);
+                }
+                catch (Exception ex)
+                {
+                    LogException.LogExceptions(ex);
+                    return BadRequest(new APIResponseUploadPhoto { Success = false, Message = "Invalid image file" });
+                }
+                // Upload new file. Propagate cancellation token from the controller. This allows the
+                // underlying ImageSharp processing and Google Cloud Storage upload to be cancelled
+                // when the client disconnects or when the request is aborted.
+                newFileUrl = await _fileStorageService.UploadProfilePictureAsync(stream, model.ProfilePhoto.FileName, userGuid, ct);
 
                 if (string.IsNullOrEmpty(newFileUrl))
                 {

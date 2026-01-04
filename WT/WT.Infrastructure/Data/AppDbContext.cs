@@ -198,6 +198,10 @@ namespace WT.Infrastructure.Data
             builder.Entity<WTTrailPhoto>()
                 .HasIndex(p => p.TrailId); // Find all photos for a trail
 
+            // ✅ Composite index for TrailPhoto by Trail and User
+            builder.Entity<WTTrailPhoto>()
+                   .HasIndex(p => new { p.TrailId, p.UserId });
+
             // ✅ Comment indexes for performance
             builder.Entity<Comment>()
                 .HasIndex(c => c.TrailId); // Find all comments for a trail

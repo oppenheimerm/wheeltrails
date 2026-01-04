@@ -1,56 +1,117 @@
 @inject IJSRuntime JS
-@implements IDisposable
 
-<!--
-    ServiceWorkerUpdate.razor
-    Subscribes to update notifications via JS interop.
-•	Shows an in-app prompt “A new version is available.” with Update and Dismiss buttons.
-•	Calls JS to skip waiting and reload when the user confirms.
--->
-
-<div class="fixed bottom-6 right-6 z-50">
-    @if (showPrompt)
-    {
-        <div class="bg-[var(--md-sys-color-surface-container)] text-[var(--md-sys-color-on-surface)] p-4 rounded-lg shadow-elevation-4 flex items-center gap-3">
-            <div class="flex-1">A new version is available.</div>
-            <button class="px-3 py-1 bg-[var(--md-sys-color-primary)] text-white rounded" @onclick="ApplyUpdate">Update</button>
-            <button class="px-3 py-1 border rounded" @onclick="Dismiss">Dismiss</button>
+@if (updateAvailable)
+{
+    <div class="sw-update fixed left-1/2 bottom-6 transform -translate-x-1/2 z-50">
+        <div class="sw-card min-w-[20rem] max-w-xl bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface)] rounded-lg shadow-lg p-3 flex items-center gap-3" role="status" aria-live="polite">
+            <div class="flex-1">
+                <div class="font-medium">A new version of WheelyTrails is available.</div>
+                <div class="text-sm text-[var(--md-sys-color-on-surface-variant)]">Install the update to get the latest features and fixes.</div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button class="wt-btn-outline inline-flex items-center" @onclick="ApplyUpdate" aria-label="Apply update" disabled="@isApplying">
+                    @if (isApplying)
+                    {
+                        <svg class="animate-spin h-4 w-4 mr-2" viewBox="002424" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M412a880018-8V0C5.373005.373012h4z"></path>
+                        </svg>
+                        <span>Applying...</span>
+                    }
+                    else
+                    {
+                        <span>Update</span>
+                    }
+                </button>
+                <button class="wt-btn-ghost" @onclick="Dismiss" aria-label="Dismiss update" disabled="@isApplying">Dismiss</button>
+            </div>
         </div>
-    }
-</div>
+    </div>
+}
 
 @code {
+    private bool updateAvailable = false;
+    private bool isApplying = false;
     private DotNetObjectReference<ServiceWorkerUpdate>? objRef;
-    private bool showPrompt = false;
+
+    /// <summary>
+    /// Event callback invoked after the update has been applied. The boolean indicates success.
+    /// Pages can subscribe to react (e.g., show a message or refresh data).
+    /// </summary>
+    [Parameter]
+    public EventCallback<bool> OnUpdateApplied { get; set; }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             objRef = DotNetObjectReference.Create(this);
-            await JS.InvokeVoidAsync("wtSwInterop.addServiceWorkerUpdateListener", objRef);
+            await JS.InvokeVoidAsync("wheelyTrailsSW.register", objRef);
         }
     }
 
-    [JSInvokable("NotifyUpdateAvailable")]
+    [JSInvokable]
     public void NotifyUpdateAvailable()
     {
-        showPrompt = true;
-        InvokeAsync(StateHasChanged);
+        updateAvailable = true;
+        StateHasChanged();
     }
 
     private async Task ApplyUpdate()
     {
-        await JS.InvokeVoidAsync("wtSwInterop.skipWaitingAndReload");
+        if (!updateAvailable || isApplying) return;
+
+        isApplying = true;
+        StateHasChanged();
+
+        try
+        {
+            // Ask the service worker to apply the update. This JS call is expected to resolve when
+            // the service worker has taken control (or at least when the operation was initiated).
+            await JS.InvokeVoidAsync("wheelyTrailsSW.applyUpdate");
+
+            // Notify parent pages/components that update was applied. True = success.
+            await OnUpdateApplied.InvokeAsync(true);
+
+            // Hide banner (keep element for future updates)
+            updateAvailable = false;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            // Notify parent about failure so UI can react if needed
+            await OnUpdateApplied.InvokeAsync(false);
+            Console.WriteLine($"ApplyUpdate failed: {ex.Message}");
+        }
+        finally
+        {
+            isApplying = false;
+            StateHasChanged();
+        }
     }
 
     private void Dismiss()
     {
-        showPrompt = false;
+        // small UX: start hiding animation then set flag (CSS handles transition)
+        // add 'hiding' class to card to animate out
+        var script = "(function(){ var c = document.querySelector('.sw-card'); if(c){ c.classList.add('hiding'); setTimeout(function(){ c.classList.remove('hiding'); },300); } })();";
+        _ = JS.InvokeVoidAsync("eval", script);
+
+        updateAvailable = false;
+        StateHasChanged();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        objRef?.Dispose();
+        try
+        {
+            if (objRef != null)
+            {
+                objRef.Dispose();
+                objRef = null;
+            }
+            await Task.CompletedTask;
+        }
+        catch { }
     }
 }

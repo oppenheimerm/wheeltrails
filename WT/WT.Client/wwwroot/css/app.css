@@ -761,6 +761,10 @@ video {
   color: rgb(61 61 61 / var(--tw-text-opacity, 1));
 }
 
+.wt-blazor-error .wt-form-lbl {
+  font-weight: 600;
+}
+
 .wt-form-lbl:is(.dark *) {
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity, 1));
@@ -780,6 +784,10 @@ video {
   line-height: 1.25rem;
   --tw-text-opacity: 1 !important;
   color: rgb(17 24 39 / var(--tw-text-opacity, 1)) !important;
+}
+
+.wt-blazor-error .wt-form-input {
+  font-weight: 600;
 }
 
 .wt-form-input::-moz-placeholder {
@@ -855,6 +863,10 @@ video {
   transition-duration: 150ms;
 }
 
+.wt-blazor-error .wt-form-input-dd {
+  font-weight: 600;
+}
+
 .wt-form-input-dd:focus {
   --tw-border-opacity: 1;
   border-color: rgb(19 32 20 / var(--tw-border-opacity, 1));
@@ -916,6 +928,10 @@ video {
   transition-duration: 150ms;
 }
 
+.wt-blazor-error .wt-form-input-dd-error {
+  font-weight: 600;
+}
+
 .wt-form-input-dd-error:focus {
   --tw-border-opacity: 1;
   border-color: rgb(220 38 38 / var(--tw-border-opacity, 1));
@@ -960,6 +976,10 @@ video {
   line-height: 1.25rem;
   --tw-text-opacity: 1 !important;
   color: rgb(17 24 39 / var(--tw-text-opacity, 1)) !important;
+}
+
+.wt-blazor-error .wt-form-input-error {
+  font-weight: 600;
 }
 
 .wt-form-input-error:focus {
@@ -1014,6 +1034,10 @@ video {
   transition-duration: 150ms;
 }
 
+.wt-blazor-error .wt-btn {
+  font-weight: 600;
+}
+
 .wt-btn:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(57 92 58 / var(--tw-bg-opacity, 1));
@@ -1054,6 +1078,10 @@ video {
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
+}
+
+.wt-blazor-error .wt-btn-outline {
+  font-weight: 600;
 }
 
 .wt-btn-outline:hover {
@@ -1228,6 +1256,30 @@ video {
   }
 }
 
+/* Service Worker Update banner animation and styles */
+
+.sw-update {
+  /* wrapper positioning is handled via Tailwind classes on the component */
+}
+
+.sw-card {
+  transform: translateY(12px);
+  opacity: 0;
+  transition: transform260ms cubic-bezier(.2,.9,.2,1), opacity260ms ease-in-out;
+}
+
+.sw-update .sw-card {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* When hiding, add a small downward motion */
+
+.sw-card.hiding {
+  transform: translateY(12px);
+  opacity: 0;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1246,10 +1298,6 @@ video {
 
 .visible {
   visibility: visible;
-}
-
-.invisible {
-  visibility: hidden;
 }
 
 .static {
@@ -1295,6 +1343,10 @@ video {
 
 .bottom-1\/4 {
   bottom: 25%;
+}
+
+.bottom-4 {
+  bottom: 1rem;
 }
 
 .bottom-6 {
@@ -1355,10 +1407,6 @@ video {
 
 .right-4 {
   right: 1rem;
-}
-
-.right-6 {
-  right: 1.5rem;
 }
 
 .top-0 {
@@ -1674,6 +1722,10 @@ video {
   height: 100vh;
 }
 
+.min-h-\[120px\] {
+  min-height: 120px;
+}
+
 .min-h-\[56px\] {
   min-height: 56px;
 }
@@ -1802,6 +1854,10 @@ video {
   min-width: 200px;
 }
 
+.min-w-\[20rem\] {
+  min-width: 20rem;
+}
+
 .max-w-2xl {
   max-width: 42rem;
 }
@@ -1927,6 +1983,10 @@ video {
   -webkit-appearance: none;
      -moz-appearance: none;
           appearance: none;
+}
+
+.grid-cols-1 {
+  grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 
 .grid-cols-2 {
@@ -2352,6 +2412,11 @@ video {
   background-color: rgb(220 252 231 / var(--tw-bg-opacity, 1));
 }
 
+.bg-green-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(34 197 94 / var(--tw-bg-opacity, 1));
+}
+
 .bg-harp-100 {
   --tw-bg-opacity: 1;
   background-color: rgb(229 240 229 / var(--tw-bg-opacity, 1));
@@ -2637,6 +2702,10 @@ video {
 
 .pt-16 {
   padding-top: 4rem;
+}
+
+.pt-2 {
+  padding-top: 0.5rem;
 }
 
 .pt-4 {
@@ -2992,6 +3061,10 @@ video {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.outline {
+  outline-style: solid;
+}
+
 .ring {
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(3px + var(--tw-ring-offset-width)) var(--tw-ring-color);
@@ -3023,6 +3096,11 @@ video {
   --tw-ring-color: rgb(255 255 255 / var(--tw-ring-opacity, 1));
 }
 
+.blur {
+  --tw-blur: blur(8px);
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
 .blur-2xl {
   --tw-blur: blur(40px);
   filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
@@ -3035,6 +3113,10 @@ video {
 
 .backdrop-blur-sm {
   --tw-backdrop-blur: blur(4px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.backdrop-filter {
   backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
 }
 
@@ -3277,6 +3359,59 @@ body {
   box-shadow: 0004px rgba(99,102,241,0.12);
 }
 
+/* Shared SideNav width variable for responsive layouts */
+
+:root {
+  --sidenav-width: 72px;
+  /* default compact width; override in larger breakpoints in tailwind or additional CSS */
+}
+
+/* Blazor error UI centralized styling. Visible above SideNav and respects sidenav width on wide screens. */
+
+.wt-blazor-error {
+  position: fixed;
+  left: calc(var(--sidenav-width) +1rem);
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem1rem;
+  border-radius: 12px;
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  box-shadow: 08px24px rgba(2,6,23,0.12);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.wt-blazor-error .text-sm {
+  font-weight: 600;
+}
+
+.wt-blazor-error-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--md-sys-color-on-error-container);
+  font-weight: 700;
+  padding: 0.35rem0.5rem;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.wt-blazor-error-dismiss:hover {
+  background: rgba(0,0,0,0.06);
+}
+
+@media (max-width:767px) {
+  .wt-blazor-error {
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+  }
+}
+
 .hover\:-translate-y-0\.5:hover {
   --tw-translate-y: -0.125rem;
   transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
@@ -3340,10 +3475,6 @@ body {
 .hover\:bg-red-600:hover {
   --tw-bg-opacity: 1;
   background-color: rgb(220 38 38 / var(--tw-bg-opacity, 1));
-}
-
-.hover\:text-\[var\(--md-sys-color-on-error\)\]:hover {
-  color: var(--md-sys-color-on-error);
 }
 
 .hover\:text-blue-700:hover {
@@ -3858,10 +3989,6 @@ body {
 
   .xl\:inline {
     display: inline;
-  }
-
-  .xl\:flex {
-    display: flex;
   }
 
   .xl\:hidden {

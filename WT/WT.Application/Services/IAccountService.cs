@@ -24,7 +24,7 @@ namespace WT.Application.Services
         Task<BaseAPIResponseDTO> AddUserToRoleAsync(Guid userId, CreateRoleDTO model);
         Task<APIResponseAuthentication> RefreshTokenAsync(string token);
         Task<BaseAPIResponseDTO> VerifyEmailAsync(string token);
-        
+
         // ✅ ProfileUsername methods
         Task<bool> IsProfileUsernameAvailableAsync(string profileUsername);
         Task<ApplicationUserDTO?> FindUserByProfileUsernameAsync(string profileUsername);
@@ -35,15 +35,16 @@ namespace WT.Application.Services
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         Task<APIResponsePublicViewProfile?> ViewProfileByUsernameAsync(string profileUsername, CancellationToken cancellationToken);
-        
+
         // ✅ Combined validation (availability + profanity check)
         Task<UsernameValidationResultDTO> ValidateProfileUsernameAsync(string profileUsername);
-        
+
         // ✅ NEW: Get account settings for authenticated user (client-side calls API)
         Task<APIResponseViewAccountSettings> GetAccountSettingsAsync();
 
         // ✅ NEW: Update profile photo for authenticated user (client-side calls API)
         Task<APIResponseUploadPhoto> UpdateProfilePictureUrlAsync(UpdateProfilePhotoDTO updateProfilePhotoDTO, CancellationToken cancellationToken = default);
+        Task<APIResponseUploadPhoto> UploadTrailPhotoAsync(Guid trailId, System.IO.Stream fileStream, string fileName, string? contentType = null, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
 
         Task<APIResponseCreateTrail> CreateTrailAsync(CreateTrailDTO model, CancellationToken cancellationToken);
 

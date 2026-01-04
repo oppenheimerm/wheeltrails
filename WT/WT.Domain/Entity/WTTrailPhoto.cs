@@ -20,7 +20,7 @@ namespace WT.Domain.Entity
         /// </summary>
         [Required]
         [MaxLength(512, ErrorMessage = "PhotoName has a maximum length of 512 characters.")] // ✅ Increased for full URLs
-        public string? PhotoName { get; set; }
+        public string? PhotoUrl { get; set; }
 
         /// <summary>
         /// Optional description or caption for the photo.
@@ -44,5 +44,17 @@ namespace WT.Domain.Entity
         /// Navigation property to the trail this photo belongs to.
         /// </summary>
         public WTTrail? Trail { get; set; }
+
+        /// <summary>
+        /// Foreign Key to the user who uploaded the photo.
+        /// </summary>
+        [Required]
+        [ForeignKey(nameof(User))]
+        public Guid UserId { get; set; }
+
+        /// <summary>
+        /// Navigation property to the user who uploaded the photo.
+        /// </summary>
+        public ApplicationUser? User { get; set; }
     }
 }

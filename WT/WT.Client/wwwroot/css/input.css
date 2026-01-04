@@ -239,6 +239,28 @@ body {
             transition: none;
         }
     }
+
+    /* Service Worker Update banner animation and styles */
+    .sw-update {
+        /* wrapper positioning is handled via Tailwind classes on the component */
+    }
+
+    .sw-card {
+        transform: translateY(12px);
+        opacity: 0;
+        transition: transform260ms cubic-bezier(.2,.9,.2,1), opacity260ms ease-in-out;
+    }
+
+    .sw-update .sw-card {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    /* When hiding, add a small downward motion */
+    .sw-card.hiding {
+        transform: translateY(12px);
+        opacity: 0;
+    }
 }
 
 /* FAB positioning: keep above TabBar on small screens, center vertically on larger screens */
@@ -316,4 +338,54 @@ body {
 #toggleClose:focus {
     outline: none;
     box-shadow: 0004px rgba(99,102,241,0.12);
+}
+
+/* Shared SideNav width variable for responsive layouts */
+:root {
+    --sidenav-width: 72px; /* default compact width; override in larger breakpoints in tailwind or additional CSS */
+}
+
+/* Blazor error UI centralized styling. Visible above SideNav and respects sidenav width on wide screens. */
+.wt-blazor-error {
+    position: fixed;
+    left: calc(var(--sidenav-width) +1rem);
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem1rem;
+    border-radius: 12px;
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+    box-shadow: 08px24px rgba(2,6,23,0.12);
+    border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+    .wt-blazor-error .text-sm {
+        font-weight: 600;
+    }
+
+.wt-blazor-error-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--md-sys-color-on-error-container);
+    font-weight: 700;
+    padding: 0.35rem0.5rem;
+    border-radius: 9999px;
+    cursor: pointer;
+}
+
+    .wt-blazor-error-dismiss:hover {
+        background: rgba(0,0,0,0.06);
+    }
+
+@media (max-width:767px) {
+    .wt-blazor-error {
+        left: 1rem;
+        right: 1rem;
+        bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+    }
 }

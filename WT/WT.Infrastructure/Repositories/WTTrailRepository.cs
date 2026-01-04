@@ -349,7 +349,8 @@ namespace WT.Infrastructure.Repositories
                 var photo = new WTTrailPhoto
                 {
                     Id = Guid.NewGuid(),
-                    PhotoName = model.PhotoName,
+                    // Domain entity uses PhotoUrl for the public URL returned by storage
+                    PhotoUrl = model.PhotoName,
                     Description = model.Description,
                     TrailId = model.TrailId,
                     CreatedAt = DateTime.UtcNow // ✅ Server sets timestamp

@@ -8,8 +8,19 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.5.4/workbox
 self.skipWaiting();
 workbox.core.clientsClaim();
 
-// Precache manifest injected by Workbox
-workbox.precaching.precacheAndRoute(self.__WB_MANIFEST);
+// ⭐ Recommended placement
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.action === 'skipWaiting') {
+        self.skipWaiting();
+    }
+});
+
+
+// Precache manifest + version file
+workbox.precaching.precacheAndRoute(self.__WB_MANIFEST.concat([
+    { url: 'appversion.json', revision: null }
+]));
+
 
 // ⭐ Modern navigation fallback for Workbox v6+
 workbox.routing.registerRoute(

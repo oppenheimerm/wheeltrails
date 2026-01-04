@@ -4,12 +4,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WT.Application.APIServiceLogs;
+using WT.Application.Contracts;
+using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Request.Trail;
 using WT.Application.DTO.Response;
 using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
+using static WT.Application.Extensions.Constants;
 
 namespace API.Controllers
 {
@@ -20,11 +23,13 @@ namespace API.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWTTrailRepository _trailRepository;
+        private readonly IFileStorageService _fileStorageService;
 
-        public TrailsController(AppDbContext context, IWTTrailRepository trailRepository)
+        public TrailsController(AppDbContext context, IWTTrailRepository trailRepository, IFileStorageService fileStorageService)
         {
             _context = context;
             _trailRepository = trailRepository;
+            _fileStorageService = fileStorageService;
         }
 
         [HttpPost]
@@ -152,7 +157,7 @@ namespace API.Controllers
 
                 return Ok(response);
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new BaseAPIResponseDTO()
@@ -200,5 +205,177 @@ namespace API.Controllers
                 });
             }
         }
+
+        [HttpPost("upload-trail-photo")]
+        [RequestFormLimits(MultipartBodyLengthLimit = FirebaseUploadConstants.MaxTrailPhotoSize)]
+        [Authorize]
+        public async Task<IActionResult> UploadTrailPhoto([FromForm] AddTrailPhotoRequestDTO? model, CancellationToken cancellationToken)
+        {            
+
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var userGuid))
+            {
+                return Unauthorized();
+            }
+
+            // Cancellation token: prefer the explicit token from the client, but also observe HttpContext.RequestAborted
+            var ct = cancellationToken.CanBeCanceled ? cancellationToken : HttpContext.RequestAborted;
+
+            var trail = await _context.Trails.FindAsync(new object[] { model!.TrailId }, ct);
+
+            if (trail == null)
+            {
+                return NotFound(new APIResponseUploadPhoto { Success = false, Message = "Trail not found" });
+            }
+
+            // make sure this user exist
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userGuid, ct);
+            if (user == null)
+            {
+                return NotFound(new APIResponseUploadPhoto { Success = false, Message = "User not found" });
+            }
+
+
+            // Validate model / metadata
+            var validationResponse = ValidateTrailPhoto(model, userGuid);
+            if (!validationResponse.Success)
+            {
+                // must be consistent with APIResponseUploadPhoto
+                return BadRequest(new APIResponseUploadPhoto { Success = false, Message = validationResponse.Message });
+            }
+            
+            // Upload -> Persist -> Cleanup (delete old)
+            string? newFileUrl = null;
+            try
+            {
+                // Stream the file to the storage service. Ensure the stream is disposed.
+                // Use explicit max allowed size to protect from large uploads
+                using var stream = model!.TrailPhoto!.OpenReadStream();
+
+                // If the client disconnected, abort early
+                if (ct.IsCancellationRequested)
+                {
+                    return StatusCode(499, new APIResponseUploadPhoto { Success = false, Message = "Client disconnected" }); //499 Client Closed Request (non-standard)
+                }
+
+                // Server-side magic-bytes check to reduce spoofed MIME uploads, which is when a file is given a
+                // false extension or content-type this is not foolproof but adds a layer of protection
+                try
+                {
+                    // Ensure stream is positioned to start
+                    if (stream.CanSeek) stream.Seek(0, System.IO.SeekOrigin.Begin);
+                    var isValid = WT.Application.Extensions.ImageUtils.IsValidImageStream(stream, model.TrailPhoto.ContentType);
+                    if (!isValid)
+                    {
+                        return BadRequest(new APIResponseUploadPhoto { Success = false, Message = "Invalid image file" });
+                    }
+                    // Reset position for upload
+                    if (stream.CanSeek) stream.Seek(0, System.IO.SeekOrigin.Begin);
+                }
+                catch (Exception ex)
+                {
+                    LogException.LogExceptions(ex);
+                    return BadRequest(new APIResponseUploadPhoto { Success = false, Message = "Invalid image file" });
+                }
+
+                // Use the uploaded file's original filename for metadata only; storage service will sanitize and generate unique name
+                newFileUrl = await _fileStorageService.UploadTrailPhotoAsync(stream, model.TrailPhoto.FileName, trail.Id);
+
+                if (string.IsNullOrEmpty(newFileUrl))
+                {
+                    return StatusCode(500, new APIResponseUploadPhoto { Success = false, Message = "Failed to upload trail photo" });
+                }
+
+                // Create a new WTTrailPhoto db entity
+                var trailPhoto = new WTTrailPhoto
+                {
+                    Id = Guid.NewGuid(),
+                    TrailId = trail.Id,
+                    PhotoUrl = newFileUrl,
+                    Description = model.Description,
+                    UserId = userGuid,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                // Persist the new trail photo record and catch any failures
+                await _context.TrailPhotos.AddAsync(trailPhoto, ct);
+                await _context.SaveChangesAsync(ct);
+
+                // We should now have a persisted newFileUrl. No rollback needed.
+                // Loge sccess
+                LogException.LogToFile($"Successfully added photo to trail: {trail.Id} by User ID: {userGuid} at time: {DateTime.UtcNow}");
+
+                // Return201 Created with location to the trail resource or photo endpoint
+                var location = $"/api/trails/{trail.Id}/photos/{trailPhoto.Id}";
+                return Created(location, new APIResponseUploadPhoto { Success = true, Message = $"Successfully added photo to trail: {trail.Id}", PhotoUrl = newFileUrl });
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Client disconnected or request cancelled
+                // Log cancellation
+                LogException.LogToFile("Upload trail photo operation was canceled by the client.");
+                return StatusCode(499, new APIResponseUploadPhoto { Success = false, Message = "Request canceled" });
+            }
+            catch (Exception ex)
+            {
+                // If upload succeeded but we ended up here, attempt to delete new file
+                if (!string.IsNullOrEmpty(newFileUrl))
+                {
+                    try
+                    {
+                        await _fileStorageService.DeleteFileAsync(newFileUrl);
+                    }
+                    catch (Exception cleanupEx)
+                    {
+                        LogException.LogExceptions(cleanupEx);
+                    }
+                }
+
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new APIResponseUploadPhoto { Success = false, Message = "An error occurred while uploading trail photo" });
+            }
+        }
+
+        private APIResponseUploadPhoto ValidateTrailPhoto(AddTrailPhotoRequestDTO? model, Guid? userId)
+        {
+            // ✅ Server-side validation is mandatory
+
+            if (model is null || model.TrailPhoto is null)
+                return new APIResponseUploadPhoto { Success = false, Message = "File is missing" };
+
+            // validate userid
+            if(userId == Guid.Empty)
+                return new APIResponseUploadPhoto { Success = false, Message = "Invalid user Id" };
+
+            // validate trailid
+            if (model.TrailId == Guid.Empty)
+                return new APIResponseUploadPhoto { Success = false, Message = "Invalid trail Id" };
+
+            var file = model.TrailPhoto;
+
+            // Basic size checks
+            if (file.Length <= 0)
+                return new APIResponseUploadPhoto { Success = false, Message = "File is empty" };
+
+            if (file.Length > FirebaseUploadConstants.MaxTrailPhotoSize)
+                return new APIResponseUploadPhoto { Success = false, Message = $"Trail photo exceeds maximum size of {FirebaseUploadConstants.MaxTrailPhotoSize / (1024 *1024)} MB" };
+
+            // Determine content type in a tolerant way (prefer DTO, fall back to IFormFile)
+            var contentType = (model?.ContentType ?? file.ContentType ?? string.Empty).Trim().ToLowerInvariant();
+
+            // Allow common image types; allow any image/* MIME as a fallback
+            var allowedTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "image/png", "image/jpeg", "image/jpg", "image/webp" };
+            if (!allowedTypes.Contains(contentType) && !contentType.StartsWith("image/"))
+                return new APIResponseUploadPhoto { Success = false, Message = "Invalid file type" };
+
+            // Validate filename (avoid empty or path-traversal names)
+            var fileName = System.IO.Path.GetFileName(file.FileName ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(fileName))
+                return new APIResponseUploadPhoto { Success = false, Message = "Invalid file name" };
+
+            return new APIResponseUploadPhoto { Success = true, Message = "File is valid" };
+        }
+
+
     }
 }

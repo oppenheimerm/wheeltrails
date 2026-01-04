@@ -48,7 +48,8 @@ namespace API.Controllers
 
                 // Upload to Firebase Storage
                 using var stream = file.OpenReadStream();
-                var downloadUrl = await _fileStorageService.UploadProfilePictureAsync(stream, file.FileName, userId);
+                var ct = HttpContext.RequestAborted;
+                var downloadUrl = await _fileStorageService.UploadProfilePictureAsync(stream, file.FileName, userId, ct);
 
                 _logger.LogInformation($"Profile picture uploaded for user {userId}");
 
@@ -84,7 +85,17 @@ namespace API.Controllers
 
                 // ✅ Step 1: Upload to Firebase
                 using var stream = file.OpenReadStream();
-                var photoUrl = await _fileStorageService.UploadTrailPhotoAsync(stream, file.FileName, trailId);
+                var ct = HttpContext.RequestAborted;
+                string photoUrl;
+                try
+                {
+                    photoUrl = await _fileStorageService.UploadTrailPhotoAsync(stream, file.FileName, trailId, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("Upload cancelled by client or server");
+                    return StatusCode(499, new { success = false, message = "Upload canceled" });
+                }
 
                 if (string.IsNullOrEmpty(photoUrl))
                 {
@@ -103,8 +114,8 @@ namespace API.Controllers
 
                 if (!dbResult.Success)
                 {
-                    // TODO: Delete from Firebase since DB save failed
-                    // await _fileStorageService.DeleteFileAsync(photoUrl);
+                    // Delete from Firebase since DB save failed (best-effort)
+                    try { await _fileStorageService.DeleteFileAsync(photoUrl); } catch { }
 
                     return StatusCode(500, new
                     {
