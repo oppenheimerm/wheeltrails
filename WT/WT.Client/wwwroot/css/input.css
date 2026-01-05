@@ -261,17 +261,66 @@ body {
         transform: translateY(12px);
         opacity: 0;
     }
+
+    /* Nav tooltip (used by SideNav component) */
+    .nav-tooltip {
+        position: relative;
+    }
+
+    .nav-tooltip::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: calc(100% + 12px);
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--md-sys-color-inverse-surface);
+        color: var(--md-sys-color-inverse-on-surface);
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.15s ease, visibility 0.15s ease;
+        z-index: 1000;
+        pointer-events: none;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    }
+
+    /* Only show tooltip in icon-only mode (below xl breakpoint) */
+    @media (max-width: 1279px) {
+        .nav-tooltip:hover::after,
+        .nav-tooltip:focus::after {
+            opacity: 1;
+            visibility: visible;
+        }
+    }
+
+    /* Hide tooltip when labels are visible (xl and above) */
+    @media (min-width: 1280px) {
+        .nav-tooltip::after {
+            display: none;
+        }
+    }
+
+    /* Custom active class for NavLink (SideNav) */
+    .sidenav-active {
+        font-weight: 600;
+        background-color: var(--md-sys-color-secondary-container);
+        color: var(--md-sys-color-on-secondary-container) !important;
+    }
 }
 
 /* FAB positioning: keep above TabBar on small screens, center vertically on larger screens */
 #fab-wrapper {
     position: fixed; /* already set via Tailwind, this ensures fallback */
     right: 1rem; /* match right-4 */
-    bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+    bottom: calc(var(--tabbar-height, 4rem) + 1rem + env(safe-area-inset-bottom));
     z-index: 20000; /* ensure above overlays */
 }
 
-@media (min-width:768px) {
+@media (min-width: 768px) {
     /* On md and up, position in middle of screen vertically and keep to the right */
     #fab-wrapper {
         top: 50%;
@@ -283,21 +332,21 @@ body {
 }
 
 /* Prevent FAB from overlapping the NavBar hamburger on small screens */
-@media (max-width:767px) {
+@media (max-width: 767px) {
     /* Move FAB further left from the right edge so it won't block the header menu button */
     #fab-wrapper {
-        right: calc(1rem +56px); /*56px = safe offset to clear the hamburger / close button */
+        right: calc(1rem + 56px); /*56px = safe offset to clear the hamburger / close button */
         top: auto; /* ensure we keep bottom positioning */
-        bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+        bottom: calc(var(--tabbar-height, 4rem) + 1rem + env(safe-area-inset-bottom));
     }
 }
 
 
 
 /* Small screens: place FAB below header to avoid overlapping header buttons (hamburger, auth buttons) */
-@media (max-width:767px) {
+@media (max-width: 767px) {
     #fab-wrapper {
-        top: calc(64px +1rem); /* put FAB below the top app bar */
+        top: calc(64px + 1rem); /* put FAB below the top app bar */
         bottom: auto;
         transform: none; /* remove vertical centering transform */
         right: 1rem; /* preserve small-screen right offset */
@@ -315,15 +364,15 @@ body {
     /* Light mode hover: subtle dark overlay */
     #toggleOpen:hover,
     #toggleClose:hover {
-        background-color: rgba(0,0,0,0.06);
+        background-color: rgba(0, 0, 0, 0.06);
     }
 
 /* Dark mode hover: slightly brighter overlay and faint border for contrast */
 @media (prefers-color-scheme: dark) {
     #toggleOpen:hover,
     #toggleClose:hover {
-        background-color: rgba(255,255,255,0.06);
-        border-color: rgba(255,255,255,0.06);
+        background-color: rgba(255, 255, 255, 0.06);
+        border-color: rgba(255, 255, 255, 0.06);
     }
 
     /* ensure the icon color remains legible on hover */
@@ -337,7 +386,7 @@ body {
 #toggleOpen:focus,
 #toggleClose:focus {
     outline: none;
-    box-shadow: 0004px rgba(99,102,241,0.12);
+    box-shadow: 0004px rgba(99, 102, 241, 0.12);
 }
 
 /* Shared SideNav width variable for responsive layouts */
@@ -348,7 +397,7 @@ body {
 /* Blazor error UI centralized styling. Visible above SideNav and respects sidenav width on wide screens. */
 .wt-blazor-error {
     position: fixed;
-    left: calc(var(--sidenav-width) +1rem);
+    left: calc(var(--sidenav-width) + 1rem);
     right: 1rem;
     bottom: 1rem;
     z-index: 99999;
@@ -356,11 +405,11 @@ body {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0.75rem1rem;
+    padding: 0.75rem 1rem;
     border-radius: 12px;
     background: var(--md-sys-color-error-container);
     color: var(--md-sys-color-on-error-container);
-    box-shadow: 08px24px rgba(2,6,23,0.12);
+    box-shadow: 08px 24px rgba(2, 6, 23, 0.12);
     border: 1px solid var(--md-sys-color-outline-variant);
 }
 
@@ -373,19 +422,19 @@ body {
     border: none;
     color: var(--md-sys-color-on-error-container);
     font-weight: 700;
-    padding: 0.35rem0.5rem;
+    padding: 0.35rem 0.5rem;
     border-radius: 9999px;
     cursor: pointer;
 }
 
     .wt-blazor-error-dismiss:hover {
-        background: rgba(0,0,0,0.06);
+        background: rgba(0, 0, 0, 0.06);
     }
 
-@media (max-width:767px) {
+@media (max-width: 767px) {
     .wt-blazor-error {
         left: 1rem;
         right: 1rem;
-        bottom: calc(var(--tabbar-height,4rem) +1rem + env(safe-area-inset-bottom));
+        bottom: calc(var(--tabbar-height, 4rem) + 1rem + env(safe-area-inset-bottom));
     }
 }

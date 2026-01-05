@@ -1,6 +1,7 @@
 @using Blazored.LocalStorage
 @using System.Security.Claims
 @using WT.Client.Components
+@using Microsoft.AspNetCore.Components.Routing
 
 @inject NavigationManager Navigation
 @inject ILocalStorageService LocalStorage
@@ -27,12 +28,8 @@
 
     private string GetNavLinkClass(string href)
     {
-        var currentPath = new Uri(Navigation.Uri).AbsolutePath;
-        var isActive = string.Equals(currentPath, href, StringComparison.OrdinalIgnoreCase);
-
-        return isActive
-            ? "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)] font-semibold"
-            : "text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors";
+        // Base classes for all nav links; NavLink will add the ActiveClass when active
+        return "nav-tooltip text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-highest)] transition-colors";
     }
 
     protected override async Task OnInitializedAsync()
@@ -40,6 +37,9 @@
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         await ApplyAuthState(authState.User);
         AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+
+        // Subscribe to navigation changes to update active link state
+        Navigation.LocationChanged += OnLocationChanged;
     }
 
     private async Task ApplyAuthState(ClaimsPrincipal user)
@@ -78,6 +78,12 @@
         catch { /* ignore or log */ }
     }
 
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        // Re-render when the location changes so active link classes update
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     private async Task HandleLogout()
     {
         try
@@ -111,52 +117,11 @@
     public void Dispose()
     {
         AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }
 
-<style>
-    /* MD3-style tooltip for icon-only mode */
-    .nav-tooltip {
-        position: relative;
-    }
-
-        .nav-tooltip::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: calc(100% + 12px);
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--md-sys-color-inverse-surface);
-            color: var(--md-sys-color-inverse-on-surface);
-            padding: 6px 12px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
-            white-space: nowrap;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.15s ease, visibility 0.15s ease;
-            z-index: 1000;
-            pointer-events: none;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-        }
-
-    /* Only show tooltip in icon-only mode (below xl breakpoint) */
-    @@media (max-width: 1279px) {
-        .nav-tooltip:hover::after,
-        .nav-tooltip:focus::after {
-            opacity: 1;
-            visibility: visible;
-        }
-    }
-
-    /* Hide tooltip when labels are visible (xl and above) */
-    @@media (min-width: 1280px) {
-        .nav-tooltip::after {
-            display: none;
-        }
-    }
-</style>
+<!-- Styles moved to 'wwwroot/css/input.css' -->
 
 <!-- Instagram-style Desktop Sidebar Navigation -->
 <!-- md: icon-only (narrow), xl: full width with labels -->
@@ -178,43 +143,53 @@
 
     <!-- Navigation Links -->
     <nav class="flex-1 flex flex-col gap-1">
-        <a href="/"
-           class="nav-tooltip @GetNavLinkClass("/") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
-           data-tooltip="Home">
+        <NavLink href="/"
+                 class="@($"{GetNavLinkClass("/")} flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group")"
+                 ActiveClass="sidenav-active"
+                 Match="NavLinkMatch.All"
+                 data-tooltip="Home">
             <span class="material-symbols-rounded text-[24px] xl:text-[26px]">home</span>
             <span class="hidden xl:inline text-base">Home</span>
-        </a>
+        </NavLink>
 
-        <a href="/trails"
-           class="nav-tooltip @GetNavLinkClass("/trails") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
-           data-tooltip="Trails">
+        <NavLink href="/trails"
+                 class="@($"{GetNavLinkClass("/trails")} flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group")"
+                 ActiveClass="sidenav-active"
+                 Match="NavLinkMatch.Prefix"
+                 data-tooltip="Trails">
             <span class="material-symbols-rounded text-[24px] xl:text-[26px]">landscape</span>
             <span class="hidden xl:inline text-base">Trails</span>
-        </a>
+        </NavLink>
 
-        <a href="/trails/discover"
-           class="nav-tooltip @GetNavLinkClass("/trails/discover") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
-           data-tooltip="Discover">
+        <NavLink href="/trails/discover"
+                 class="@($"{GetNavLinkClass("/trails/discover")} flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group")"
+                 ActiveClass="sidenav-active"
+                 Match="NavLinkMatch.All"
+                 data-tooltip="Discover">
             <span class="material-symbols-rounded text-[24px] xl:text-[26px]">explore</span>
             <span class="hidden xl:inline text-base">Discover</span>
-        </a>
+        </NavLink>
 
-        <a href="/shop"
-           class="nav-tooltip @GetNavLinkClass("/shop") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
-           data-tooltip="Shop">
+        <NavLink href="/shop"
+                 class="@($"{GetNavLinkClass("/shop")} flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group")"
+                 ActiveClass="sidenav-active"
+                 Match="NavLinkMatch.All"
+                 data-tooltip="Shop">
             <span class="material-symbols-rounded text-[24px] xl:text-[26px]">shopping_bag</span>
             <span class="hidden xl:inline text-base">Shop</span>
-        </a>
+        </NavLink>
 
         <AuthorizeView>
             <Authorized>
                 <!-- Create / Record Trail -->
-                <a href="/trails/new"
-                   class="nav-tooltip @GetNavLinkClass("/trails/new") flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group"
-                   data-tooltip="Create Trail">
+                <NavLink href="/trails/new"
+                         class="@($"{GetNavLinkClass("/trails/new")} flex items-center justify-center xl:justify-start gap-4 px-2 xl:px-3 py-3 rounded-lg group")"
+                         ActiveClass="sidenav-active"
+                         Match="NavLinkMatch.All"
+                         data-tooltip="Create Trail">
                     <span class="material-symbols-rounded text-[24px] xl:text-[26px]">add_circle</span>
                     <span class="hidden xl:inline text-base">Create</span>
-                </a>
+                </NavLink>
             </Authorized>
         </AuthorizeView>
     </nav>
