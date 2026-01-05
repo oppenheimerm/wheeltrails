@@ -1,9 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
@@ -11,7 +9,6 @@ using WT.Application.APIServiceLogs;
 using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
-using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
@@ -49,12 +46,15 @@ namespace API.Controllers
             _emailService = emailService;
         }
 
-        [HttpGet]
+
+        // Only for initial setup/testing - creates an admin account
+        // We can safely comment this out or remove it after initial use
+        /*[HttpGet]
         public async Task<ActionResult> CreateAdmin()
         {
             await _accountRepository.CreateAdmin();
             return Ok();
-        }
+        }*/
 
         // Diagnostic endpoint to send a test email via configured email provider (SendGrid)
         // Example request body: { "to": "you@example.com", "type": "verification" }

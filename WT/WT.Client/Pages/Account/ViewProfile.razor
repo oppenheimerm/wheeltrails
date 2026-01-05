@@ -75,7 +75,7 @@
             {
                 if (Profile.PublicProfile != null)
                 {
-                    PageTitle = $"WheelyTrails - View @{Profile.PublicProfile.ProfileUsername} on WheelyTrails";
+                    PageTitle = $"View @{Profile.PublicProfile.ProfileUsername} on WheelyTrails";
                 }
             }
         }
@@ -107,7 +107,7 @@
 
 <!-- Page background follows Material3 tokens from Design-Notes.md -->
 <div class="min-h-screen bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface)] flex items-start justify-center py-8">
-    <div class="max-w-xl w-full p-6">
+    <div class="w-full max-w-6xl px-4 sm:px-6 lg:px-8 p-6">
         @if (isLoading)
         {
             <div class="flex items-center justify-center h-48">
@@ -130,60 +130,65 @@
         {
             <!-- Use surface-container-high for the profile card to match MD3 guidance -->
             <div class="bg-[var(--md-sys-color-surface-container-high)] dark:bg-[var(--md-sys-color-surface-container-high)] rounded-2xl shadow-elevation-3 p-6">
-                <div class="flex flex-col items-center text-center">
-                    <div class="relative">
-                        @if (!string.IsNullOrEmpty(Profile.PublicProfile.ProfilePicture))
-                        {
-                            <img src="@Profile.PublicProfile.ProfilePicture" alt="Profile" class="h-28 w-28 rounded-full object-cover ring-4 ring-white dark:ring-slate-900 shadow-sm" />
-                        }
-                        else
-                        {
-                            <div class="h-28 w-28 rounded-full bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface)] flex items-center justify-center text-[var(--md-sys-color-on-surface-variant)] ring-4 ring-white dark:ring-slate-900"
-                                id="viewprofile-noimage-wrap">
-                                <!-- Make the material icon scale to fit the parent circle. Use explicit font-size and remove extra line-height. -->
-                                <span class="material-symbols-rounded leading-none text-[4.5rem]">
-                                    account_circle
+                <!-- Responsive grid: avatar + basic info on the left, stats & about on the right for larger screens -->
+                <div class="grid gap-6 md:grid-cols-3 items-start">
+                    <div class="flex flex-col items-center text-center md:items-start md:text-left">
+                        <div class="relative">
+                            @if (!string.IsNullOrEmpty(Profile.PublicProfile.ProfilePicture))
+                            {
+                                <img src="@Profile.PublicProfile.ProfilePicture" alt="Profile" class="h-28 w-28 md:h-36 md:w-36 rounded-full object-cover ring-4 ring-white dark:ring-slate-900 shadow-sm" />
+                            }
+                            else
+                            {
+                                <div class="h-28 w-28 md:h-36 md:w-36 rounded-full bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface)] flex items-center justify-center text-[var(--md-sys-color-on-surface-variant)] ring-4 ring-white dark:ring-slate-900"
+                                    id="viewprofile-noimage-wrap">
+                                    <!-- Make the material icon scale to fit the parent circle. Use explicit font-size and remove extra line-height. -->
+                                    <span class="material-symbols-rounded leading-none text-[4.5rem] md:text-[5rem]">
+                                        account_circle
+                                    </span>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="mt-4">
+                            @{
+                                var profileUsernameFormat = $"@{Profile.PublicProfile.ProfileUsername}";
+                            }
+                            <div class="text-base md:text-lg font-semibold text-[var(--md-sys-color-on-surface)] dark:text-[var(--md-sys-color-on-surface)]">@Profile.PublicProfile.FirstName</div>
+                            <div class="text-xl md:text-2xl font-semibold text-[var(--md-sys-color-on-surface)] dark:text-[var(--md-sys-color-on-surface)]">@profileUsernameFormat</div>
+                            <div class="mt-1 text-sm md:text-base text-[var(--md-sys-color-on-surface-variant)] dark:text-[var(--md-sys-color-on-surface-variant)] flex items-center justify-center md:justify-start gap-2">
+                                <span class="material-symbols-rounded text-[var(--md-sys-color-on-surface-variant)]">
+                                    location_on
                                 </span>
+                                <span>@(string.IsNullOrWhiteSpace(Profile.PublicProfile.CountryCode) ? "" : StringHelpers.GetCountryName(Profile.PublicProfile.CountryCode))</span>
+                                <span class="mx-2">•</span>
+                                <span>Member since @Profile.PublicProfile.MemberSince?.ToString("yyyy")</span>
                             </div>
-                        }
-                    </div>
-
-                    <div class="mt-4">
-                        @{
-                            var profileUsernameFormat = $"@{Profile.PublicProfile.ProfileUsername}";
-                        }
-                        <div class="text-base font-semibold text-[var(--md-sys-color-on-surface)] dark:text-[var(--md-sys-color-on-surface)]">@Profile.PublicProfile.FirstName</div>
-                        <div class="text-xl font-semibold text-[var(--md-sys-color-on-surface)] dark:text-[var(--md-sys-color-on-surface)]">@profileUsernameFormat</div>
-                        <div class="mt-1 text-sm text-[var(--md-sys-color-on-surface-variant)] dark:text-[var(--md-sys-color-on-surface-variant)] flex items-center justify-center gap-2">
-                            <span class="material-symbols-rounded text-[var(--md-sys-color-on-surface-variant)]">
-                                location_on
-                            </span>
-                            <span>@(string.IsNullOrWhiteSpace(Profile.PublicProfile.CountryCode) ? "" : StringHelpers.GetCountryName(Profile.PublicProfile.CountryCode))</span>
-                            <span class="mx-2">•</span>
-                            <span>Member since @Profile.PublicProfile.MemberSince?.ToString("yyyy")</span>
                         </div>
                     </div>
 
-                    <div class="mt-6 w-full grid grid-cols-3 gap-3">
-                        <!-- Add elevation and use surface-container for stat cards -->
-                        <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
-                            <div class="text-lg font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.TrailsCount ?? 0))</div>
-                            <div class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Trails</div>
+                    <div class="md:col-span-2 flex flex-col">
+                        <div class="mt-0 w-full grid grid-cols-3 gap-3">
+                            <!-- Add elevation and use surface-container for stat cards -->
+                            <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
+                                <div class="text-lg md:text-xl font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.TrailsCount ?? 0))</div>
+                                <div class="text-xs md:text-sm text-[var(--md-sys-color-on-surface-variant)]">Trails</div>
+                            </div>
+                            <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
+                                <div class="text-lg md:text-xl font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.CommentsCount ?? 0))</div>
+                                <div class="text-xs md:text-sm text-[var(--md-sys-color-on-surface-variant)]">Following</div>
+                            </div>
+                            <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
+                                <div class="text-lg md:text-xl font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.LikesCount ?? 0))</div>
+                                <div class="text-xs md:text-sm text-[var(--md-sys-color-on-surface-variant)]">Followers</div>
+                            </div>
                         </div>
-                        <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
-                            <div class="text-lg font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.CommentsCount ?? 0))</div>
-                            <div class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Following</div>
-                        </div>
-                        <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-3 rounded-lg text-center shadow-elevation-2 border border-[var(--md-sys-color-outline-variant)] transform hover:-translate-y-0.5 hover:shadow-elevation-4 transition-transform duration-150 cursor-pointer">
-                            <div class="text-lg font-bold text-[var(--md-sys-color-on-surface)]">@((Profile.PublicProfile.LikesCount ?? 0))</div>
-                            <div class="text-xs text-[var(--md-sys-color-on-surface-variant)]">Followers</div>
-                        </div>
-                    </div>
 
-                    <div class="mt-6 w-full">
-                        <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-4 rounded-lg shadow-elevation-1 border border-[var(--md-sys-color-outline-variant)]">
-                            <div class="text-sm font-semibold text-[var(--md-sys-color-on-surface)] mb-2">About Me</div>
-                            <div class="text-sm text-[var(--md-sys-color-on-surface-variant)]">@(!string.IsNullOrWhiteSpace(Profile.PublicProfile.Bio) ? Profile.PublicProfile.Bio : "This user hasn't added an about section yet.")</div>
+                        <div class="mt-6 w-full">
+                            <div class="bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container)] p-4 rounded-lg shadow-elevation-1 border border-[var(--md-sys-color-outline-variant)]">
+                                <div class="text-sm md:text-base font-semibold text-[var(--md-sys-color-on-surface)] mb-2">About Me</div>
+                                <div class="text-sm md:text-base text-[var(--md-sys-color-on-surface-variant)]">@(!string.IsNullOrWhiteSpace(Profile.PublicProfile.Bio) ? Profile.PublicProfile.Bio : "This user hasn't added an about section yet.")</div>
+                            </div>
                         </div>
                     </div>
                 </div>
