@@ -19,7 +19,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish Blazor WASM
-        run: dotnet publish WT.Client/WT.Client.csproj -c Release -o output
+        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release -o output
 
       - name: Upload to Cloudflare Pages
         uses: cloudflare/pages-action@v1
