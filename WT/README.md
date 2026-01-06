@@ -17,7 +17,7 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
-## 🔄 Latest updates (v1.5 — Jan 01, 2026)
+## 🔄 Latest updates (v1.5 — Jan01,2026)
 
 Summary of notable changes in this branch:
 
@@ -42,20 +42,20 @@ Summary of notable changes in this branch:
 
 ### Layout & Navigation
 - **New Instagram-Style Sidebar Navigation** (`SideNav.razor`)
-  - Replaced top `NavBar` with a fixed left sidebar for desktop/tablet (hidden on mobile)
-  - **Responsive widths**: 72px (icon-only) at `md`, 220px (full labels) at `xl`, 244px at `2xl`
-  - **Material Design 3 tooltips** for icon-only mode using CSS pseudo-elements
-  - Tooltips appear on hover/focus when in icon-only mode (below `xl` breakpoint)
-  - Uses MD3 inverse surface colors (`--md-sys-color-inverse-surface`, `--md-sys-color-inverse-on-surface`)
-  - Smooth fade transitions (150ms)
-  - Logo, navigation links, user menu, and theme toggle all support tooltips
+ - Replaced top `NavBar` with a fixed left sidebar for desktop/tablet (hidden on mobile)
+ - **Responsive widths**:72px (icon-only) at `md`,220px (full labels) at `xl`,244px at `2xl`
+ - **Material Design3 tooltips** for icon-only mode using CSS pseudo-elements
+ - Tooltips appear on hover/focus when in icon-only mode (below `xl` breakpoint)
+ - Uses MD3 inverse surface colors (`--md-sys-color-inverse-surface`, `--md-sys-color-inverse-on-surface`)
+ - Smooth fade transitions (150ms)
+ - Logo, navigation links, user menu, and theme toggle all support tooltips
 - **Mobile Header Simplified**
-  - Minimal fixed header with logo and theme toggle only
-  - No drawer/hamburger menu (navigation moved to bottom TabBar on mobile)
+ - Minimal fixed header with logo and theme toggle only
+ - No drawer/hamburger menu (navigation moved to bottom TabBar on mobile)
 - **Content Layout Fixed**
-  - Main content area now properly accounts for sidebar width at all breakpoints
-  - Desktop offline banner correctly positioned to not be clipped by sidebar
-  - Tailwind class spacing issues resolved (`xl:left-[220px] 2xl:left-[244px]`)
+ - Main content area now properly accounts for sidebar width at all breakpoints
+ - Desktop offline banner correctly positioned to not be clipped by sidebar
+ - Tailwind class spacing issues resolved (`xl:left-[220px]2xl:left-[244px]`)
 
 ### SVG Logo Support
 - Added SVG logo (`img/logo-svg.svg`) for better scaling and performance
@@ -75,73 +75,72 @@ Summary of notable changes in this branch:
 
 ### Developer Experience
 - Simplified API key injection workflow for local development
-- Improved Material Design 3 tooltip implementation with proper accessibility
+- Improved Material Design3 tooltip implementation with proper accessibility
 - Better responsive layout consistency across all screen sizes
-
 
 
 
 Summary of notable changes in the previous branch:
 
 - Floating Action Button (FAB)
-  - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
-  - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
-  - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
-  - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
+ - Moved FAB into `MainLayout.razor` so it is global and accessible from any page via `IFabService`.
+ - Added keyboard handling (Escape closes FAB via `fabInterop.js`), focus management (focus first action when opened, return focus when closed), ARIA attributes (`aria-haspopup`, `aria-expanded`, `aria-controls`) and rotation animation for the primary icon when expanded.
+ - Implemented responsive desktop/mobile variants: desktop FAB is vertically centered at the right edge, mobile FAB is bottom-right above the TabBar to avoid header overlap.
+ - Tooltip improvements: `.fab-tooltip` padding increased, tooltip animation preserved.
 
 - Map & Recorder
-  - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
-  - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
-  - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
+ - `trailRecorder.js` additions: `getCurrentPosition`, `startWatchPosition`, `stopWatchPosition` for controlled geolocation handling and backwards-compatible `startRecording`/`stopRecording` wrappers.
+ - Client (WT.Client/Pages/Trails/TrailCreate.razor): use `getCurrentPosition` on first render to center the map (fallback provided). Recording now uses high-accuracy watch only after user starts recording.
+ - Recording supports pause/resume with accumulated elapsed time (`TimeStart`, `TimeEnd`, `TimeAccumulated` + `ElapsedTimeDisplay`). POI markers and polyline updates use `addPoiMarker` / `updateTrailPath` JS interop.
 
 - Accessibility & UX
-  - Focus-visible rings and improved keyboard flows for FAB and user menus.
-  - ARIA attributes and labels added where appropriate.
+ - Focus-visible rings and improved keyboard flows for FAB and user menus.
+ - ARIA attributes and labels added where appropriate.
 
 - CSS & Styling
-  - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
+ - `WT.Client/wwwroot/css/input.css` updated with responsive FAB positioning, header button hover/focus contrast fixes, `.fab-tooltip` padding, and removal of `display:block` on `#fab-wrapper` so Tailwind responsive utilities work as intended.
 
 - JS Interop
-  - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
-  - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
+ - `WT.Client/wwwroot/js/fabInterop.js` — Escape key bridge for closing FAB.
+ - `WT.Client/wwwroot/js/trailRecorder.js` — documented and extended helpers for map and geolocation.
 
 - Notes / Pending work
-  - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
-  - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
-  - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
+ - SendGrid / mail service wiring not yet implemented — will be added under the API project and configured via user secrets / Key Vault before production.
+ - Google social login endpoint (server-side token validation and local JWT issuance) suggested next step.
+ - Minimal PWA manifest/service-worker baseline recommended to enable phone testing and installable behavior; not yet added in this branch.
 
 Recorder UX & FAB (what to test)
-  - Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
-  - Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
-  - New recorder flow on `/trails/new` (TrailCreate):
-  - Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
-  - After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
-  - The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
+- Global Floating Action Button (FAB) moved into `MainLayout.razor` and is now controlled via `IFabService` to keep layout-level presentation decoupled from page logic.
+- Pages opt-in to the FAB by subscribing to `IFabService.OnFabAction` and calling `FabService.Show()` when the page becomes active, and `FabService.Hide()` when leaving.
+- New recorder flow on `/trails/new` (TrailCreate):
+- Before starting a recording the user sees a confirmation modal: Title "Recording uses GPS" with a short warning about battery and an option to "Change defaults in Settings" or "Continue".
+- After confirming, the app starts a high-accuracy geolocation watch and shows a persistent banner/chip: "Recording — GPS in use. Tap to stop. (May affect battery)" with a Stop control.
+- The layout FAB actions map to `AddPoi`, `ToggleRecording`, and `SubmitTrail` (see `WT.Client.Services.FabService`).
 
 IFabService Quick Reference
-  - API surface (client):
-  - `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
-  - `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
-  - `void Raise(FabAction action)` — layout uses this to raise actions to pages.
-  - `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
+- API surface (client):
+- `event Action<FabAction> OnFabAction` — subscribe to receive actions raised from the layout-level FAB.
+- `event Action<bool> OnVisibilityChanged` — layout listens to render/hide the FAB.
+- `void Raise(FabAction action)` — layout uses this to raise actions to pages.
+- `void Show()` / `void Hide()` / `void ToggleVisibility()` — pages call Show/Hide to opt-in to FAB visibility.
 
 Settings & Persistence (recorder)
-  - New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
-  - `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
-  - Recommended server work (before persisting preferences in DB):
-  - Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
-  - Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
+- New per-user preferences exposed in the client DTO: `GpsAccuracy` (`GpsAccuracyLevel`) and `ShowRecordingWarning` (bool).
+- `Account Settings` page (`/account/identity/settings`) now includes a "Recorder Preferences" section with a GPS accuracy dropdown and a "Show recording warning" toggle. Changes are persisted to browser localStorage under `RecordingPreferences` for quick testing until server persistence is wired.
+- Recommended server work (before persisting preferences in DB):
+- Add `ShowRecordingWarning` property to `ApplicationUser` (default: true) and include the field in account settings DTOs.
+- Create EF migration: `dotnet ef migrations add AddRecordingPrefsToApplicationUser -p WT.Infrastructure -s API` and `dotnet ef database update -p WT.Infrastructure -s API`.
 
 Recorder interop (JS helpers)
-  - `getCurrentPosition()` — one-shot position used to center the map on first render.
-  - `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
-  - `stopWatchPosition()` — stops the geolocation watch.
+- `getCurrentPosition()` — one-shot position used to center the map on first render.
+- `startWatchPosition(dotNetRef, { enableHighAccuracy, maximumAge, timeout })` — starts a geolocation watch and forwards updates to .NET.
+- `stopWatchPosition()` — stops the geolocation watch.
 
 What to test (quick checklist)
-  - Navigate to `/trails/new` — the FAB should appear (page opts-in).
-  - Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
-  - When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
-  - Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
+- Navigate to `/trails/new` — the FAB should appear (page opts-in).
+- Click "Start recording" → confirmation modal appears; use "Change defaults in Settings" to open settings or "Continue" to start.
+- When recording starts, verify the persistent banner appears and that `Add POI` and FAB actions behave as expected.
+- Click "Stop" on the banner or use the FAB action to stop; verify the trail DTO is prepared.
 
 ***
 
@@ -221,7 +220,7 @@ The design documentation includes:
  - FREE tier:5GB storage,1GB/day bandwidth
  - Global CDN for fast photo delivery
  - Automatic public URL generation
-- **Profile Picture Upload** max size(3 * 1024 * 1024 - 3MB See: WT.Application.Extension.Constants) ✨ NEW
+- **Profile Picture Upload** max size(3 *1024 *1024 -3MB See: WT.Application.Extension.Constants) ✨ NEW
  - User profile photos with automatic optimization
  - Resized to400×400px,80% JPEG quality
  - ~50-100KB per image
@@ -243,18 +242,18 @@ The design documentation includes:
  - Prevents wasted server resources on cancelled requests
  - Controllers handle `OperationCanceledException` and return HTTP499 (Client Closed Request)
  - Example server-side implementation:
-   ```csharp
-   var ct = HttpContext.RequestAborted;
-   using var stream = file.OpenReadStream();
-   try
-   {
-       var url = await _fileStorageService.UploadTrailPhotoAsync(stream, fileName, trailId, ct);
-   }
-   catch (OperationCanceledException) when (ct.IsCancellationRequested)
-   {
-  return StatusCode(499, new { success = false, message = "Upload canceled" });
-   }
-   ```
+ ```csharp
+ var ct = HttpContext.RequestAborted;
+ using var stream = file.OpenReadStream();
+ try
+ {
+ var url = await _fileStorageService.UploadTrailPhotoAsync(stream, fileName, trailId, ct);
+ }
+ catch (OperationCanceledException) when (ct.IsCancellationRequested)
+ {
+ return StatusCode(499, new { success = false, message = "Upload canceled" });
+ }
+ ```
 - **Security Features**
  - Server-side upload validation (file size, type)
  - Firebase Security Rules for access control
@@ -304,7 +303,7 @@ For development and deployment, see the "Next steps" recommendations in the Tech
 
 <!-- Developer note: UnicodeLookupNormalizer added -->
 
-> Developer note: The project includes a Unicode-aware Identity lookup normalizer implemented in `WT.Infrastructure\Services\UnicodeLookupNormalizer.cs`. This class implements `ILookupNormalizer` and provides `NormalizeName` and `NormalizeEmail` (FormKC normalization + invariant upper-casing, and domain punycode conversion for emails). Register it before Identity is configured via `services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();` so Identity uses the custom normalizer for `NormalizedUserName`/`NormalizedEmail` values.
+> Developer note: The project includes a Unicode-aware Identity lookup normalizer implemented in `WT.Infrastructure.Services.UnicodeLookupNormalizer.cs`. This class implements `ILookupNormalizer` and provides `NormalizeName` and `NormalizeEmail` (FormKC normalization + invariant upper-casing, and domain punycode conversion for emails). Register it before Identity is configured via `services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();` so Identity uses the custom normalizer for `NormalizedUserName`/`NormalizedEmail` values.
 
 --- 
 ## Project Solution Structure / Notes
