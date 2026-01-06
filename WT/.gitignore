@@ -131,3 +131,5 @@ WT.Client/wwwroot/css/app.css
 WT.Client/wwwroot/js/*.map
 
 # End of standard gitignore
+
+.env

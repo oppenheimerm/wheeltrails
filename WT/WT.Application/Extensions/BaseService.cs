@@ -4,19 +4,42 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
+using WT.Application.APIServiceLogs;
 
 namespace WT.Application.Extensions
 {
+    /// <summary>
+    /// Base HTTP service used by client-side application services to call the API.
+    ///
+    /// Responsibilities:
+    /// - Holds a configured <see cref="HttpClient"/> instance for making API calls.
+    /// - Exposes a helper <see cref="GetRefreshTokenAsync"/> that calls the server refresh endpoint
+    /// which reads the HttpOnly refresh cookie and returns a fresh access token and optional
+    /// user/session metadata.
+    ///
+    /// Security note:
+    /// - This class intentionally does NOT persist tokens to local storage. The authentication
+    /// pattern is: access tokens are kept in-memory on the Blazor WebAssembly client (see
+    /// `WT.Client.Services.TokenService`) and refresh tokens are stored server-side in an
+    /// HttpOnly cookie which the browser sends automatically when CORS and cookie policies
+    /// permit. Avoid persisting tokens in localStorage to reduce XSS exposure.
+    /// </summary>
     public class BaseService
     {
         readonly HttpClient _httpClient;
         readonly IConfiguration _configuration;
         readonly ILocalStorageService _localStorageService;
         readonly string? LocalStorageKey;
-        
+
+        /// <summary>
+        /// Create a new instance of <see cref="BaseService"/>.
+        /// </summary>
+        /// <param name="httpClient">Pre-configured <see cref="HttpClient"/> with BaseAddress set to the API.</param>
+        /// <param name="configuration">Application configuration for local storage keys and other settings.</param>
+        /// <param name="localStorageService">Local storage service (used for non-sensitive UI data only).</param>
         public BaseService(
-            HttpClient httpClient, 
-            IConfiguration configuration, 
+            HttpClient httpClient,
+            IConfiguration configuration,
             ILocalStorageService localStorageService)
         {
             _httpClient = httpClient;
@@ -26,91 +49,82 @@ namespace WT.Application.Extensions
         }
 
         /// <summary>
-        /// Method to get and refresh the JWT token using the refresh token stored in local storage.
+        /// Calls the API refresh endpoint to exchange the HttpOnly refresh cookie for a new access token
+        /// and lightweight session/user metadata.
         /// </summary>
-        public async Task<AuthenticatedLocalStorageDTO?> GetRefreshTokenAsync()
+        /// <remarks>
+        /// Implementation notes:
+        /// - The method issues a POST to "api/account/identity/refresh-token" with an empty body. The
+        /// server reads the refresh token from an HttpOnly cookie and returns an <see cref="APIResponseAuthentication"/>.
+        /// - On success this method constructs an <see cref="AuthenticatedSessionDTO"/> and returns it.
+        /// - The returned DTO is intended for in-memory/session use only and should NOT be persisted to browser storage.
+        /// - In the event of failure (no cookie, invalid refresh token, or server error) the method returns <c>null</c>.
+        /// - Callers should update in-memory token storage (e.g., `WT.Client.Services.TokenService`) using the returned JWT.
+        /// </remarks>
+        /// <returns>An <see cref="AuthenticatedSessionDTO"/> on success; otherwise <c>null</c>.</returns>
+        public async Task<AuthenticatedSessionDTO?> GetRefreshTokenAsync()
         {
-            var authData = await _localStorageService.GetItemAsStringAsync(LocalStorageKey!);
-            if (string.IsNullOrEmpty(authData))
-            {
-                return null;
-            }
+            // This method no longer reads refresh tokens from browser local storage.
+            // The authentication flow now uses an HttpOnly refresh cookie that the server
+            // sets on successful login. To refresh the access token we call the server
+            // refresh endpoint which will read the cookie and return a new access token
+            // (and optionally rotate the refresh cookie). The client should store the
+            // access token in-memory only (TokenService) and must not persist it to localStorage.
 
-            var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-            if (authLocalStorageDTO is null || string.IsNullOrEmpty(authLocalStorageDTO.RefreshToken))
+            try
             {
-                return null;
-            }
+                // Call refresh endpoint; server reads the HttpOnly refresh cookie
+                var response = await _httpClient.PostAsync("api/account/identity/refresh-token", null);
 
-            // ✅ FIX 1: Clear any existing Authorization header before refreshing
-            _httpClient.DefaultRequestHeaders.Authorization = null;
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"❌ Token refresh failed: {response.StatusCode}");
+                    return null;
+                }
 
-            // ✅ FIX 2: Use relative URL (HttpClient.BaseAddress already set)
-            var response = await _httpClient.PostAsJsonAsync(
-                "api/account/identity/refresh-token",  // ✅ Relative URL
-                new RefreshTokenDTO() { Token = authLocalStorageDTO.RefreshToken });
-            
-            // ✅ FIX 3: Check if response was successful
-            if (!response.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"❌ Token refresh failed: {response.StatusCode}");
-                var errorContent = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Error details: {errorContent}");
-                return null;
-            }
+                var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
+                if (result is null || result.Success != true)
+                {
+                    Console.WriteLine("❌ Token refresh response invalid or unsuccessful");
+                    return null;
+                }
 
-            var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
-            
-            if (result is not null && result.Success == true)
-            {
-                var authLocalStorage = new AuthenticatedLocalStorageDTO()
+                // Build an in-memory session DTO to return to caller. Do NOT persist this to local storage.
+                var authSession = new AuthenticatedSessionDTO()
                 {
                     JWtToken = result.JwtToken,
                     RefreshToken = result.RefreshToken,
                     TimeStamp = DateTime.UtcNow,
-                    Id = result.User!.Id,
-                    FirstName = result.User.FirstName,
-                    ProfileUsername = result.User.ProfileUsername,
-                    Email = result.User.Email,
-                    UserPhoto = result.User.ProfilePicture,
-                    Bio = result.User.Bio,
-                    GpsAccuracy = result.User.GpsAccuracy,
-                    ShowRecordingWarning = result.User.ShowRecordingWarning
+                    Id = result.User?.Id ?? Guid.Empty,
+                    FirstName = result.User?.FirstName,
+                    ProfileUsername = result.User?.ProfileUsername,
+                    Email = result.User?.Email,
+                    UserPhoto = result.User?.ProfilePicture,
+                    Bio = result.User?.Bio,
+                    GpsAccuracy = result.User?.GpsAccuracy ?? 0,
+                    ShowRecordingWarning = result.User?.ShowRecordingWarning ?? false
                 };
-                
-                var jsonString = JsonSerializer.Serialize(authLocalStorage);
-                await _localStorageService.SetItemAsStringAsync(LocalStorageKey!, jsonString);
-                
-                Console.WriteLine($"✅ Token refreshed successfully for user: {result.User.Email}");
-                return authLocalStorage;
-            }
 
-            return null;
+                Console.WriteLine("✅ Token refreshed successfully (server rotated cookie)");
+                return authSession;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"🔥 Exception in GetRefreshTokenAsync: {ex.Message}");
+                LogException.LogExceptions(ex);
+                return null;
+            }
         }
 
+        /// <summary>
+        /// Helper to detect an Unauthorized (401) HTTP response.
+        /// </summary>
+        /// <param name="httpResponseMessage">The HTTP response to examine.</param>
+        /// <returns><c>true</c> when the response status is <see cref="System.Net.HttpStatusCode.Unauthorized"/>.</returns>
         public static bool CheckIfUnauthorized(HttpResponseMessage httpResponseMessage)
         {
             return httpResponseMessage.StatusCode == System.Net.HttpStatusCode.Unauthorized;
         }
 
-        // Methos to get the AuthenticatedLocalStorageDTO for authenticated users
-        /*public async Task<AuthenticatedLocalStorageDTO?> GetAuthenticatedUserAsync()
-        {
-            var authData = await _localStorageService.GetItemAsStringAsync(LocalStorageKey!);
-            if (string.IsNullOrEmpty(authData))
-            {
-                return null;
-            }
-            var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-            return authLocalStorageDTO;
-        }*/
-
-        // Method to update the AuthenticatedLocalStorageDTO in local storage, when we need to update user info
-        // On logout, we clear the entire local storage key, so no need for a separate method
-        /*public async Task UpdateAuthenticatedUserAsync(AuthenticatedLocalStorageDTO authenticatedUser)
-        {
-            var jsonString = JsonSerializer.Serialize(authenticatedUser);
-            await _localStorageService.SetItemAsStringAsync(LocalStorageKey!, jsonString);
-        }*/
     }
 }

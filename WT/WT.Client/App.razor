@@ -36,19 +36,7 @@
     }
 </CascadingAuthenticationState>
 
-<div id="blazor-error-ui">
-    An unhandled error has occurred.
-    <a href="" class="reload">Reload</a>
-    <a class="dismiss">🗙</a>
-</div>
-
 @code {
-    private bool isLoading = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        // Simulate loading delay or perform startup logic
-        await Task.Delay(4000); // Replace with actual loading logic
-        isLoading = false;
-    }
+    // No artificial startup delay in production - set to false so app renders immediately
+    private bool isLoading = false;
 }

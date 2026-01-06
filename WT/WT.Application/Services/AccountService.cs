@@ -38,6 +38,33 @@ namespace WT.Application.Services
         }
 
         /// <summary>
+        /// Ensure the HttpClient Authorization header is set.
+        /// This attempts to get a fresh access token by calling the refresh endpoint which reads the HttpOnly cookie.
+        /// The returned token is not persisted to local storage by this method.
+        /// </summary>
+        private async Task<bool> EnsureAuthorizationHeaderAsync()
+        {
+            try
+            {
+                // Try to refresh via server which reads HttpOnly cookie and returns a new access token
+                var refreshed = await GetRefreshTokenAsync();
+                if (refreshed is null || string.IsNullOrEmpty(refreshed.JWtToken))
+                {
+                    Console.WriteLine("❌ Unable to obtain access token from refresh endpoint");
+                    return false;
+                }
+
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshed.JWtToken);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Gets account settings for the currently authenticated user.
         /// Implements retry logic for transient errors and token refresh for auth failures.
         /// </summary>
@@ -48,34 +75,15 @@ namespace WT.Application.Services
 
             try
             {
-                // Get JWT token from local storage
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header is set using refresh-token endpoint (server reads HttpOnly cookie)
+                if (!await EnsureAuthorizationHeaderAsync())
                 {
-                    Console.WriteLine("❌ No authentication data in local storage");
                     return new APIResponseViewAccountSettings
                     {
                         Success = false,
                         Message = "User is not authenticated"
                     };
                 }
-
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                {
-                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
-                    return new APIResponseViewAccountSettings
-                    {
-                        Success = false,
-                        Message = "User is not authenticated"
-                    };
-                }
-
-                // Set the JWT token in the Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
 
                 Console.WriteLine($"🔑 Fetching account settings (Attempt 1/{maxRetries})");
 
@@ -376,34 +384,15 @@ namespace WT.Application.Services
 
             try
             {
-                // Get JWT token from local storage
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header is set using refresh-token endpoint (server reads HttpOnly cookie)
+                if (!await EnsureAuthorizationHeaderAsync())
                 {
-                    Console.WriteLine("❌ No authentication data in local storage");
                     return new APIResponseViewAccountSettings
                     {
                         Success = false,
                         Message = "User is not authenticated"
                     };
                 }
-
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                {
-                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
-                    return new APIResponseViewAccountSettings
-                    {
-                        Success = false,
-                        Message = "User is not authenticated"
-                    };
-                }
-
-                // Set the JWT token in the Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
 
                 Console.WriteLine($"🔑 Atempting to reset password for user: (Attempt 1/{maxRetries})");
                 LogException.LogToConsole($"🔑 Attempting to reset password in AuthenticatedResetPasswordAsync (Attempt 1/{maxRetries})");
@@ -586,23 +575,12 @@ namespace WT.Application.Services
 
             try
             {
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header
+                if (!await EnsureAuthorizationHeaderAsync())
                 {
-                    Console.WriteLine("❌ No authentication data in local storage");
+                    Console.WriteLine("❌ No authentication available for navbar settings");
+                    return;
                 }
-
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                {
-                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
-                }
-
-                // Set the JWT token in the Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
 
                 Console.WriteLine($"🔑 Fetching navbar settings (Attempt 1/{maxRetries})");
 
@@ -653,7 +631,7 @@ namespace WT.Application.Services
                         // ❌ UNAUTHORIZED after token refresh - authentication problem, stop retrying
                         else if (CheckIfUnauthorized(response) && tokenWasRefreshed)
                         {
-                            Console.WriteLine("❌ Still unauthorized after token refresh - stopping retries.  Please relogin");
+                            Console.WriteLine("❌ Still unauthorized after token refresh - stopping retries. Please relogin");
                         }
                         // ⚠️ SERVER ERROR (5xx) or other transient error - retry with backoff
                         else if ((int)response.StatusCode >= 500 || response.StatusCode == System.Net.HttpStatusCode.RequestTimeout)
@@ -732,6 +710,12 @@ namespace WT.Application.Services
 
                         var jsonString = JsonSerializer.Serialize(navBarSettingsDTO);
                         Console.WriteLine($"NavBarSettings:Key {_configuration["ApplicationSettings:NavBarSettings"]}");
+
+                        // SECURITY NOTE:
+                        // Only non-sensitive UI data is stored in the NavBar local storage key (e.g., display name,
+                        // profile picture URL, and public username). Sensitive tokens or personal data (JWT, refresh tokens,
+                        // email addresses used for authorization) must NOT be stored here. The authentication flow keeps
+                        // tokens in-memory (TokenService) and uses HttpOnly cookies for refresh tokens.
                         await _localStorage.SetItemAsStringAsync(_configuration["ApplicationSettings:NavBarSettings"]!, jsonString);
 
 
@@ -958,24 +942,14 @@ namespace WT.Application.Services
 
             try
             {
-                // Get JWT token from local storage and set Authorization header
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header is set using refresh-token endpoint (server reads HttpOnly cookie)
+                if (!await EnsureAuthorizationHeaderAsync())
                 {
                     return new APIResponseCreateTrail { Success = false, Message = "User is not authenticated" };
                 }
 
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                {
-                    return new APIResponseCreateTrail { Success = false, Message = "User is not authenticated" };
-                }
-
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
-
-                Console.WriteLine($"🔑 Attempting to create a new trail: {model.Title} (Attempt1/{maxRetries})");
-                LogException.LogToConsole($"🔑 Attempting to create a new trail: {model.Title} (Attempt1/{maxRetries})");
+                Console.WriteLine($"🔑 Attempting to create a new trail: {model.Title} (Attempt 1/{maxRetries})");
+                LogException.LogToConsole($"🔑 Attempting to create a new trail: {model.Title} (Attempt 1/{maxRetries})");
 
                 HttpResponseMessage? response = null;
                 bool tokenWasRefreshed = false;
@@ -1113,7 +1087,7 @@ namespace WT.Application.Services
 
 
         /// <summary>
-        ///  Client-side method to update the profile picture URL of the currently authenticated user.
+        /// Client-side method to update the profile picture URL of the currently authenticated user.
         /// </summary>
         /// <param name="updateProfilePhotoDTO"></param>
         /// <returns></returns>
@@ -1135,34 +1109,15 @@ namespace WT.Application.Services
 
             try
             {
-                // Get JWT token from local storage
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header is set using refresh-token endpoint (server reads HttpOnly cookie)
+                if (!await EnsureAuthorizationHeaderAsync())
                 {
-                    Console.WriteLine("❌ No authentication data in local storage");
                     return new APIResponseUploadPhoto
                     {
                         Success = false,
                         Message = "User is not authenticated"
                     };
                 }
-
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                {
-                    Console.WriteLine("❌ Invalid authentication data or missing JWT token");
-                    return new APIResponseUploadPhoto
-                    {
-                        Success = false,
-                        Message = "User is not authenticated"
-                    };
-                }
-
-                // Set the JWT token in the Authorization header
-                _httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
 
                 Console.WriteLine($"🔑 Atempting to upload profile photo for user: (Attempt 1/{maxRetries})");
                 LogException.LogToConsole($"🔑 Attempting to upload profile photo in UpdateProfilePictureUrlAsync (Attempt 1/{maxRetries})");
@@ -1331,8 +1286,8 @@ namespace WT.Application.Services
                     };
                 }
 
-                Console.WriteLine($"✅ Updated profile picture for user: {authLocalStorageDTO.ProfileUsername} successfully, (took {currentAttempt} attempt(s))");
-                LogException.LogToConsole("✅ Updated profile picture for user: {authLocalStorageDTO.ProfileUsername} successfully, (took {currentAttempt} attempt(s))");
+                Console.WriteLine($"✅ Updated profile picture for user successfully, (took {currentAttempt} attempt(s))");
+                LogException.LogToConsole("✅ Updated profile picture for user successfully.");
                 return result;
 
             }
@@ -1374,15 +1329,11 @@ namespace WT.Application.Services
 
             try
             {
-                var authData = await _localStorage.GetItemAsStringAsync(_configuration["ApplicationSettings:LocalStorageKey"]!);
-                if (string.IsNullOrEmpty(authData))
+                // Ensure Authorization header is set using refresh-token endpoint (server reads HttpOnly cookie)
+                if (!await EnsureAuthorizationHeaderAsync())
                     return new APIResponseUploadPhoto { Success = false, Message = "User is not authenticated" };
 
-                var authLocalStorageDTO = JsonSerializer.Deserialize<AuthenticatedLocalStorageDTO>(authData);
-                if (authLocalStorageDTO == null || string.IsNullOrEmpty(authLocalStorageDTO.JWtToken))
-                    return new APIResponseUploadPhoto { Success = false, Message = "User is not authenticated" };
-
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authLocalStorageDTO.JWtToken);
+                _httpClient.DefaultRequestHeaders.Authorization = _httpClient.DefaultRequestHeaders.Authorization; // no-op
 
                 HttpResponseMessage? response = null;
                 bool tokenWasRefreshed = false;
@@ -1530,6 +1481,23 @@ namespace WT.Application.Services
         {
             public bool Success { get; set; }
             public ApplicationUserDTO? User { get; set; }
+        }
+
+        public async Task LogoutAsync()
+        {
+            try
+            {
+                var response = await _httpClient.PostAsync("api/account/identity/logout", null);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var friendly = await response.Content.ReadFromJsonAsync<BaseAPIResponseDTO>();
+                    LogException.LogToConsole($"Logout failed: {friendly?.Message ?? response.StatusCode.ToString()}");
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+            }
         }
     }
 }

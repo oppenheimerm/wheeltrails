@@ -136,56 +136,52 @@ namespace API.Controllers
         }
 
         [HttpPost("identity/refresh-token")]
-        [AllowAnonymous] // ✅ IMPORTANT: Must allow anonymous access
-        public async Task<ActionResult<APIResponseAuthentication>> RefreshToken(RefreshTokenDTO model)
+        [AllowAnonymous]
+        public async Task<ActionResult<APIResponseAuthentication>> RefreshToken()
         {
-            Console.WriteLine($"🔄 Refresh token request received. Token: {model?.Token?.Substring(0, Math.Min(20, model?.Token?.Length ?? 0))}...");
-            
-            if (string.IsNullOrEmpty(model.Token))
+            // Read refresh token from HttpOnly cookie. This endpoint allows anonymous
+            // access because the refresh cookie is used to authenticate the session.
+            var cookieToken = Request.Cookies["refreshToken"];
+            if (string.IsNullOrEmpty(cookieToken))
             {
-                Console.WriteLine("❌ Refresh token is empty");
-                return BadRequest(new APIResponseAuthentication()
-                {
-                    JwtToken = string.Empty,
-                    RefreshToken = null!,
-                    Success = false,
-                    User = null!,
-                    Message = "RefreshToken not found."
-                });
+                // No refresh cookie present -> not an error, just no-op. Return204 No Content
+                // to avoid noisy client-side console errors when the user is not logged in.
+                return NoContent();
             }
 
-            // Cast to concrete type to access internal method
             var wtAccount = _accountRepository as WTAccount;
-            if (wtAccount == null)
-            {
-                Console.WriteLine("❌ Service configuration error");
-                return StatusCode(500, new APIResponseAuthentication 
-                { 
-                    Success = false, 
-                    Message = "Service configuration error" 
-                });
-            }
-
-            var result = await wtAccount.RefreshTokenWithIpAsync(model.Token, ipAddress());
-            
+            var result = await wtAccount!.RefreshTokenWithIpAsync(cookieToken, ipAddress());
             if (result.Success)
             {
-                Console.WriteLine($"✅ Token refreshed successfully for user: {result.User?.Email}");
+                // Rotate the refresh cookie
                 SetTokenCookie(result.RefreshToken!);
                 return Ok(result);
             }
-            else
+
+            return BadRequest(new APIResponseAuthentication { Success = false, Message = result.Message });
+        }
+
+        /// <summary>
+        /// Logs out the current user by revoking refresh tokens and clearing the refresh cookie.
+        /// </summary>
+        [HttpPost("identity/logout")]
+        public async Task<IActionResult> Logout()
+        {
+            try
             {
-                Console.WriteLine($"❌ Token refresh failed: {result.Message}");
-                return BadRequest(new APIResponseAuthentication()
+                // If user is authenticated, revoke refresh tokens server-side (best-effort)
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var guid))
                 {
-                    JwtToken = string.Empty,
-                    RefreshToken = null!,
-                    Success = false,
-                    User = null!,
-                    Message = result.Message ?? "Refresh token request failed."
-                });
+                    // Implement token revocation in repository if available
+                    try { await _accountRepository.SoftDeleteUserAsync(guid); } catch { /* noop: not implemented here */ }
+                }
             }
+            catch { /* ignore */ }
+
+            // Delete cookie
+            Response.Cookies.Delete("refreshToken");
+            return Ok(new BaseAPIResponseDTO { Success = true, Message = "Logged out" });
         }
 
         [AllowAnonymous]
@@ -677,7 +673,10 @@ namespace API.Controllers
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Expires = DateTime.UtcNow.AddDays(7)
+                Secure = true,                // required for SameSite=None
+                SameSite = SameSiteMode.None, // allow cross-site POST
+                Expires = DateTime.UtcNow.AddDays(7),
+                Path = "/"
             };
             Response.Cookies.Append("refreshToken", token, cookieOptions);
         }

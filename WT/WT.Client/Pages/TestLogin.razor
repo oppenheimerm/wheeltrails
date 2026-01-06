@@ -7,7 +7,7 @@
 <div class="mt-[96.8px]">
     <h3 class="text-white">Test Login</h3>
     <button class="w-full py-2 px-4 text-[15px] font-medium tracking-wide rounded-md
-                   text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer" 
+                   text-white bg-blue-600 hover:bg-blue-700 focus:outline-none cursor-pointer"
             @onclick="TestLoginMethod">
         Test Login
     </button>
@@ -36,11 +36,14 @@
                 var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;
                 await customAuthStateProvider.UpdateAuthenticatedState(response);
 
+                // Refresh navbar/auth UI data (stores only non-sensitive profile info in local storage)
+                await AccountService.SetNavBarAuthDataAsync();
+
                 result = $"✅ Login successful! Token: {response.JwtToken?[..20]}...";
-                
+
                 // Navigate to home or dashboard after successful login
-                await Task.Delay(1000); // Brief delay to show success message
-                Navigation.NavigateTo("/", true); // true = force reload to refresh auth state
+                await Task.Delay(500); // Brief delay to show success message
+                Navigation.NavigateTo("/", forceLoad: false); // don't force full reload; provider will notify auth state
             }
             else
             {
