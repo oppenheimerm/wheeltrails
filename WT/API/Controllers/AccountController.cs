@@ -418,15 +418,27 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> CheckProfileUsernameAvailability(string profileUsername)
         {
-            if (string.IsNullOrWhiteSpace(profileUsername) || profileUsername.Length < 3)
+            if (string.IsNullOrWhiteSpace(profileUsername) || profileUsername.Length <3)
             {
-                return BadRequest(new { isAvailable = false, message = "Profile username must be at least 3 characters" });
+                return BadRequest(new { isAvailable = false, message = "Profile username must be at least3 characters" });
             }
 
-            // ✅ Call IAccountRepository method
+            // Call repository to check availability
             var isAvailable = await _accountRepository.IsProfileUsernameAvailableAsync(profileUsername);
-            
-            return Ok(new { isAvailable });
+
+            // Resolve username validator from DI to check profanity/obscene words
+            var usernameValidator = HttpContext.RequestServices.GetRequiredService<IUsernameValidator>();
+            var isAllowed = await usernameValidator.IsUsernameValidAsync(profileUsername);
+            var rejectionReason = isAllowed ? null : usernameValidator.GetRejectionReason(profileUsername);
+
+            var message = rejectionReason ?? (isAvailable ? "Username is available" : "Username is already taken");
+
+            return Ok(new
+            {
+                isAvailable,
+                isAllowed,
+                message
+            });
         }
 
         /// <summary>

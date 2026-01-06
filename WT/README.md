@@ -596,3 +596,36 @@ Call this helper on startup and subscribe it to `TokenChanged` to keep the heade
 ---
 
 (See `WT.Client/Services/TokenService.cs` and `WT.Application/Extensions/BaseService.cs` for implementation details.)
+
+## Username validation & profanity list
+
+The API includes a server-side username validator that prevents users from selecting profile usernames containing obscene or offensive words.
+
+- Implementation
+ - Interface: `WT.Application.Contracts.IUsernameValidator` (registered in DI).
+ - Production implementation: `WT.Infrastructure.Services.UsernameValidator`.
+
+- Bad-words data
+ - The blocked words list is shipped as an embedded resource in the Infrastructure assembly:
+ `WT.Infrastructure/Data/BadWords.en.txt` (embedded as `WT.Infrastructure.Data.BadWords.en.txt`).
+ - Because it is embedded, the file is NOT served from `wwwroot` and is not directly retrievable by clients.
+ - To update the list: edit `WT.Infrastructure/Data/BadWords.en.txt` and rebuild the solution.
+
+- Runtime diagnostics
+ - On startup the validator logs resource discovery and the number of bad words loaded. Look for console logs like:
+ - `Found X embedded resource(s): ...`
+ - `✅ Found exact match: WT.Infrastructure.Data.BadWords.en.txt`
+ - `🔢 Bad words loaded (embedded): N`
+ - The validator exposes `IUsernameValidator.BadWordCount` for diagnostics and telemetry.
+ - If the embedded resource is not found the validator falls back to searching known file-system paths during development; the logs will show the attempted paths.
+
+- Behavior
+ - Username checks include: length (3-20), allowed characters (letters, numbers, underscores, dashes, dots), and substring matching against the bad-words set.
+ - The API endpoints used by the client are:
+ - `GET api/account/profile-username/check/{profileUsername}` — availability
+ - `GET api/account/profile-username/validate/{profileUsername}` — availability + profanity check
+ - The client (WT.Client) uses `AccountService.ValidateProfileUsernameAsync` to show immediate feedback on the Register page.
+
+- Security notes
+ - Do not place sensitive or secret data in an embedded resource if you require strict secrecy; an attacker able to retrieve the assembly could extract embedded resources. For highly sensitive lists, store them in a protected secret store.
+ - The embedded list is suitable for blocking offensive words and preventing inappropriate usernames but is not a security boundary.
