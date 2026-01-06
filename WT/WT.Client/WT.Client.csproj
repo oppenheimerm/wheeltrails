@@ -22,4 +22,12 @@
     <Folder Include="workbox\" />
   </ItemGroup>
 
+  <!-- Ensure index.html is generated from the template into the publish output -->
+  <Target Name="CopyIndexHtmlTemplate" AfterTargets="Publish">
+    <Message Importance="High" Text="Copying index.html from index.html.template into publish/wwwroot" />
+    <Copy SourceFiles="$(ProjectDir)wwwroot\index.html.template"
+          DestinationFiles="$(PublishDir)wwwroot\index.html"
+          SkipUnchangedFiles="true" />
+  </Target>
+
 </Project>
