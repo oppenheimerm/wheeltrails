@@ -20,6 +20,8 @@ namespace WT.Infrastructure.Services
             _badWords = LoadBadWords();
         }
 
+        public int BadWordCount => _badWords?.Count ?? 0;
+
         public bool IsUsernameAllowed(string username)
         {
             if (string.IsNullOrWhiteSpace(username))
@@ -77,14 +79,14 @@ namespace WT.Infrastructure.Services
             try
             {
                 var assembly = Assembly.GetExecutingAssembly();
-                
+
                 Console.WriteLine($"🔍 Loading bad words from assembly: {assembly.FullName}");
                 Console.WriteLine($"📂 Assembly location: {assembly.Location}");
-                
+
                 // ✅ List ALL embedded resources
                 var resourceNames = assembly.GetManifestResourceNames();
                 Console.WriteLine($"📋 Found {resourceNames.Length} embedded resource(s):");
-                
+
                 if (resourceNames.Length == 0)
                 {
                     Console.WriteLine("   ⚠️ NO EMBEDDED RESOURCES FOUND!");
@@ -99,14 +101,16 @@ namespace WT.Infrastructure.Services
 
                 // ✅ Try exact match first
                 const string expectedResourceName = "WT.Infrastructure.Data.BadWords.en.txt";
-                
+
                 if (resourceNames.Contains(expectedResourceName))
                 {
                     Console.WriteLine($"✅ Found exact match: {expectedResourceName}");
                     using var stream = assembly.GetManifestResourceStream(expectedResourceName);
                     if (stream != null)
                     {
-                        return ReadWordsFromStream(stream, $"embedded: {expectedResourceName}");
+                        var set = ReadWordsFromStream(stream, $"embedded: {expectedResourceName}");
+                        Console.WriteLine($"🔢 Bad words loaded (embedded): {set.Count}");
+                        return set;
                     }
                     else
                     {
@@ -122,30 +126,32 @@ namespace WT.Infrastructure.Services
                     using var stream = assembly.GetManifestResourceStream(foundResourceName);
                     if (stream != null)
                     {
-                        return ReadWordsFromStream(stream, $"embedded: {foundResourceName}");
+                        var set = ReadWordsFromStream(stream, $"embedded: {foundResourceName}");
+                        Console.WriteLine($"🔢 Bad words loaded (embedded partial): {set.Count}");
+                        return set;
                     }
                 }
 
                 // ✅ FALLBACK to file system (keep your existing fallback code)
                 Console.WriteLine("⚠️ Embedded resource not found, trying file system...");
-                
+
                 var assemblyLocation = Path.GetDirectoryName(assembly.Location) ?? string.Empty;
                 var currentDirectory = Directory.GetCurrentDirectory();
-                
+
                 // Try multiple possible paths
                 var possiblePaths = new[]
                 {
                     // Path relative to assembly location
                     Path.Combine(assemblyLocation, "Data", "BadWords.en.txt"),
-                    
+
                     // Path relative to project root (during development)
                     Path.Combine(currentDirectory, "WT.Infrastructure", "Data", "BadWords.en.txt"),
                     Path.Combine(currentDirectory, "..", "WT.Infrastructure", "Data", "BadWords.en.txt"),
                     Path.Combine(currentDirectory, "..", "..", "WT.Infrastructure", "Data", "BadWords.en.txt"),
-                    
+
                     // Path in the working directory
                     Path.Combine(currentDirectory, "Data", "BadWords.en.txt"),
-                    
+
                     // Navigate up from bin/Debug/net9.0
                     Path.Combine(assemblyLocation, "..", "..", "..", "Data", "BadWords.en.txt")
                 };
@@ -154,12 +160,14 @@ namespace WT.Infrastructure.Services
                 {
                     var normalizedPath = Path.GetFullPath(path);
                     Console.WriteLine($"   🔎 Checking: {normalizedPath}");
-                    
+
                     if (File.Exists(normalizedPath))
                     {
                         Console.WriteLine($"   ✅ Found file at: {normalizedPath}");
                         using var fileStream = File.OpenRead(normalizedPath);
-                        return ReadWordsFromStream(fileStream, normalizedPath);
+                        var set = ReadWordsFromStream(fileStream, normalizedPath);
+                        Console.WriteLine($"🔢 Bad words loaded (file): {set.Count}");
+                        return set;
                     }
                 }
 
@@ -167,7 +175,7 @@ namespace WT.Infrastructure.Services
                 Console.WriteLine($"   Assembly location: {assemblyLocation}");
                 Console.WriteLine($"   Current directory: {currentDirectory}");
                 Console.WriteLine("💡 SOLUTION: Copy BadWords.en.txt to API/Data/ folder");
-                
+
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)

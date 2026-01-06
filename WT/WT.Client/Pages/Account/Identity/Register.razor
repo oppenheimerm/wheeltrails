@@ -106,6 +106,31 @@
 
         try
         {
+            // Ensure username validated client-side before attempting registration.
+            try
+            {
+                var validation = await AccountService.ValidateProfileUsernameAsync(ModelDTO.ProfileUsername ?? string.Empty);
+                if (validation == null)
+                {
+                    errorMessage = "Unable to verify username at this time. Please try again later.";
+                    return;
+                }
+
+                if (!validation.IsValid)
+                {
+                    // Show server-provided reason when available
+                    errorMessage = validation.Message ?? "Username is not acceptable. Please choose another.";
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fallback message when validation call fails (network or server error)
+                Console.WriteLine($"Username validation call failed: {ex.Message}");
+                errorMessage = "Unable to verify username availability right now. Please try again later or choose a different username.";
+                return;
+            }
+
             isSubmitting = true;
             errorMessage = null;
             successMessage = null;
@@ -467,7 +492,7 @@
                                                    id="acceptTerms"
                                                    class="w-4 h-4 border border-[var(--md-sys-color-outline)] rounded bg-[var(--md-sys-color-surface)] focus:ring-3 focus:ring-[var(--md-sys-color-primary)] cursor-pointer" />
                                 </div>
-                                <label for="acceptTerms" class="ml-3 text-sm font-medium text-[var(--md-sys-color-on-surface)] cursor-pointer">
+                                <label for="acceptTerms" class="ml-3 text-sm font-medium text-[var(--md-sys-color-on-surface] cursor-pointer">
                                     I accept the <a @onclick="ShowTermsModal" @onclick:preventDefault="true" href="#" class="text-[var(--md-sys-color-primary)] hover:underline">Terms and Conditions</a>
                                 </label>
                             </div>
