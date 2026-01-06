@@ -19,7 +19,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Publish Blazor WASM
-        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release -o output
+        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
 
       - name: Upload to Cloudflare Pages
         uses: cloudflare/pages-action@v1
@@ -27,4 +27,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           projectName: wheelytrails
-          directory: output/wwwroot
+          directory: WT/WT.Client/bin/Release/net9.0/wwwroot
