@@ -29,36 +29,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-// ✅ ADD CORS POLICY
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("ProductionPolicy", policy =>
-    {
-        var allowedOrigins = builder.Configuration
-            .GetSection("AllowedOrigins")
-            .Get<string[]>() ?? Array.Empty<string>();
-
-        if (allowedOrigins.Length > 0)
-        {
-            policy.WithOrigins(allowedOrigins)
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        }
-        else
-        {
-            // Development fallback
-            policy.WithOrigins(
-                "https://localhost:7126",  // WT.Client (Blazor WASM)
-                "https://localhost:7127",  // WT.Admin (Blazor Server)
-                "http://localhost:5041"    // WT.Admin HTTP fallback
-            )
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials(); // Important for cookies/authentication
-        }
-    });
-});
+// ✅ NOTE: CORS policy is registered in WT.Infrastructure.DependencyInjection.ServiceContainer as "DefaultCorsPolicy".
+// Do not re-register here to avoid duplication/conflicts.
 
 // ✅ ADD HEALTH CHECKS
 builder.Services.AddHealthChecks()
@@ -153,11 +125,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // ✅ USE CORS - Must be BEFORE UseAuthentication/UseAuthorization
-app.UseCors("ProductionPolicy");
+app.UseCors("DefaultCorsPolicy");
 
-app.UseRateLimiter();
-
-// Add BEFORE app.UseAuthentication()
 app.UseRateLimiter();
 
 app.UseAuthentication();

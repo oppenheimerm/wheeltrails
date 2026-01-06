@@ -88,6 +88,18 @@ namespace WT.Infrastructure.DependencyInjection
             // In-memory cache for per-user navbar data and other short-lived caching
             services.AddMemoryCache();
 
+            var allowedOrigins = new[] { "https://www.wheelytrails.com" }; // add others as needed
+            services.AddCors(options =>
+            {
+                options.AddPolicy("DefaultCorsPolicy", policy =>
+                {
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials(); // only if you need cookies
+                });
+            });
+
             return services;
         }
     }
