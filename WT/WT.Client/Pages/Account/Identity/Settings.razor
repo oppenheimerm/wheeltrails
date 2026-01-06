@@ -18,7 +18,7 @@
 
 @code {
     private ApplicationUserDTO? ModelDTO { get; set; }
-    private AuthenticatedLocalStorageDTO? LocalStorageDTO { get; set; }
+    private AuthenticatedSessionDTO? LocalStorageDTO { get; set; }
     private APIResponseUserSettingsDTO? AuthenticateUserQuery { get; set; }
     private EditContext? editContext;
 
@@ -128,7 +128,7 @@
                     // Ensure navbar auth data is refreshed (same approach as NavBar)
                     await AccountService.SetNavBarAuthDataAsync();
 
-                    var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+                    var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO>(navBarLocalStorageKey);
                     profilePhotoUrl = navBarAuthData?.UserPhoto + $"?v={Guid.NewGuid()}";
                     ;
                 }

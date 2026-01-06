@@ -17,7 +17,7 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
-## 🔄 Latest updates (v1.5 — Dec 28, 2025)
+## 🔄 Latest updates (v1.5 — Jan 01, 2026)
 
 Summary of notable changes in this branch:
 
@@ -78,9 +78,8 @@ Summary of notable changes in this branch:
 - Improved Material Design 3 tooltip implementation with proper accessibility
 - Better responsive layout consistency across all screen sizes
 
----
 
-## 🔄 Latest updates (v1.4 — Dec 27, 2025)
+
 
 Summary of notable changes in the previous branch:
 
@@ -490,135 +489,111 @@ This flow is implemented in `API.Controllers.AccountController.UploadProfilePict
 
 ---
 
-## 🛠️ Developer Tools & Getting Started
+## Client-side JWT token storage (in-memory)
 
-### Prerequisites
-- [.NET9 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- [Visual Studio2022](https://visualstudio.microsoft.com/) (17.8+) or VS Code
-- [Node.js18+](https://nodejs.org/) (for Tailwind CSS build)
-- Modern browser
+### Summary
+To reduce exposure of sensitive tokens to cross-site scripting (XSS) attacks, the client app no longer persists JWT access tokens in browser storage. Instead:
 
-### Installation & Run
-1. Clone and change directory:
- ```bash
- git clone https://github.com/oppenheimerm/wheeltrails.git
- cd wheeltrails/src/WT
- ```
+- Access tokens are kept in-memory only using `WT.Client.Services.TokenService`.
+- Refresh tokens are handled server-side via an HttpOnly cookie. The client calls the server refresh endpoint (e.g. `POST api/account/identity/refresh-token`) to obtain a fresh access token.
+- The `AuthenticatedLocalStorageDTO` concept was renamed to `AuthenticatedSessionDTO` to make clear that token-bearing DTOs are ephemeral and should not imply localStorage persistence.
 
-2. **Configure User Secrets** (for API project)
-   ```bash
-   cd API
-   dotnet user-secrets set "ConnectionStrings:WTConnectionString" "Server=(localdb)\\mssqllocaldb;Database=WTAPIDB;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=true;"
-   dotnet user-secrets set "JwtSettings:Issuer" "https://localhost:5001"
-   dotnet user-secrets set "JwtSettings:Audience" "https://localhost:5001"
-   dotnet user-secrets set "JwtSettings:Secret" "YourSuperSecretKeyThatIsAtLeast32CharactersLongForHS256Algorithm!"
-   dotnet user-secrets set "AdminUser:FirstName" "Admin"
-   dotnet user-secrets set "AdminUser:Email" "admin@wheeltrails.com"
-   dotnet user-secrets set "AdminUser:Password" "Admin@123456"
-dotnet user-secrets set "ApplicationSettings:RefreshTokenTTL" "90"
-   ```
+### Why this change
+- LocalStorage is accessible to JavaScript and increases XSS risk when storing tokens.
+- HttpOnly cookies are not accessible to JavaScript and provide a safer mechanism for refresh tokens.
+- Keeping the access token in-memory prevents long-lived exposure on the client while still allowing the app to call protected APIs.
 
-3. **Configure Firebase Storage** ✨ NEW
+### `TokenService` (WT.Client.Services.TokenService)
+Key members:
 
-**Step1: Create a Firebase Project**
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project" and follow the wizard
-3. Enable Google Analytics (optional)
+- `string? AccessToken` — current in-memory access token (or `null`).
+- `void SetAccessToken(string token, DateTime expiresAt)` — store token and expiry in memory.
+- `void Clear()` — clear the token (logout flow).
+- `bool IsExpired()` — true when no token or token expired.
+- `event Action? TokenChanged` — raised when token is set or cleared.
 
-**Step2: EnableCloud Storage**
-1. In the Firebase console, navigate to **Build** → **Storage**
-2. Click "Get Started"
-3. Choose production mode and select a storage location
-4. Copy your storage bucket URL (format: `your-project.appspot.com`)
+Class location: `WT.Client/Services/TokenService.cs` (implements `ITokenService`).
 
-**Step3: Generate Service Account Key**
-1. Go to **Project Settings** (gear icon) → **Service Accounts**
-2. Click "Generate New Private Key"
-3. Save the JSON file securely (NEVER commit to source control!)
-4. Copy the entire JSON content
+### DI registration (Blazor WASM)
+Register the token service in the client `Program.cs`:
 
-**Step4: Configure User Secrets**
-   ```bash
-   cd API
-   dotnet user-secrets set "Firebase:Bucket" "your-project.appspot.com"
-   dotnet user-secrets set "Firebase:DatabaseUrl" "https://your-project.firebaseio.com"
-   dotnet user-secrets set "Firebase:ServiceAccount" "your-service-account-json"
-   ```
-
-4. **Configure Email Service**
-
-Choose one of the following email service providers based on your needs:
-
-**Option A: Mailtrap (⭐ Recommended for Development/Testing)**
-
-[Mailtrap](https://mailtrap.io) is a safe email testing service that captures emails without sending them to real recipients. Perfect for development!
-
-**Benefits ofMailtrap:**
-- ✅ **Free tier**:500 emails/month,5 inboxes
-- ✅ **Safe testing**: Emails never reach real inboxes
-- ✅ **Email preview**: View how emails look in different clients (Gmail, Outlook, etc.)
-- ✅ **Spam testing**: Check if your emails might be flagged as spam
-- ✅ **HTML validation**: Verify how email templates render
-- ✅ **Team collaboration**: Share inboxes with team members
-- ✅ **API access**: Automate email testing
-
-After configuration, access your captured emails at: [https://mailtrap.io/inboxes](https://mailtrap.io/inboxes)
-
-**Option B: SendGrid (Production)**
-
-If you plan to use SendGrid in production, store the SendGrid API key and related settings in user secrets (local dev) or a secure secret store (Key Vault) for production. Do NOT commit secrets to source control.
-
-From the `API` project directory run the following commands to set up user secrets for SendGrid (example):
-
-```powershell
-cd API
-# SendGrid API key (required)
-dotnet user-secrets set "EmailSettings:SendGridApiKey" "YOUR_SENDGRID_API_KEY"
-# Default From address and display name (optional)
-dotnet user-secrets set "EmailSettings:FromEmail" "noreply@yourdomain.com"
-dotnet user-secrets set "EmailSettings:FromName" "WheelyTrails"
-# Client URL used to build verification/reset links (required for correct links)
-dotnet user-secrets set "EmailSettings:ClientUrl" "https://your-client-url.example"
+```csharp
+// Program.cs (WT.Client)
+builder.Services.AddSingleton<WT.Client.Services.ITokenService, WT.Client.Services.TokenService>();
 ```
 
-Notes:
-- On production, store `EmailSettings:SendGridApiKey`, `EmailSettings:FromEmail`, and `EmailSettings:ClientUrl` in your secrets manager (e.g., Azure Key Vault) and configure your deployment to provide them to the API.
-- For local development you can continue to use Mailtrap or configure SendGrid. To test with Mailtrap SMTP you can keep the existing SMTP `EmailService` implementation or use Mailtrap's SMTP relay settings.
+Singleton is appropriate for an in-memory token store in a WebAssembly application because the app runs in a single browser context.
 
-## 🔎 Test email endpoint (local)
-A diagnostic endpoint is available to quickly test email sending from the API using your configured email provider.
+### Typical usage
 
-POST https://localhost:5001/api/account/diagnostic/send-test-email
+1) Store token after login (or after refresh):
 
-Body (JSON):
-```json
+```csharp
+var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+var jwt = handler.ReadJwtToken(apiResponse.JwtToken);
+_tokenService.SetAccessToken(apiResponse.JwtToken, jwt.ValidTo);
+```
+
+2) Keep `HttpClient` Authorization header in sync (subscribe once):
+
+```csharp
+_tokenService.TokenChanged += () =>
 {
- "to": "you@example.com",
- "firstName": "Tester",
- "type": "verification",
- "token": "optional-test-token"
+ if (!string.IsNullOrEmpty(_tokenService.AccessToken))
+ {
+ _httpClient.DefaultRequestHeaders.Authorization =
+ new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenService.AccessToken);
+ }
+ else
+ {
+ _httpClient.DefaultRequestHeaders.Authorization = null;
+ }
+};
+
+// Initialize on startup
+if (!string.IsNullOrEmpty(_tokenService.AccessToken))
+{
+ _httpClient.DefaultRequestHeaders.Authorization =
+ new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenService.AccessToken);
 }
 ```
 
-- `type` can be `verification` (default) or `reset`.
-- The endpoint uses the registered `IEmailService` (SendGridEmailService if configured) to send the message.
+3) Refresh flow
+
+- When a protected call receives401, the app calls the server refresh endpoint. The server reads the HttpOnly refresh cookie and returns a new access token. The client stores the returned token in `TokenService` (in-memory) and retries the failed request.
+- This flow is implemented in `WT.Application.Extensions.BaseService.GetRefreshTokenAsync()` and `WT.Application.Services.AccountService.EnsureAuthorizationHeaderAsync()`.
+
+4) Logout / clearing token
+
+```csharp
+_tokenService.Clear();
+await _httpClient.PostAsync("api/account/identity/logout", null); // clears server-side cookie
+```
+
+### Example helper to synchronize HttpClient
+
+```csharp
+public static void SyncHttpClientAuth(HttpClient httpClient, WT.Client.Services.ITokenService tokenService)
+{
+ if (!string.IsNullOrEmpty(tokenService.AccessToken) && !tokenService.IsExpired())
+ {
+ httpClient.DefaultRequestHeaders.Authorization =
+ new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenService.AccessToken);
+ }
+ else
+ {
+ httpClient.DefaultRequestHeaders.Authorization = null;
+ }
+}
+```
+
+Call this helper on startup and subscribe it to `TokenChanged` to keep the header current.
+
+### Security notes
+- Do NOT persist access tokens or refresh tokens to `localStorage` or other persistent browser storage.
+- Ensure the server sets the refresh cookie with `HttpOnly`, `Secure`, and an appropriate `SameSite` policy.
+- Never log tokens or include them in error messages.
 
 ---
 
-## 🙏 Acknowledgments
-
-- **Material Design3** - Google's design system for modern UIs
-- **LDNOOBW** - List of Dirty, Naughty, Obscene, and Otherwise Bad Words (profanity filter)
-- **Firebase** - Cloud storage for images
-- **Azure** - Application Insights for monitoring
-- **Tailwind CSS** - Utility-first CSS framework
-- **Blazor Community** - Blazor WebAssembly and Server components
-
-## 📞 Contact
-
-- **Project Repository**: [https://github.com/oppenheimerm/wheeltrails](https://github.com/oppenheimerm/wheeltrails)
-- **Issues**: [https://github.com/oppenheimerm/wheeltrails/issues](https://github.com/oppenheimerm/wheeltrails/issues)
-
----
-
-**Built with ❤️ for the wheelchair community by the WheelyTrails team**
+(See `WT.Client/Services/TokenService.cs` and `WT.Application/Extensions/BaseService.cs` for implementation details.)

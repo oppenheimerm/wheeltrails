@@ -27,21 +27,22 @@ if (string.IsNullOrEmpty(localStorageKey))
 // Register services
 builder.Services.AddBlazoredLocalStorage();
 
-builder.Services.AddScoped(sp => new HttpClient
-{
-    BaseAddress = new Uri(apiBaseUrl ?? "https://localhost:5001")
-});
-
+// Register authentication and app services
 builder.Services.AddScoped<IAccountService, AccountService>();
 
 // Register authentication
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<ITokenService, TokenService>();
 
 // Register FAB service
 builder.Services.AddSingleton<IFabService, FabService>();
 
 // Optional: logging
 builder.Logging.SetMinimumLevel(LogLevel.Information);
+
+// Configure a single HttpClient that targets the API base URL
+var apiBase = new Uri(apiBaseUrl ?? "https://localhost:5001");
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = apiBase });
 
 await builder.Build().RunAsync();

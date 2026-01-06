@@ -52,7 +52,7 @@
             await AccountService.SetNavBarAuthDataAsync();
 
             var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
-            var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedLocalStorageDTO>(navBarLocalStorageKey);
+            var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO>(navBarLocalStorageKey);
             profileUsername = navBarAuthData?.ProfileUsername ?? "";
             userProfilePicture = navBarAuthData?.UserPhoto + "?v=" + Guid.NewGuid().ToString() ?? "";
         }
@@ -99,6 +99,17 @@
             if (!string.IsNullOrEmpty(navBarLocalStorageKey))
             {
                 await LocalStorage.RemoveItemAsync(navBarLocalStorageKey);
+            }
+
+            // Call server logout to clear HttpOnly refresh cookie (best-effort)
+            try
+            {
+                await AccountService.LogoutAsync();
+            }
+            catch (Exception ex)
+            {
+                // Log but continue with local cleanup
+                Console.WriteLine($"Server logout call failed: {ex.Message}");
             }
 
             var customAuthStateProvider = (CustomAuthenticationStateProvider)AuthStateProvider;

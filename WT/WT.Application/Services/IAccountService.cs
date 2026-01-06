@@ -50,8 +50,13 @@ namespace WT.Application.Services
 
         /// <summary>
         /// Method to get navbar authentication data for the currently authenticated user.
+        /// /// <summary>
+        /// Client-side method to log out the authenticated user.
+        /// Calls the API to log out and clears the client-side authentication state.
         /// </summary>
         /// <returns></returns>
+        Task LogoutAsync();
+
         Task SetNavBarAuthDataAsync();
     }
 
