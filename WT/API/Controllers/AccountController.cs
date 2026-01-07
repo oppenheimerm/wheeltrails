@@ -703,5 +703,50 @@ namespace API.Controllers
             public string? Token { get; set; }
             public string? Type { get; set; } // "verification" (default) or "reset"
         }
+
+        // Diagnostic: return the number of bad words loaded and embedded resource names to help debug deployments
+        [HttpGet("diagnostic/badwords")]
+        [AllowAnonymous]
+        public IActionResult GetBadWordsDiagnostic()
+        {
+            try
+            {
+                var validator = HttpContext.RequestServices.GetService<IUsernameValidator>();
+                var assembly = typeof(WT.Infrastructure.Services.UsernameValidator).Assembly;
+
+                if (validator == null)
+                {
+                    return StatusCode(500, new { success = false, message = "IUsernameValidator not registered" });
+                }
+
+                var resourceNames = assembly.GetManifestResourceNames();
+
+                // Try to obtain a bad-word count without requiring the interface to expose the property
+                int badWordCount =0;
+                try
+                {
+                // If the concrete type exposes a BadWordCount property, read it via reflection
+                var prop = validator.GetType().GetProperty("BadWordCount");
+                if (prop != null && prop.PropertyType == typeof(int))
+                {
+                badWordCount = (int)(prop.GetValue(validator) ??0);
+                }
+                }
+                catch { /* swallow reflection errors for diagnostics */ }
+
+                return Ok(new
+                {
+                    success = true,
+                    badWordCount,
+                    embeddedResourceCount = resourceNames.Length,
+                    embeddedResourceNames = resourceNames
+                });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { success = false, message = "Unable to retrieve bad-words diagnostic info" });
+            }
+        }
     }
 }
