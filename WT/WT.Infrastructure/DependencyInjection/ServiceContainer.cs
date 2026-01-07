@@ -36,7 +36,7 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddIdentityCore<ApplicationUser>(options => {
                 // By default, Identity restricts usernames to ASCII. You can override this behavior by setting
                 // AllowedUserNameCharacters to null or to a custom string of allowed characters.
-                options.User.AllowedUserNameCharacters = null;
+                options.User.AllowedUserNameCharacters = string.Empty;
                 // Lockout settings
                 //  How long the user stays locked out
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);

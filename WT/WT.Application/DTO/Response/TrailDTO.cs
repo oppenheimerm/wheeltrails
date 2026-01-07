@@ -18,7 +18,7 @@ namespace WT.Application.DTO.Response
         /// <summary>
         /// Profile of the user who created the trail.
         /// </summary>
-        public ApplicationUserDTO User { get; set; }
+        public ApplicationUserDTO? User { get; set; }
 
         /// <summary>
         /// Starting geographical coordinates of the trail.

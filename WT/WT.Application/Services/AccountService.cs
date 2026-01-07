@@ -687,7 +687,7 @@ namespace WT.Application.Services
                 }
 
                 // Deserialize successful response
-                var result = await response.Content.ReadFromJsonAsync<APIResponseViewAccountSettings>();
+                var result = await response!.Content.ReadFromJsonAsync<APIResponseViewAccountSettings>();
 
                 if (result == null)
                 {

@@ -20,6 +20,13 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="Data\BadWords.en.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- Package references -->
   <ItemGroup>
     <PackageReference Include="FirebaseAdmin" Version="3.4.0" />

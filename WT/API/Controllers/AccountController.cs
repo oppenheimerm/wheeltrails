@@ -99,7 +99,7 @@ namespace API.Controllers
         [HttpPost("identity/create")]
         public async Task<ActionResult<BaseAPIResponseDTO>> CreateAccount(RegisterDTO model)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
                 return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Registration Form" });
 
 
@@ -110,22 +110,23 @@ namespace API.Controllers
         [HttpPost("identity/login")]
         public async Task<ActionResult<APIResponseAuthentication>> LoginAccount(LoginDTO model)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
                 return BadRequest(new APIResponseAuthentication { Success = false, Message = "Password or Email Address is incorrect" });
-            
+
             // Cast to concrete type to access internal method
             var wtAccount = _accountRepository as WTAccount;
             if (wtAccount == null)
             {
-                return StatusCode(500, new APIResponseAuthentication 
-                { 
-                    Success = false, 
-                    Message = "Service configuration error" 
+                return StatusCode(500, new APIResponseAuthentication
+                {
+                    Success = false,
+                    Message = "Service configuration error"
                 });
             }
 
             var result = await wtAccount.LoginWithIpAsync(model, ipAddress());
-            if (result.Success) {
+            if (result.Success)
+            {
                 SetTokenCookie(result.RefreshToken!);
                 return Ok(result);
             }
@@ -368,7 +369,7 @@ namespace API.Controllers
                     // Log but do not fail the request
                     LogException.LogExceptions(ex);
                 }
-                
+
                 // At this point newFileUrl persisted. Attempt best-effort deletion of old file.
                 if (!string.IsNullOrEmpty(oldProfilePhotoUrl))
                 {
@@ -418,7 +419,7 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> CheckProfileUsernameAvailability(string profileUsername)
         {
-            if (string.IsNullOrWhiteSpace(profileUsername) || profileUsername.Length <3)
+            if (string.IsNullOrWhiteSpace(profileUsername) || profileUsername.Length < 3)
             {
                 return BadRequest(new { isAvailable = false, message = "Profile username must be at least3 characters" });
             }
@@ -450,8 +451,8 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> GetUserByProfileUsername(string profileUsername, CancellationToken cancellationToken)
         {
-            try 
-            { 
+            try
+            {
                 // Cancellation token: prefer the explicit token from the client, but also observe HttpContext.RequestAborted
                 var ct = cancellationToken.CanBeCanceled ? cancellationToken : HttpContext.RequestAborted;
 
@@ -472,7 +473,8 @@ namespace API.Controllers
                 }
 
                 // handle operations cancellation
-                if (user.FailuerCode.HasValue) {
+                if (user.FailuerCode.HasValue)
+                {
                     if (user.FailuerCode == 499)
                     {
                         return StatusCode(499, new BaseAPIResponseDTO { Success = false, Message = "Request canceled" });
@@ -504,42 +506,46 @@ namespace API.Controllers
             {
                 // Check if username is available (not taken)
                 var isAvailable = await _accountRepository.IsProfileUsernameAvailableAsync(profileUsername);
-                
+
                 if (!isAvailable)
                 {
-                    return Ok(new { 
-                        IsValid = false, 
+                    return Ok(new
+                    {
+                        IsValid = false,
                         IsAvailable = false,
-                        Message = "Username is already taken" 
+                        Message = "Username is already taken"
                     });
                 }
-                
+
                 // Check if username is allowed (no profanity)
                 var usernameValidator = HttpContext.RequestServices.GetRequiredService<IUsernameValidator>();
                 var isAllowed = usernameValidator.IsUsernameAllowed(profileUsername);
-                
+
                 if (!isAllowed)
                 {
                     var reason = usernameValidator.GetRejectionReason(profileUsername);
-                    return Ok(new { 
-                        IsValid = false, 
+                    return Ok(new
+                    {
+                        IsValid = false,
                         IsAvailable = true,
-                        Message = reason ?? "Username contains inappropriate content" 
+                        Message = reason ?? "Username contains inappropriate content"
                     });
                 }
-                
-                return Ok(new { 
-                    IsValid = true, 
+
+                return Ok(new
+                {
+                    IsValid = true,
                     IsAvailable = true,
-                    Message = "Username is available!" 
+                    Message = "Username is available!"
                 });
             }
             catch (Exception ex)
             {
                 LogException.LogExceptions(ex);
-                return StatusCode(500, new { 
-                    IsValid = false, 
-                    Message = "Unable to validate username" 
+                return StatusCode(500, new
+                {
+                    IsValid = false,
+                    Message = "Unable to validate username"
                 });
             }
         }
@@ -610,7 +616,7 @@ namespace API.Controllers
                     // Cache the result
                     _cache.Set(cacheKey, result, cacheEntryOptions);
                 }
-        
+
                 return Ok(result);
             }
             catch (Exception ex)
@@ -649,7 +655,8 @@ namespace API.Controllers
         /// </summary>
         /// <param name="model"></param>
         /// <returns></returns>
-        private APIResponseUploadPhoto ValidateUploadProfilePicture(UpdateProfilePhotoDTO? model) {
+        private APIResponseUploadPhoto ValidateUploadProfilePicture(UpdateProfilePhotoDTO? model)
+        {
             // ✅ Server-side validation is mandatory
 
             if (model is null || model.ProfilePhoto is null)
@@ -658,11 +665,11 @@ namespace API.Controllers
             var file = model.ProfilePhoto;
 
             // Basic size checks
-            if (file.Length <=0)
+            if (file.Length <= 0)
                 return new APIResponseUploadPhoto { Success = false, Message = "File is empty" };
 
             if (file.Length > FirebaseUploadConstants.MaxProfilePictureSize)
-                return new APIResponseUploadPhoto { Success = false, Message = $"Profile photo exceeds maximum size of {FirebaseUploadConstants.MaxProfilePictureSize / (1024 *1024)} MB" };
+                return new APIResponseUploadPhoto { Success = false, Message = $"Profile photo exceeds maximum size of {FirebaseUploadConstants.MaxProfilePictureSize / (1024 * 1024)} MB" };
 
             // Determine content type in a tolerant way (prefer DTO, fall back to IFormFile)
             var contentType = (model.ContentType ?? file.ContentType ?? string.Empty).Trim().ToLowerInvariant();
@@ -705,7 +712,8 @@ namespace API.Controllers
         }
 
         // Diagnostic: return the number of bad words loaded and embedded resource names to help debug deployments
-        [HttpGet("diagnostic/badwords")]
+        // I don't wan't to remove this endpoint yet as it may help in future troubleshooting. I will just comment it out.
+        /*[HttpGet("diagnostic/badwords")]
         [AllowAnonymous]
         public IActionResult GetBadWordsDiagnostic()
         {
@@ -722,17 +730,18 @@ namespace API.Controllers
                 var resourceNames = assembly.GetManifestResourceNames();
 
                 // Try to obtain a bad-word count without requiring the interface to expose the property
-                int badWordCount =0;
+                int badWordCount = 0;
                 try
                 {
-                // If the concrete type exposes a BadWordCount property, read it via reflection
-                var prop = validator.GetType().GetProperty("BadWordCount");
-                if (prop != null && prop.PropertyType == typeof(int))
-                {
-                badWordCount = (int)(prop.GetValue(validator) ??0);
+                    // If the concrete type exposes a BadWordCount property, read it via reflection
+                    var prop = validator.GetType().GetProperty("BadWordCount");
+                    if (prop != null && prop.PropertyType == typeof(int))
+                    {
+                        badWordCount = (int)(prop.GetValue(validator) ?? 0);
+                    }
                 }
-                }
-                catch { /* swallow reflection errors for diagnostics */ }
+                // swallow reflection errors for diagnostics
+                catch { }
 
                 return Ok(new
                 {
@@ -747,6 +756,9 @@ namespace API.Controllers
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new { success = false, message = "Unable to retrieve bad-words diagnostic info" });
             }
-        }
+        }*/
+
+
+
     }
 }
