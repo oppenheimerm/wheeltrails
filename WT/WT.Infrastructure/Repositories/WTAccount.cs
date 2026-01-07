@@ -1648,22 +1648,22 @@ namespace WT.Infrastructure.Repositories
         }
 
         // Public interface implementation (no ipAddress parameter)
-        public async Task<APIResponseAuthentication> LoginAsync(LoginDTO model)
+        /*public async Task<APIResponseAuthentication> LoginAsync(LoginDTO model)
         {
             // This should never be called directly - the controller should call the overload
             throw new NotSupportedException(
                 "LoginAsync without IP address is not supported in server-side implementation. " +
                 "Use the controller which provides IP address extraction.");
-        }
+        }*/
 
         // Public interface implementation (no ipAddress parameter)
-        public async Task<APIResponseAuthentication> RefreshTokenAsync(string token)
+        /*public async Task<APIResponseAuthentication> RefreshTokenAsync(string token)
         {
             // This should never be called directly - the controller should call the overload
             throw new NotSupportedException(
                 "RefreshTokenAsync without IP address is not supported in server-side implementation. " +
                 "Use the controller which provides IP address extraction.");
-        }
+        }*/
 
         /// <summary>
         /// Checks if the application is running in Development environment.

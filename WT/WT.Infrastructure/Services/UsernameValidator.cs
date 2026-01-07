@@ -83,19 +83,49 @@ namespace WT.Infrastructure.Services
                 Console.WriteLine($"🔍 Loading bad words from assembly: {assembly.FullName}");
                 Console.WriteLine($"📂 Assembly location: {assembly.Location}");
 
+                // FIRST: try to read a file deployed next to the assembly or in the app base directory.
+                try
+                {
+                    var baseDir = AppContext.BaseDirectory ?? Directory.GetCurrentDirectory();
+                    var candidatePaths = new[]
+                    {
+                        Path.Combine(baseDir, "Data", "BadWords.en.txt"),
+                        Path.Combine(baseDir, "WT.Infrastructure", "Data", "BadWords.en.txt"),
+                        Path.Combine(baseDir, "BadWords.en.txt"),
+                    };
+
+                    foreach (var p in candidatePaths)
+                    {
+                        var full = Path.GetFullPath(p);
+                        Console.WriteLine($" 🔎 Checking file path: {full}");
+                        if (File.Exists(full))
+                        {
+                            Console.WriteLine($" ✅ Found bad words file on disk: {full}");
+                            using var fs = File.OpenRead(full);
+                            var set = ReadWordsFromStream(fs, full);
+                            Console.WriteLine($"🔢 Bad words loaded (file): {set.Count}");
+                            return set;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($" ⚠️ File system check failed: {ex.Message}");
+                }
+
                 // ✅ List ALL embedded resources
                 var resourceNames = assembly.GetManifestResourceNames();
                 Console.WriteLine($"📋 Found {resourceNames.Length} embedded resource(s):");
 
                 if (resourceNames.Length == 0)
                 {
-                    Console.WriteLine("   ⚠️ NO EMBEDDED RESOURCES FOUND!");
+                    Console.WriteLine(" ⚠️ NO EMBEDDED RESOURCES FOUND!");
                 }
                 else
                 {
                     foreach (var name in resourceNames)
                     {
-                        Console.WriteLine($"   ✓ {name}");
+                        Console.WriteLine($" ✓ {name}");
                     }
                 }
 
@@ -159,11 +189,11 @@ namespace WT.Infrastructure.Services
                 foreach (var path in possiblePaths)
                 {
                     var normalizedPath = Path.GetFullPath(path);
-                    Console.WriteLine($"   🔎 Checking: {normalizedPath}");
+                    Console.WriteLine($" 🔎 Checking: {normalizedPath}");
 
                     if (File.Exists(normalizedPath))
                     {
-                        Console.WriteLine($"   ✅ Found file at: {normalizedPath}");
+                        Console.WriteLine($" ✅ Found file at: {normalizedPath}");
                         using var fileStream = File.OpenRead(normalizedPath);
                         var set = ReadWordsFromStream(fileStream, normalizedPath);
                         Console.WriteLine($"🔢 Bad words loaded (file): {set.Count}");
@@ -172,8 +202,8 @@ namespace WT.Infrastructure.Services
                 }
 
                 Console.WriteLine("❌ ERROR: BadWords.en.txt not found in embedded resources OR file system!");
-                Console.WriteLine($"   Assembly location: {assemblyLocation}");
-                Console.WriteLine($"   Current directory: {currentDirectory}");
+                Console.WriteLine($" Assembly location: {assemblyLocation}");
+                Console.WriteLine($" Current directory: {currentDirectory}");
                 Console.WriteLine("💡 SOLUTION: Copy BadWords.en.txt to API/Data/ folder");
 
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -181,7 +211,7 @@ namespace WT.Infrastructure.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"❌ EXCEPTION: {ex.Message}");
-                Console.WriteLine($"   Stack: {ex.StackTrace}");
+                Console.WriteLine($" Stack: {ex.StackTrace}");
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             }
         }
