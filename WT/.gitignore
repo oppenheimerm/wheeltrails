@@ -133,3 +133,6 @@ WT.Client/wwwroot/js/*.map
 # End of standard gitignore
 
 .env
+
+# Ignore local runtime config
+WT.Client/wwwroot/js/config.js

@@ -123,9 +123,18 @@
 
  <!-- NOTE: Service worker registration intentionally omitted in template for local/VS debugging. -->
 
- <!-- Google Maps JS: replace __GOOGLE_MAPS_API_KEY__ at build/deploy time with your environment key. -->
+ <!-- Google Maps JS: replaced by runtime loader that reads js/config.js -->
  <!-- Do NOT commit real keys. Use CI secrets / local scripts to inject the key. -->
- <script async src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&libraries=geometry"></script>
+ <script src="js/config.js"></script>
+ <script>
+ (function () {
+ const key = (window.__WT_CONFIG__ && window.__WT_CONFIG__.GOOGLE_MAPS_API_KEY) || '';
+ const s = document.createElement('script');
+ s.async = true;
+ s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&libraries=geometry';
+ document.head.appendChild(s);
+ })();
+ </script>
 </body>
 
 </html>

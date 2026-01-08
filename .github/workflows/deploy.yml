@@ -18,23 +18,21 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Publish Blazor WASM
-        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
+      - name: Make scripts executable
+        run: chmod +x WT/scripts/generate-config.sh || true
 
-      - name: Create runtime config with Google Maps API Key in publish output
+      - name: Generate runtime config (repo)
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
-          OUT_DIR="WT/WT.Client/bin/Release/net9.0/publish/wwwroot/js"
-          mkdir -p "$OUT_DIR"
           if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
             echo "GOOGLE_MAPS_API_KEY not set; skipping config generation"
-            exit 0
+          else
+            WT/scripts/generate-config.sh
           fi
-          cat > "$OUT_DIR/config.js" <<EOF
-          window.__WT_CONFIG__ = { GOOGLE_MAPS_API_KEY: "$GOOGLE_MAPS_API_KEY" };
-          EOF
-          echo "Wrote runtime config to $OUT_DIR/config.js"
+
+      - name: Publish Blazor WASM
+        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
 
       - name: Upload to Cloudflare Pages
         uses: cloudflare/pages-action@v1
