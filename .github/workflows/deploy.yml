@@ -18,17 +18,17 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Make scripts executable
-        run: chmod +x WT/scripts/generate-config.sh || true
-
       - name: Generate runtime config (repo)
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
+          OUT_DIR="WT.Client/wwwroot/js"
+          mkdir -p "$OUT_DIR"
           if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
             echo "GOOGLE_MAPS_API_KEY not set; skipping config generation"
           else
-            WT/scripts/generate-config.sh
+            printf 'window.__WT_CONFIG__ = { GOOGLE_MAPS_API_KEY: "%s" };\n' "$GOOGLE_MAPS_API_KEY" > "$OUT_DIR/config.js"
+            echo "Wrote $OUT_DIR/config.js"
           fi
 
       - name: Publish Blazor WASM
