@@ -1,0 +1,2 @@
+# Ignore local runtime config for Google Maps API key
+WT.Client/wwwroot/js/config.js
