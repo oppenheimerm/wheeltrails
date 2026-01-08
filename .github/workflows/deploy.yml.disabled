@@ -1,0 +1,16 @@
+# Disabled: Deploy to Cloudflare Pages
+# This workflow was temporarily disabled by developer request to avoid CI runs
+# To re-enable, rename this file back to `deploy.yml` or restore the original content.
+
+# Original deploy workflow moved to .disabled to prevent accidental runs.
+# If you need a minimal placeholder, replace with a manual no-op workflow.
+
+# Example manual no-op (uncomment to use):
+# name: Disabled Deploy (manual)
+# on:
+# workflow_dispatch:
+# jobs:
+# noop:
+# runs-on: ubuntu-latest
+# steps:
+# - run: echo "Workflow disabled — replace with deploy steps when ready"
