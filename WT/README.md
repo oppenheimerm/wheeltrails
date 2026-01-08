@@ -17,6 +17,95 @@
 
 This MVP/proof-of-concept demonstrates modern web technologies and Clean Architecture principles to create an accessible, offline-capable, and mobile-friendly application that serves the mobility-impaired community.
 
+## 🔄 Latest updates (v1.6 —2026-01-07)
+
+Summary of notable, recent changes in this branch (adds hard-delete + persistent deletion queue + telemetry):
+
+### Persistent Deletion Queue & Hard Delete ✨ NEW
+- Implemented a durable, auditable hard-delete flow that preserves community content while honoring file erasure requests.
+ - `WTAccount.HardDeleteUserAsync` (infrastructure repository) now:
+ - Reassigns trails and trail photos to a system "deleted" user to preserve content context.
+ - Deletes user comments and likes (anonymization is an alternative you can enable later).
+ - Removes refresh tokens and roles, then deletes the Identity user record.
+ - Enqueues a persistent `DeletionQueueItem` for the user's `ProfilePicture` URL (if present) so remote files are removed eventually.
+ - Persistent queue entity: `WT.Domain.Entity.DeletionQueueItem` — stored in the database and resilient across restarts.
+ - Worker: `WT.Infrastructure.Services.DeletionQueueWorker` — hosted background service that polls the DB, attempts deletions, performs inline retries, schedules exponential backoff, and marks items Succeeded or Failed.
+ - Admin API: `API.Controllers.Admin.DeletionQueueController` — endpoints to list, inspect, requeue, and delete queue items (admin role required).
+
+Why this approach?
+- Remote storage operations (Firebase/Cloud Storage) can fail or be slow. Doing deletions outside of the DB transaction avoids partial failures and provides operational visibility, retries, and auditability.
+
+Telemetry & observability
+- The deletion worker emits structured logs via `ILogger`. Telemetry integration with Application Insights is optional:
+ - By default the worker compiles and runs without requiring the Application Insights SDK (no hard dependency in `WT.Infrastructure`).
+ - To enable full Application Insights telemetry (events/metrics/traces) you must:
+1. Install the AI SDK in the API project (startup project):
+ `dotnet add API package Microsoft.ApplicationInsights.AspNetCore`
+2. Register AI in `API/Program.cs` before infrastructure services are added:
+
+```csharp
+builder.Services.AddApplicationInsightsTelemetry();
+// or use options and connection string from configuration
+```
+
+3. Provide the connection string via `APPINSIGHTS_CONNECTIONSTRING` or `ApplicationInsights:ConnectionString` in User Secrets or environment variables.
+ - When enabled, `TelemetryClient` will be available from DI and can be used by hosted workers and services.
+
+Privacy note
+- Telemetry may include `FileUrl` by default in some events. If this exposes sensitive information in your environment, redact or hash file paths before sending to Application Insights.
+
+What to run (migrations & enable telemetry)
+- Add and apply EF migration to create the `DeletionQueue` table and index (DbContext is in `WT.Infrastructure`, startup project is `API`):
+
+```powershell
+# From solution root
+dotnet ef migrations add AddDeletionQueue --project WT.Infrastructure --startup-project API --context AppDbContext
+dotnet ef database update --project WT.Infrastructure --startup-project API --context AppDbContext
+```
+
+- Application Insights (optional):
+ - Install SDK in the API project if not already present:
+ `dotnet add API package Microsoft.ApplicationInsights.AspNetCore`
+ - Configure in `API/Program.cs` **before** calling `AddInfrastructureServices`:
+
+```csharp
+builder.Services.AddApplicationInsightsTelemetry();
+```
+
+ - Provide connection string via `APPINSIGHTS_CONNECTIONSTRING` or `ApplicationInsights:ConnectionString` in configuration/user secrets.
+
+Admin endpoints (examples)
+- List items (filter by status):
+ `GET /api/admin/deletions?status=Pending`
+- Inspect one item:
+ `GET /api/admin/deletions/{id}`
+- Requeue an item (retry immediately):
+ `POST /api/admin/deletions/{id}/requeue`
+- Delete a queue item:
+ `DELETE /api/admin/deletions/{id}`
+
+Example `DeletionQueueItem` JSON:
+
+```json
+{
+ "Id": "3f5f7b2a-...",
+ "FileUrl": "https://storage.googleapis.com/mybucket/profile-pictures/{userId}/{file}.jpg",
+ "RelatedUserId": "...",
+ "AttemptCount":0,
+ "NextAttemptAt": "2026-01-07T12:34:56Z",
+ "Status": "Pending",
+ "LastError": null,
+ "CreatedAt": "2026-01-07T12:34:56Z"
+}
+```
+
+Notes & recommendations
+- Redact or avoid sending sensitive file paths to telemetry if required by privacy policy; the worker currently includes `FileUrl` in events — change to a hashed value if needed.
+- For stronger durability or cross-instance coordination consider using a dedicated queue (Azure Queue, Service Bus) with a worker that reads from the queue; current implementation is DB-backed for simplicity and audit.
+- Consider adding a small admin UI page in `WT.Admin` (Blazor Server) to manage the deletion queue.
+
+---
+
 ## 🔄 Latest updates (v1.5 — Jan01,2026)
 
 Summary of notable changes in this branch:
@@ -77,8 +166,6 @@ Summary of notable changes in this branch:
 - Simplified API key injection workflow for local development
 - Improved Material Design3 tooltip implementation with proper accessibility
 - Better responsive layout consistency across all screen sizes
-
-
 
 Summary of notable changes in the previous branch:
 

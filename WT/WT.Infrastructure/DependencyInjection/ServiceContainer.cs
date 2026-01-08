@@ -85,6 +85,12 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();
 
+            // Background task queue for best-effort operations (e.g., file deletions)
+            services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+            services.AddHostedService<WT.Infrastructure.Services.QueuedHostedService>();
+            // Register background worker for persistent deletion queue
+            services.AddHostedService<WT.Infrastructure.Services.DeletionQueueWorker>();
+            
             // In-memory cache for per-user navbar data and other short-lived caching
             services.AddMemoryCache();
 

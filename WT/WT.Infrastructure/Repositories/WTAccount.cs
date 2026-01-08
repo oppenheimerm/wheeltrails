@@ -1,5 +1,4 @@
-﻿using Azure.Core;
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +14,6 @@ using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Application.DTO.Response.Account;
 using WT.Application.Extensions;
-using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 
@@ -69,7 +67,7 @@ namespace WT.Infrastructure.Repositories
     /// <item><description>IP address tracking for all authentication operations</description></item>
     /// </list>
     /// </remarks>
-    public class WTAccount : IAccountRepository // Remove IAccountService
+    public class WTAccount : IAccountRepository
     {
         private readonly UserManager<ApplicationUser> userManager;
         private readonly RoleManager<IdentityRole<Guid>> roleManager;
@@ -78,6 +76,8 @@ namespace WT.Infrastructure.Repositories
         private readonly IConfiguration config;
         private readonly IEmailService emailService;
         private readonly IUsernameValidator _usernameValidator;
+        private readonly IBackgroundTaskQueue _taskQueue;
+        private readonly IFileStorageService _fileStorageService;
 
         public WTAccount(
             RoleManager<IdentityRole<Guid>> roleManager,
@@ -86,7 +86,9 @@ namespace WT.Infrastructure.Repositories
             AppDbContext dbContext,
             IConfiguration config,
             IEmailService emailService,
-            IUsernameValidator usernameValidator)
+            IUsernameValidator usernameValidator,
+            IBackgroundTaskQueue taskQueue,
+            IFileStorageService fileStorageService)
         {
             this.roleManager = roleManager;
             this.userManager = userManager;
@@ -95,6 +97,8 @@ namespace WT.Infrastructure.Repositories
             this.config = config;
             this.emailService = emailService;
             this._usernameValidator = usernameValidator;
+            this._taskQueue = taskQueue;
+            this._fileStorageService = fileStorageService;
         }
 
         /// <summary>
@@ -1960,6 +1964,163 @@ namespace WT.Infrastructure.Repositories
                     IsAvailable = false,
                     Message = "Unable to validate username" 
                 };
+            }
+        }
+
+        // Helper to create or find system user for trail ownership
+        private async Task<ApplicationUser> GetOrCreateSystemUserAsync()
+        {
+            var systemEmail = config["ApplicationSettings:TrailSystemManagerEmail"] ?? "trailsystemmanager@wheelytrails.com";
+            var systemProfile = config["ApplicationSettings:TrailSystemManagerProfileUsername"] ?? "trailsystemmanager";
+            var systemPassword = config["ApplicationSettings:TrailSystemManagerPassword"];
+
+            var existing = await FindUserByEmailAsync(systemEmail);
+            if (existing != null)
+                return existing;
+
+            // Create minimal system user
+            var sys = new ApplicationUser
+            {
+                Email = systemEmail,
+                UserName = systemEmail,
+                FirstName = "Deleted User",
+                ProfileUsername = systemProfile,
+                ProfileUsernameCreatedAt = DateTime.UtcNow,
+                Verified = DateTime.UtcNow,
+                AcceptTerms = true,
+                Bio = "I’m simply the manager of the trails system. It sounds like a grand title, but don’t be fooled—I mainly ensure that the backend services at Wheelytrails.com run smoothly."
+            };
+
+            // random password - will never be used
+            var pwd = systemPassword;//Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var createResult = await userManager.CreateAsync(sys, pwd);
+            if (!createResult.Succeeded)
+            {
+                var errors = string.Join("; ", createResult.Errors.Select(e => e.Description));
+                LogException.LogToConsole($"Failed to create system user: {errors}");
+                // Try to retrieve any created user by email just in case
+                var maybe = await FindUserByEmailAsync(systemEmail);
+                if (maybe != null) return maybe;
+                throw new InvalidOperationException("Unable to create system user for reassignment");
+            }
+
+            // reload from store to get Id populated
+            var created = await FindUserByEmailAsync(systemEmail);
+            return created!;
+        }
+
+        public async Task<BaseAPIResponseDTO> HardDeleteUserAsync(Guid userId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var user = await FindUserByIdAsync(userId);
+                if (user == null)
+                {
+                    return new BaseAPIResponseDTO { Success = false, Message = "User not found" };
+                }
+
+                // Get or create system account
+                var systemUser = await GetOrCreateSystemUserAsync();
+
+                // Start transaction
+                await using var tx = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+                // Reassign trails to system user using batch update if available
+                try
+                {
+                    // EF Core7+ supports ExecuteUpdateAsync - use it for efficiency
+                    await dbContext.Trails
+                        .Where(t => t.UserId == userId)
+                        .ExecuteUpdateAsync(s => s.SetProperty(t => t.UserId, systemUser.Id), cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    // Fallback: load and update
+                    LogException.LogToConsole($"ExecuteUpdateAsync failed, falling back to per-entity update: {ex.Message}");
+                    var trails = await dbContext.Trails.Where(t => t.UserId == userId).ToListAsync(cancellationToken);
+                    foreach (var t in trails)
+                        t.UserId = systemUser.Id;
+                    dbContext.Trails.UpdateRange(trails);
+                }
+
+                // Reassign trail photos to system user (preserve photos but anonymize ownership)
+                try
+                {
+                    await dbContext.TrailPhotos
+                        .Where(p => p.UserId == userId)
+                        .ExecuteUpdateAsync(b => b.SetProperty(p => p.UserId, systemUser.Id), cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    LogException.LogToConsole($"ExecuteUpdateAsync for TrailPhotos failed, falling back: {ex.Message}");
+                    var photos = await dbContext.TrailPhotos.Where(p => p.UserId == userId).ToListAsync(cancellationToken);
+                    foreach (var ph in photos)
+                        ph.UserId = systemUser.Id;
+                    if (photos.Any()) dbContext.TrailPhotos.UpdateRange(photos);
+                }
+
+                // Delete comments and likes authored by the user (we preserve trails by reassigning them)
+                var comments = await dbContext.Comments.Where(c => c.UserId == userId).ToListAsync(cancellationToken);
+                if (comments.Any()) dbContext.Comments.RemoveRange(comments);
+
+                var likes = await dbContext.TrailLikes.Where(l => l.UserId == userId).ToListAsync(cancellationToken);
+                if (likes.Any()) dbContext.TrailLikes.RemoveRange(likes);
+
+                // Remove refresh tokens for user
+                var tokens = await dbContext.RefreshTokens.Where(rt => rt.AccountId == userId).ToListAsync(cancellationToken);
+                if (tokens.Any()) dbContext.RefreshTokens.RemoveRange(tokens);
+
+                // Remove user roles via UserManager
+                var roles = await userManager.GetRolesAsync(user);
+                if (roles != null && roles.Any())
+                {
+                    await userManager.RemoveFromRolesAsync(user, roles);
+                }
+
+                // Save intermediate changes
+                await dbContext.SaveChangesAsync(cancellationToken);
+
+                // Delete user via UserManager (which cleans up AspNet tables)
+                var delResult = await userManager.DeleteAsync(user);
+                if (!delResult.Succeeded)
+                {
+                    var err = string.Join("; ", delResult.Errors.Select(e => e.Description));
+                    await tx.RollbackAsync(cancellationToken);
+                    LogException.LogToConsole($"Failed to delete user: {err}");
+                    return new BaseAPIResponseDTO { Success = false, Message = $"Failed to delete user: {err}" };
+                }
+
+                await tx.CommitAsync(cancellationToken);
+
+                // Persist a deletion queue record for the profile picture (best-effort deletion by persistent worker)
+                if (!string.IsNullOrEmpty(user.ProfilePicture))
+                {
+                    try
+                    {
+                        var deletionItem = new WT.Domain.Entity.DeletionQueueItem
+                        {
+                            FileUrl = user.ProfilePicture,
+                            RelatedUserId = user.Id,
+                            Status = WT.Domain.Entity.DeletionQueueStatus.Pending,
+                            NextAttemptAt = DateTime.UtcNow
+                        };
+                        dbContext.DeletionQueue.Add(deletionItem);
+                        await dbContext.SaveChangesAsync();
+                        LogException.LogToFile($"Enqueued profile picture deletion for {user.ProfilePicture} (queue id {deletionItem.Id})");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogException.LogExceptions(ex);
+                    }
+                }
+
+                LogException.LogToFile($"Hard-deleted user {userId} and reassigned content to {systemUser.Id} at {DateTime.UtcNow}");
+                return new BaseAPIResponseDTO { Success = true, Message = "User permanently deleted and content reassigned" };
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new BaseAPIResponseDTO { Success = false, Message = "Failed to hard delete user" };
             }
         }
     }
