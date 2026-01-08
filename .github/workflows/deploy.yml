@@ -16,10 +16,24 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Publish Blazor WASM
         run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
+
+      - name: Inject Google Maps API Key into published index.html
+        if: ${{ secrets.GOOGLE_MAPS_API_KEY != '' }}
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: |
+          FILE="WT/WT.Client/bin/Release/net9.0/publish/wwwroot/index.html"
+          if [ -f "$FILE" ]; then
+            perl -0777 -pe "s/__GOOGLE_MAPS_API_KEY__/$ENV{GOOGLE_MAPS_API_KEY}/g" -i "$FILE"
+            echo "Replaced Google Maps API key in $FILE"
+          else
+            echo "File not found: $FILE"
+            exit 1
+          fi
 
       - name: Upload to Cloudflare Pages
         uses: cloudflare/pages-action@v1
