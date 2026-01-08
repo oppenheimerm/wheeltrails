@@ -2,8 +2,8 @@ name: Deploy to Cloudflare Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -21,19 +21,20 @@ jobs:
       - name: Publish Blazor WASM
         run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
 
-      - name: Inject Google Maps API Key into published index.html
-        if: ${{ secrets.GOOGLE_MAPS_API_KEY != '' }}
+      - name: Create runtime config with Google Maps API Key in publish output
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
         run: |
-          FILE="WT/WT.Client/bin/Release/net9.0/publish/wwwroot/index.html"
-          if [ -f "$FILE" ]; then
-            perl -0777 -pe "s/__GOOGLE_MAPS_API_KEY__/$ENV{GOOGLE_MAPS_API_KEY}/g" -i "$FILE"
-            echo "Replaced Google Maps API key in $FILE"
-          else
-            echo "File not found: $FILE"
-            exit 1
+          OUT_DIR="WT/WT.Client/bin/Release/net9.0/publish/wwwroot/js"
+          mkdir -p "$OUT_DIR"
+          if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
+            echo "GOOGLE_MAPS_API_KEY not set; skipping config generation"
+            exit 0
           fi
+          cat > "$OUT_DIR/config.js" <<EOF
+          window.__WT_CONFIG__ = { GOOGLE_MAPS_API_KEY: "$GOOGLE_MAPS_API_KEY" };
+          EOF
+          echo "Wrote runtime config to $OUT_DIR/config.js"
 
       - name: Upload to Cloudflare Pages
         uses: cloudflare/pages-action@v1
