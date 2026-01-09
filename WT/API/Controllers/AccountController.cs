@@ -13,6 +13,7 @@ using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
 using static WT.Application.Extensions.Constants;
+using Microsoft.Extensions.Hosting;
 
 namespace API.Controllers
 {
@@ -27,6 +28,7 @@ namespace API.Controllers
         private readonly IConfiguration _configuration;
         private readonly IMemoryCache _cache;
         private readonly IEmailService _emailService;
+        private readonly IWebHostEnvironment _env;
 
         public AccountController(
             IAccountRepository accountRepository, // ✅ Inject IAccountRepository
@@ -35,7 +37,8 @@ namespace API.Controllers
             IConfiguration configuration,
             UserManager<ApplicationUser> userManager,
             IMemoryCache cache,
-            IEmailService emailService)
+            IEmailService emailService,
+            IWebHostEnvironment env)
         {
             _accountRepository = accountRepository;
             _dbContext = dbContext;
@@ -44,6 +47,7 @@ namespace API.Controllers
             _configuration = configuration;
             _cache = cache;
             _emailService = emailService;
+            _env = env;
         }
 
 
@@ -58,7 +62,7 @@ namespace API.Controllers
 
         // Diagnostic endpoint to send a test email via configured email provider (SendGrid)
         // Example request body: { "to": "you@example.com", "type": "verification" }
-        [HttpPost("diagnostic/send-test-email")]
+        /*[HttpPost("diagnostic/send-test-email")]
         [AllowAnonymous]
         public async Task<IActionResult> SendTestEmail([FromBody] TestEmailRequest? model)
         {
@@ -93,7 +97,7 @@ namespace API.Controllers
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new { Success = false, Message = "Exception while sending test email" });
             }
-        }
+        }*/
 
 
         // While we are still testing, we will comment out the create account endpoint, so that
@@ -147,17 +151,9 @@ namespace API.Controllers
             // access because the refresh cookie is used to authenticate the session.
             var cookieToken = Request.Cookies["refreshToken"];
 
-            // Diagnostic log to help determine if cookie is being sent by the client
-            try
-            {
-                LogException.LogToConsole($"RefreshToken endpoint called. refreshToken cookie present: {!string.IsNullOrEmpty(cookieToken)}");
-            }
-            catch { }
-
             if (string.IsNullOrEmpty(cookieToken))
             {
                 // No refresh cookie present -> not an error, just no-op. Return204 No Content
-                // to avoid noisy client-side console errors when the user is not logged in.
                 return NoContent();
             }
 
@@ -181,13 +177,11 @@ namespace API.Controllers
         {
             try
             {
-                // If user is authenticated, revoke refresh tokens server-side (best-effort)
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!string.IsNullOrEmpty(userId) && Guid.TryParse(userId, out var guid))
-                {
-                    // Implement token revocation in repository if available
-                    try { await _accountRepository.SoftDeleteUserAsync(guid); } catch { /* noop: not implemented here */ }
-                }
+                // NOTE: Previously this endpoint called _accountRepository.SoftDeleteUserAsync(guid)
+                // which performed a soft-delete/anonymization of the user record. That behaviour
+                // is undesired on logout (it permanently alters user data) so it has been removed.
+                // If you want to revoke refresh tokens on logout, implement a dedicated revoke method
+                // in IAccountRepository and call it here instead.
             }
             catch { /* ignore */ }
 
@@ -703,14 +697,26 @@ namespace API.Controllers
 
         private void SetTokenCookie(string token)
         {
+            // Use request scheme to decide cookie attributes: if request arrived via HTTPS, set Secure + SameSite=None
+            // so cross-origin credentialed fetches (client on different origin) can accept the cookie. If HTTP, fall back
+            // to non-secure cookie with SameSite=Lax to avoid browser rejecting Secure cookies over HTTP.
+            var isHttps = Request.IsHttps;
+
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,                // required for SameSite=None
-                SameSite = SameSiteMode.None, // allow cross-site POST
+                Secure = isHttps, // require secure only when the request was HTTPS
+                SameSite = isHttps ? SameSiteMode.None : SameSiteMode.Lax,
                 Expires = DateTime.UtcNow.AddDays(7),
                 Path = "/"
             };
+
+            try
+            {
+                LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}");
+            }
+            catch { }
+
             Response.Cookies.Append("refreshToken", token, cookieOptions);
         }
 

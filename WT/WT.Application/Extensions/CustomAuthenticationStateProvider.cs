@@ -136,6 +136,33 @@ namespace WT.Application.Extensions
                                     return await Task.FromResult(new AuthenticationState(anonymous));
                                 }
 
+                                // Persist small non-sensitive session DTO so UI can render immediately after reload
+                                try
+                                {
+                                    if (localStorageService is not null)
+                                    {
+                                        await localStorageService.SetItemAsync("HasSession", true);
+                                        if (!string.IsNullOrEmpty(LocalStorageKey))
+                                        {
+                                            var session = new AuthenticatedSessionDTO
+                                            {
+                                                TimeStamp = DateTime.UtcNow,
+                                                Id = userClaims.Id,
+                                                FirstName = userClaims.FirstName,
+                                                ProfileUsername = apiResult.User?.ProfileUsername,
+                                                UserPhoto = apiResult.User?.ProfilePicture,
+                                                Email = userClaims.Email,
+                                                GpsAccuracy = apiResult.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
+                                                ShowRecordingWarning = apiResult.User?.ShowRecordingWarning ?? true,
+                                                Bio = apiResult.User?.Bio
+                                            };
+
+                                            await localStorageService.SetItemAsync(LocalStorageKey, session);
+                                        }
+                                    }
+                                }
+                                catch { /* ignore local storage failures */ }
+
                                 var principal = SetClaimsPrincipal(userClaims);
                                 return await Task.FromResult(new AuthenticationState(principal));
                             }
@@ -181,6 +208,33 @@ namespace WT.Application.Extensions
                 {
                     return await Task.FromResult(new AuthenticationState(anonymous));
                 }
+
+                // Persist small non-sensitive session DTO so UI can render immediately after reload
+                try
+                {
+                    if (localStorageService is not null)
+                    {
+                        await localStorageService.SetItemAsync("HasSession", true);
+                        if (!string.IsNullOrEmpty(LocalStorageKey))
+                        {
+                            var session = new AuthenticatedSessionDTO
+                            {
+                                TimeStamp = DateTime.UtcNow,
+                                Id = userClaims2.Id,
+                                FirstName = userClaims2.FirstName,
+                                ProfileUsername = apiResult2.User?.ProfileUsername,
+                                UserPhoto = apiResult2.User?.ProfilePicture,
+                                Email = userClaims2.Email,
+                                GpsAccuracy = apiResult2.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
+                                ShowRecordingWarning = apiResult2.User?.ShowRecordingWarning ?? true,
+                                Bio = apiResult2.User?.Bio
+                            };
+
+                            await localStorageService.SetItemAsync(LocalStorageKey, session);
+                        }
+                    }
+                }
+                catch { /* ignore local storage failures */ }
 
                 var principal2 = SetClaimsPrincipal(userClaims2);
                 return await Task.FromResult(new AuthenticationState(principal2));
