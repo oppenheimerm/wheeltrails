@@ -9,6 +9,7 @@ using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
 using WT.Application.Services;
+using Microsoft.JSInterop;
 
 namespace WT.Application.Extensions
 {
@@ -24,6 +25,7 @@ namespace WT.Application.Extensions
         readonly string? LocalStorageKey;
         readonly HttpClient? _httpClient;
         readonly ITokenService? _token_service;
+        readonly IJSRuntime? _jsRuntime;
 
         /// <summary>
         /// Represents an anonymous (unauthenticated) user with no claims.
@@ -36,13 +38,14 @@ namespace WT.Application.Extensions
         /// </summary>
         AuthenticatedSessionDTO? AuthenticatedSessionDTO { get; set; }
 
-        public CustomAuthenticationStateProvider(ILocalStorageService _localStorageService, IConfiguration _configuration, HttpClient httpClient, ITokenService tokenService)
+        public CustomAuthenticationStateProvider(ILocalStorageService _localStorageService, IConfiguration _configuration, HttpClient httpClient, ITokenService tokenService, IJSRuntime? jsRuntime = null)
         {
             localStorageService = _localStorageService;
             configuration = _configuration;
             LocalStorageKey = configuration["ApplicationSettings:LocalStorageKey"]!;
             _httpClient = httpClient;
             _token_service = tokenService;
+            _jsRuntime = jsRuntime;
         }
 
         /// <summary>
@@ -56,7 +59,7 @@ namespace WT.Application.Extensions
         {
             try
             {
-                // If we have an in-memory access token, build claims from it
+                //1) If we have an in-memory access token, build claims from it
                 if (_token_service is not null && !string.IsNullOrEmpty(_token_service.AccessToken))
                 {
                     var claims = DecryptToken(_token_service.AccessToken!);
@@ -69,8 +72,13 @@ namespace WT.Application.Extensions
                     return await Task.FromResult(new AuthenticationState(claimsPrincipal));
                 }
 
-                // No in-memory token -> decide whether to try refresh using HttpOnly cookie
-                // Avoid calling refresh on cold start for users who never logged in to reduce noisy4xx in console.
+                // NOTE: By design we do NOT rehydrate JWT from localStorage. Access tokens are kept
+                // only in-memory (TokenService). To restore auth after a full page reload we rely on
+                // the server-side HttpOnly refresh cookie and the refresh endpoint below. This avoids
+                // persisting JWTs to localStorage and reduces XSS attack surface.
+
+                // Decide whether to try refresh using HttpOnly cookie. We use a lightweight flag in
+                // localStorage (HasSession) to avoid noisy refresh attempts for users who never logged in.
                 try
                 {
                     if (localStorageService is not null)
@@ -89,13 +97,58 @@ namespace WT.Application.Extensions
                     LogException.LogExceptions(ex);
                 }
 
-                // No in-memory token -> try to refresh using HttpOnly cookie via refresh endpoint
+                //2) No in-memory token -> try to refresh using HttpOnly cookie via refresh endpoint
                 if (_httpClient is null)
                 {
                     LogException.LogToConsole("Authentication state provider: HttpClient not available");
                     return await Task.FromResult(new AuthenticationState(anonymous));
                 }
 
+                // Prefer JS fetch with credentials: 'include' when running in browser so cookies are sent.
+                if (_jsRuntime != null)
+                {
+                    try
+                    {
+                        var refreshUrl = _httpClient.BaseAddress != null
+                            ? new Uri(_httpClient.BaseAddress, "api/account/identity/refresh-token").ToString()
+                            : "api/account/identity/refresh-token";
+
+                        var json = await _jsRuntime.InvokeAsync<string>("wtApi.fetchRefreshToken", refreshUrl);
+                        if (!string.IsNullOrEmpty(json))
+                        {
+                            var apiResult = JsonSerializer.Deserialize<APIResponseAuthentication>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                            if (apiResult != null && apiResult.Success && !string.IsNullOrEmpty(apiResult.JwtToken))
+                            {
+                                try
+                                {
+                                    var handler = new JwtSecurityTokenHandler();
+                                    var jwt = handler.ReadJwtToken(apiResult.JwtToken);
+                                    _token_service?.SetAccessToken(apiResult.JwtToken, jwt.ValidTo);
+                                }
+                                catch (Exception ex)
+                                {
+                                    LogException.LogExceptions(ex);
+                                }
+
+                                var userClaims = DecryptToken(apiResult.JwtToken!);
+                                if (userClaims is null || string.IsNullOrEmpty(userClaims.Email) || userClaims.Id == Guid.Empty)
+                                {
+                                    return await Task.FromResult(new AuthenticationState(anonymous));
+                                }
+
+                                var principal = SetClaimsPrincipal(userClaims);
+                                return await Task.FromResult(new AuthenticationState(principal));
+                            }
+                        }
+                    }
+                    catch (JSException jsEx)
+                    {
+                        // Fall back to HttpClient approach if JS fetch fails
+                        Console.WriteLine($"⚠️ JS fetch refresh failed: {jsEx.Message}");
+                    }
+                }
+
+                // Fallback to HttpClient POST (may not include cookies in some environments)
                 var response = await _httpClient.PostAsync("api/account/identity/refresh-token", null);
 
                 if (!response.IsSuccessStatusCode)
@@ -105,8 +158,8 @@ namespace WT.Application.Extensions
                 }
 
                 var contentString = await response.Content.ReadAsStringAsync();
-                var apiResult = JsonSerializer.Deserialize<APIResponseAuthentication>(contentString);
-                if (apiResult is null || !apiResult.Success || string.IsNullOrEmpty(apiResult.JwtToken))
+                var apiResult2 = JsonSerializer.Deserialize<APIResponseAuthentication>(contentString);
+                if (apiResult2 is null || !apiResult2.Success || string.IsNullOrEmpty(apiResult2.JwtToken))
                 {
                     return await Task.FromResult(new AuthenticationState(anonymous));
                 }
@@ -114,23 +167,23 @@ namespace WT.Application.Extensions
                 // Store access token in-memory and build claims
                 try
                 {
-                    var handler = new JwtSecurityTokenHandler();
-                    var jwt = handler.ReadJwtToken(apiResult.JwtToken);
-                    _token_service?.SetAccessToken(apiResult.JwtToken, jwt.ValidTo);
+                    var handler2 = new JwtSecurityTokenHandler();
+                    var jwt2 = handler2.ReadJwtToken(apiResult2.JwtToken);
+                    _token_service?.SetAccessToken(apiResult2.JwtToken, jwt2.ValidTo);
                 }
                 catch (Exception ex)
                 {
                     LogException.LogExceptions(ex);
                 }
 
-                var userClaims = DecryptToken(apiResult.JwtToken!);
-                if (userClaims is null || string.IsNullOrEmpty(userClaims.Email) || userClaims.Id == Guid.Empty)
+                var userClaims2 = DecryptToken(apiResult2.JwtToken!);
+                if (userClaims2 is null || string.IsNullOrEmpty(userClaims2.Email) || userClaims2.Id == Guid.Empty)
                 {
                     return await Task.FromResult(new AuthenticationState(anonymous));
                 }
 
-                var principal = SetClaimsPrincipal(userClaims);
-                return await Task.FromResult(new AuthenticationState(principal));
+                var principal2 = SetClaimsPrincipal(userClaims2);
+                return await Task.FromResult(new AuthenticationState(principal2));
             }
             catch (InvalidOperationException)
             {
@@ -334,6 +387,25 @@ namespace WT.Application.Extensions
                         if (localStorageService is not null)
                         {
                             await localStorageService.SetItemAsync("HasSession", true);
+
+                            // Persist non-sensitive UI/session DTO only (do NOT store JWT or refresh token)
+                            if (!string.IsNullOrEmpty(LocalStorageKey))
+                            {
+                                var session = new AuthenticatedSessionDTO
+                                {
+                                    TimeStamp = DateTime.UtcNow,
+                                    Id = getUserClaims.Id,
+                                    FirstName = getUserClaims.FirstName,
+                                    ProfileUsername = apiResponseAuthentication.User?.ProfileUsername,
+                                    UserPhoto = apiResponseAuthentication.User?.ProfilePicture,
+                                    Email = getUserClaims.Email,
+                                    GpsAccuracy = apiResponseAuthentication.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
+                                    ShowRecordingWarning = apiResponseAuthentication.User?.ShowRecordingWarning ?? true,
+                                    Bio = apiResponseAuthentication.User?.Bio
+                                };
+
+                                await localStorageService.SetItemAsync(LocalStorageKey, session);
+                            }
                         }
                     }
                     catch { /* ignore local storage write failures */ }
@@ -349,12 +421,14 @@ namespace WT.Application.Extensions
                 _token_service.Clear();
                 claimsPrincipal = anonymous;
 
-                // Clear session flag from local storage
+                // Clear session flag and stored auth from local storage
                 try
                 {
                     if (localStorageService is not null)
                     {
                         await localStorageService.RemoveItemAsync("HasSession");
+                        if (!string.IsNullOrEmpty(LocalStorageKey))
+                            await localStorageService.RemoveItemAsync(LocalStorageKey);
                     }
                 }
                 catch { /* ignore */ }

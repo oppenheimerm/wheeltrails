@@ -1,5 +1,6 @@
 ﻿@using System.Net.Http.Headers
 @using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Http
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -9,6 +10,7 @@
 @inject IConfiguration Configuration
 
 @page "/trails/{TrailId:guid}/photos"
+@attribute [Authorize(Roles = Constants.Role.USER)]
 <PageTitle>WheelyTrails - Add a Photo</PageTitle>
 
 @code {

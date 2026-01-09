@@ -74,7 +74,6 @@
                 return;
             }
 
-
             // TODO: Fetch user data from API
             // For now, create from claims
             ModelDTO = new ApplicationUserDTO
@@ -85,7 +84,32 @@
                 // TODO: Fetch from API: ProfileUsername, ProfileUsernameCreatedAt, Bio, CountryCode
             };
 
-            // Fetch this authenticated user's account settings
+            // QUICK UI: try to load non-sensitive navbar/session data from local storage first so UI shows immediately
+            try
+            {
+                var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+                if (!string.IsNullOrEmpty(navBarLocalStorageKey))
+                {
+                    var cached = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO?>(navBarLocalStorageKey);
+                    if (cached != null)
+                    {
+                        AuthenticateUserQuery ??= new APIResponseUserSettingsDTO();
+                        AuthenticateUserQuery.FirstName = cached.FirstName ?? AuthenticateUserQuery.FirstName;
+                        AuthenticateUserQuery.Email = cached.Email ?? AuthenticateUserQuery.Email;
+                        AuthenticateUserQuery.ProfileUsername = cached.ProfileUsername ?? AuthenticateUserQuery.ProfileUsername;
+                        AuthenticateUserQuery.ProfilePicture = cached.UserPhoto ?? AuthenticateUserQuery.ProfilePicture;
+                        AuthenticateUserQuery.Bio = cached.Bio ?? AuthenticateUserQuery.Bio;
+                        // AuthenticatedSessionDTO does not contain CountryCode - skip
+                        AuthenticateUserQuery.GpsAccuracy = cached.GpsAccuracy;
+                        AuthenticateUserQuery.ShowRecordingWarning = cached.ShowRecordingWarning;
+
+                        profilePhotoUrl = cached.UserPhoto != null ? cached.UserPhoto + $"?v={Guid.NewGuid()}" : profilePhotoUrl;
+                    }
+                }
+            }
+            catch { /* ignore local storage errors - UI will refresh after API call */ }
+
+            // Fetch this authenticated user's account settings (refresh from server)
             var userQuery = await AccountService.GetAccountSettingsAsync();
             // Success?
             if (userQuery.Success)

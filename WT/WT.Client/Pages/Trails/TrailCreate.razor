@@ -1,5 +1,6 @@
 ﻿@page "/trails/new"
 
+@using Microsoft.AspNetCore.Authorization
 @using WT.Application.DTO.Request.Trail
 @using WT.Domain.Geo
 @using WT.Domain.Enums
@@ -11,7 +12,7 @@
 @inject IAccountService AccountService
 
 @implements IDisposable
-
+@attribute [Authorize(Roles = Constants.Role.USER)]
 <PageTitle>WheelyTrails - Add a new trail</PageTitle>
 
 @code {

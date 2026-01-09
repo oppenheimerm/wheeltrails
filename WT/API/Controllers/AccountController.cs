@@ -143,6 +143,14 @@ namespace API.Controllers
             // Read refresh token from HttpOnly cookie. This endpoint allows anonymous
             // access because the refresh cookie is used to authenticate the session.
             var cookieToken = Request.Cookies["refreshToken"];
+
+            // Diagnostic log to help determine if cookie is being sent by the client
+            try
+            {
+                LogException.LogToConsole($"RefreshToken endpoint called. refreshToken cookie present: {!string.IsNullOrEmpty(cookieToken)}");
+            }
+            catch { }
+
             if (string.IsNullOrEmpty(cookieToken))
             {
                 // No refresh cookie present -> not an error, just no-op. Return204 No Content

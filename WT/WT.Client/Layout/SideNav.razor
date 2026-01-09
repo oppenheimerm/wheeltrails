@@ -49,12 +49,29 @@
             userName = user.Identity?.Name ?? "User";
             userTitle = user.FindFirst("role")?.Value ?? "Member";
 
+            // Try read navbar session from local storage first for immediate UI
+            try
+            {
+                var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
+                if (!string.IsNullOrEmpty(navBarLocalStorageKey))
+                {
+                    var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO>(navBarLocalStorageKey);
+                    if (navBarAuthData != null)
+                    {
+                        profileUsername = navBarAuthData.ProfileUsername ?? "";
+                        userProfilePicture = navBarAuthData.UserPhoto != null ? navBarAuthData.UserPhoto + "?v=" + Guid.NewGuid().ToString() : null;
+                    }
+                }
+            }
+            catch { /* ignore */ }
+
+            // Then attempt server refresh of navbar/auth data (best-effort)
             await AccountService.SetNavBarAuthDataAsync();
 
-            var navBarLocalStorageKey = Configuration["ApplicationSettings:NavBarSettings"];
-            var navBarAuthData = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO>(navBarLocalStorageKey);
-            profileUsername = navBarAuthData?.ProfileUsername ?? "";
-            userProfilePicture = navBarAuthData?.UserPhoto + "?v=" + Guid.NewGuid().ToString() ?? "";
+            var navBarLocalStorageKey2 = Configuration["ApplicationSettings:NavBarSettings"];
+            var fresh = await LocalStorage.GetItemAsync<AuthenticatedSessionDTO>(navBarLocalStorageKey2);
+            profileUsername = fresh?.ProfileUsername ?? profileUsername;
+            userProfilePicture = fresh?.UserPhoto != null ? fresh.UserPhoto + "?v=" + Guid.NewGuid().ToString() : userProfilePicture;
         }
         else
         {
