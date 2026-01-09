@@ -33,7 +33,8 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();
 
             //  Register signin manager / Identity manager with custom WTRole
-            services.AddIdentityCore<ApplicationUser>(options => {
+            services.AddIdentityCore<ApplicationUser>(options =>
+            {
                 // By default, Identity restricts usernames to ASCII. You can override this behavior by setting
                 // AllowedUserNameCharacters to null or to a custom string of allowed characters.
                 options.User.AllowedUserNameCharacters = string.Empty;
@@ -49,7 +50,7 @@ namespace WT.Infrastructure.DependencyInjection
               .AddEntityFrameworkStores<AppDbContext>()
               .AddSignInManager()
               .AddDefaultTokenProviders();
-            
+
             //  Since we're using JWT, we need to register authentication
             services.AddAuthentication(options =>
             {
@@ -68,17 +69,17 @@ namespace WT.Infrastructure.DependencyInjection
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Secret"]!))
                 };
             });
-            
+
             //  Add authentication and authorization
             services.AddAuthentication();
             services.AddAuthorization();
 
             // ✅ Server-side only - used by API controllers
             services.AddScoped<IAccountRepository, WTAccount>();
-            
+
             // ❌ REMOVE THIS LINE (client-side service, doesn't belong here):
             // services.AddScoped<IAccountService, WTAccount>();
-            
+
             // Replace generic EmailService with SendGrid implementation for production readiness.
             services.AddScoped<IEmailService, SendGridEmailService>();
             services.AddScoped<IFileStorageService, FirebaseStorageService>();
@@ -90,11 +91,15 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddHostedService<WT.Infrastructure.Services.QueuedHostedService>();
             // Register background worker for persistent deletion queue
             services.AddHostedService<WT.Infrastructure.Services.DeletionQueueWorker>();
-            
+
             // In-memory cache for per-user navbar data and other short-lived caching
             services.AddMemoryCache();
 
-            var allowedOrigins = new List<string> { "https://www.wheelytrails.com" };
+            var allowedOrigins = new List<string>
+            {
+                "https://wheelytrails.com",
+                "https://www.wheelytrails.com"
+            };
 
 
             // Keep the existing production origin(s) and add localhost entries only when env == Development.

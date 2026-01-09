@@ -343,6 +343,48 @@ namespace WT.Application.Services
                                 if (apiResult != null && apiResult.Success && !string.IsNullOrEmpty(apiResult.JwtToken))
                                 {
                                     _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiResult.JwtToken);
+
+                                    // Mirror the HttpClient branch: set in-memory token and persist small non-sensitive session DTO
+                                    if (_tokenService != null)
+                                    {
+                                        try
+                                        {
+                                            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                                            var jwt = handler.ReadJwtToken(apiResult.JwtToken);
+                                            _tokenService.SetAccessToken(apiResult.JwtToken, jwt.ValidTo);
+                                            Console.WriteLine("🔐 TokenService access token set (JS login path)");
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Console.WriteLine($"⚠️ Failed to set TokenService access token (JS login): {ex.Message}");
+                                        }
+                                    }
+
+                                    // Persist small non-sensitive navbar/session info to local storage so UI can render immediately
+                                    try
+                                    {
+                                        var navKey = _configuration["ApplicationSettings:NavBarSettings"] ?? "NavBarSettings";
+                                        var session = new AuthenticatedSessionDTO
+                                        {
+                                            Id = apiResult.User?.Id,
+                                            FirstName = apiResult.User?.FirstName,
+                                            ProfileUsername = apiResult.User?.ProfileUsername,
+                                            UserPhoto = apiResult.User?.ProfilePicture,
+                                            Email = apiResult.User?.Email,
+                                            GpsAccuracy = apiResult.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
+                                            ShowRecordingWarning = apiResult.User?.ShowRecordingWarning ?? true,
+                                            TimeStamp = DateTime.UtcNow,
+                                            JWtToken = null // do NOT store JWT in local storage
+                                        };
+
+                                        var json = JsonSerializer.Serialize(session);
+                                        await _localStorage.SetItemAsStringAsync(navKey, json);
+                                        Console.WriteLine("💾 NavBar session persisted to local storage (JS login path)");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"⚠️ Failed to persist navbar session to local storage (JS login): {ex.Message}");
+                                    }
                                 }
 
                                 return apiResult ?? new APIResponseAuthentication { Success = false, Message = "Login failed" };
