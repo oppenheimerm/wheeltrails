@@ -21,6 +21,17 @@ This MVP/proof-of-concept demonstrates modern web technologies and Clean Archite
 
 Summary of notable, recent changes in this branch (adds hard-delete + persistent deletion queue + telemetry):
 
+### Screen Wake Lock API ✨ NEW (v1.6.1)
+- **Continuous GPS Recording Support**
+  - Implemented Screen Wake Lock API to prevent screen from sleeping during trail recording
+  - Ensures uninterrupted location data collection for accurate trail mapping
+  - JavaScript module (`wakeLock.js`) with browser support detection and auto re-acquisition
+  - Integrated with `TrailCreate.razor` - automatic lifecycle management
+  - Visual feedback in recording banner showing wake lock status
+  - Comprehensive documentation: [Implementation Guide](WT.Client/WAKE_LOCK_IMPLEMENTATION.md) & [Quick Start](WT.Client/WAKE_LOCK_QUICKSTART.md)
+  - Testing utilities included (`wakeLock.test.js`) for browser console testing
+  - Browser support: Chrome/Edge 84+, Safari 16.4+, Opera 70+ (graceful fallback for Firefox)
+
 ### Persistent Deletion Queue & Hard Delete ✨ NEW
 - Implemented a durable, auditable hard-delete flow that preserves community content while honoring file erasure requests.
  - `WTAccount.HardDeleteUserAsync` (infrastructure repository) now:
@@ -300,6 +311,30 @@ The design documentation includes:
 - Turn-by-turn directions to trailheads
 - Visual trail route overlays
 - Parking location markers
+
+### 🔋 Screen Wake Lock API ✨ NEW
+- **Keep Screen Awake During GPS Recording**
+  - Prevents device screen from sleeping during trail recording
+  - Ensures continuous location data collection without interruption
+  - Automatic wake lock management tied to recording lifecycle
+- **Browser Support**
+  - ✅ Chrome/Edge 84+ (Desktop & Mobile)
+  - ✅ Safari 16.4+ (iOS/iPadOS 16.4+)
+  - ✅ Opera 70+, Samsung Internet 14+
+  - ❌ Firefox - Graceful fallback (recording still works)
+- **Smart Features**
+- Automatic acquisition when recording starts
+  - Auto re-acquisition when returning to tab after switching
+  - Automatic release when recording stops or component disposed
+  - Visual status indicators in recording banner
+  - HTTPS/localhost only (security requirement)
+- **User Experience**
+  - Clear status messages: "Screen wake lock active" or "Screen may sleep"
+  - Battery impact communication
+  - No configuration required - works automatically
+- **Documentation**
+  - 📘 [Full Implementation Guide](WT.Client/WAKE_LOCK_IMPLEMENTATION.md) - Technical details, API reference, testing
+  - 🚀 [Quick Start Guide](WT.Client/WAKE_LOCK_QUICKSTART.md) - Setup and usage examples
 
 ### 📸 Photo Upload & Storage ✨
 - **Firebase Cloud Storage Integration**
@@ -715,13 +750,28 @@ To adjust rate limits, modify `Program.cs`:
 - [ ] Verify like count decrements
 - [ ] Attempt to like the same trail twice (should fail with error)
 
+#### Screen Wake Lock API ✨ NEW
+- [ ] Navigate to `/trails/new` (TrailCreate page)
+- [ ] Check browser console for "Wake Lock API is supported" message
+- [ ] Click "Start recording" button
+- [ ] Verify confirmation modal appears with GPS warning
+- [ ] Click "Continue" to start recording
+- [ ] Verify recording banner shows "Screen wake lock active"
+- [ ] Leave screen idle - verify screen does NOT dim/sleep
+- [ ] Switch to another tab - wake lock should release
+- [ ] Return to trail recording tab - wake lock should re-acquire
+- [ ] Click "Stop recording"
+- [ ] Verify wake lock released and screen can sleep normally
+- [ ] Test on mobile device (Chrome/Safari) for real-world scenario
+- [ ] Test on Firefox - verify graceful fallback (no wake lock but recording works)
+- [ ] For detailed testing: Open browser console and run `wakeLockTests.runAll()`
+
 #### Health Checks ✨ NEW
 - [ ] Visit `/health` endpoint
 - [ ] Verify "Healthy" status returned
 - [ ] Visit `/health/ready` endpoint
 - [ ] Verify readiness probe responds
 
-- [ ] 
 ## 🐛 Known Issues
 
 ### Current Limitations
