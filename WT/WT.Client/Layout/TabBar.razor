@@ -1,4 +1,56 @@
-﻿@inject NavigationManager Navigation
+﻿@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+@implements IDisposable
+
+@code{
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        isAuthenticated = state.User.Identity?.IsAuthenticated ?? false;
+        // Subscribe to authentication state changes
+        AuthStateProvider.AuthenticationStateChanged += OnAuthStateChanged;
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        try
+        {
+            var state = await task;
+            isAuthenticated = state.User.Identity?.IsAuthenticated ?? false;
+            await InvokeAsync(StateHasChanged);
+        }
+        catch
+        {
+            // ignore
+        }
+    }
+
+    private async Task NavigateProtectedAsync(string url)
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var isAuth = state.User.Identity?.IsAuthenticated ?? false;
+        if (isAuth)
+        {
+            Navigation.NavigateTo(url);
+        }
+        else
+        {
+            var returnUrl = Uri.EscapeDataString(url);
+            Navigation.NavigateTo($"/account/identity/login?returnUrl={returnUrl}");
+        }
+    }
+
+    private Task NavigateToFavourites() => NavigateProtectedAsync("/trails/favourites");
+    private Task NavigateToCreateTrail() => NavigateProtectedAsync("/trails/new");
+
+    public void Dispose()
+    {
+        try { AuthStateProvider.AuthenticationStateChanged -= OnAuthStateChanged; } catch { }
+    }
+}
 
 <!-- 📱 Native-Style Bottom Navigation Tab Bar -->
 <nav class="flex justify-around items-center h-16 px-4">
@@ -16,7 +68,8 @@
     </NavLink>
 
     <!-- Add Trail Tab (Highlighted, perfectly round) -->
-    <NavLink href="/trails/create" class="tab-item-primary" aria-label="Create trail">
+    <!-- Show lock badge when user is not authenticated; click prompts login if needed -->
+    <button type="button" class="tab-item-primary" @onclick="NavigateToCreateTrail" aria-label="Create trail">
         <div class="relative -mt-8">
             <div class="bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)]
                         rounded-full w-14 h-14 flex items-center justify-center shadow-elevation-4
@@ -24,15 +77,32 @@
                         hover:scale-105 focus-visible:outline-none focus-visible:ring-[var(--md-sys-color-primary)]">
                 <span class="material-symbols-rounded text-3xl">add</span>
             </div>
+
+            @if (!isAuthenticated)
+            {
+                <span class="absolute -top-2 -right-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface-variant)] text-[11px] shadow-sm" title="Sign in to create a trail" aria-hidden="true">
+                    <span class="material-symbols-rounded" style="font-size:12px;line-height:1">lock</span>
+                </span>
+            }
         </div>
         <span class="text-xs mt-1">Add</span>
-    </NavLink>
+    </button>
+
 
     <!-- Favorites Tab -->
-    <NavLink href="/favorites" class="tab-item">
-        <span class="material-symbols-rounded text-2xl">favorite</span>
-        <span class="text-xs mt-1">Favorites</span>
-    </NavLink>
+    <!-- Gracefully handle unauthenticated users; show small lock overlay when not signed in -->
+    <button type="button" class="tab-item" @onclick="NavigateToFavourites" aria-label="Favourites">
+        <div class="relative inline-flex items-center justify-center">
+            <span class="material-symbols-rounded text-2xl">favorite</span>
+            @if (!isAuthenticated)
+            {
+                <span class="absolute -top-1 -right-3 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--md-sys-color-surface)] text-[var(--md-sys-color-on-surface-variant)] text-[11px] shadow-sm" title="Sign in to view favourites" aria-hidden="true">
+                    <span class="material-symbols-rounded" style="font-size:12px;line-height:1">lock</span>
+                </span>
+            }
+        </div>
+        <span class="text-xs mt-1">Favourite</span>
+    </button>
 
     <!-- Profile Tab -->
     <NavLink href="/account/settings" class="tab-item">

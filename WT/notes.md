@@ -61,3 +61,67 @@ If you want, I can also:
 ---
 
 (End of Google Maps runtime config documentation)
+
+# Authentication & Token Flow (Detailed)
+
+This document describes the login, refresh, and logout flow used by WheelyTrails and explains how `WT.Client.Services.TokenService` fits into the overall design. It is intended for developers and operators who need a clear, step-by-step reference for authentication behavior, debugging, and secure deployment.
+
+## Goals
+- Keep access tokens (JWT) out of persistent browser storage to reduce XSS risk.
+- Use HttpOnly cookies for refresh tokens so they are not accessible to JavaScript.
+- Provide a reliable mechanism to rehydrate client auth state after full page reloads.
+- Ensure refresh token rotation and revocation are implemented server-side.
+
+## Actors
+- Client: Blazor WebAssembly app (`WT.Client`)
+- API: ASP.NET Core Web API (`API`)
+- TokenService: `WT.Client.Services.TokenService` (in-memory store)
+- AuthenticationStateProvider: `CustomAuthenticationStateProvider` (manages Blazor auth state)
+- JS helper: `wtApi.fetchRefreshToken` & `wtApi.login` in `WT.Client/wwwroot/js/fetchRefresh.js`
+
+---
+
+## Login Sequence (detailed)
+
+1. User submits credentials in the Blazor login page.
+2. Client calls `AccountService.LoginAsync(model)`.
+ - If running in WASM with `IJSRuntime` available, `AccountService` uses the JS helper `wtApi.login(loginUrl, payload)` which performs a `fetch` with `credentials: 'include'`.
+ - If JS runtime is not available, `AccountService` falls back to `HttpClient.PostAsJsonAsync`.
+3. API validates credentials in `WTAccount.LoginWithIpAsync`.
+4. On success the API:
+ - Issues a short-lived JWT (expires in ~30 min).
+ - Creates a refresh token (7-day TTL), saves it in the DB associated to the user, and returns it in the API response DTO.
+ - Calls `SetTokenCookie(refreshToken)` to set an HttpOnly cookie named `refreshToken` with flags: `HttpOnly`, `Secure`, `SameSite=None`, `Path=/`.
+ - Returns an `APIResponseAuthentication` containing the JWT in the response body (and user info).
+5. Client receives the response. `AccountService` does the following:
+ - Sets `HttpClient.DefaultRequestHeaders.Authorization = Bearer {jwt}` for immediate API calls.
+ - Sets the in-memory `TokenService` via `TokenService.SetAccessToken(jwt, expiresAt)` so the app keeps the access token in-memory for the current browsing session.
+ - Persists a small `AuthenticatedSessionDTO` and a `HasSession` boolean flag in `localStorage` so UI can render basic info after reload. **Critically, the JWT and refresh token are NOT stored in localStorage**.
+
+## Cold start / Page reload (rehydration) sequence
+
+1. Blazor WASM starts and `CustomAuthenticationStateProvider.GetAuthenticationStateAsync()` runs.
+2. Provider checks `TokenService.AccessToken`. If token exists and is valid, build ClaimsPrincipal and return authenticated state.
+3. If no in-memory token, provider checks `localStorage` for the `HasSession` flag. If absent/false, return anonymous state (no refresh attempt).
+4. If `HasSession` is true, provider will attempt a credentialed refresh to obtain a new access token:
+ - Prefer `IJSRuntime.InvokeAsync<string>("wtApi.fetchRefreshToken", refreshUrl)` which runs fetch with `credentials: 'include'`. This ensures the browser sends the HttpOnly `refreshToken` cookie to the API, even across origins.
+ - If JS helper fails or runtime is unavailable, fall back to `HttpClient.PostAsync("api/account/identity/refresh-token", null)` (may not include cookie in some environments).
+5. API's `RefreshToken` endpoint reads the `refreshToken` cookie from `Request.Cookies["refreshToken"]`. If missing, returns204 No Content. If present, server validates and rotates the token using `WTAccount.RefreshTokenWithIpAsync`:
+ - If valid: generate new JWT, rotate refresh token, persist changes, call `SetTokenCookie(newRefreshToken)` to rotate cookie, and return `APIResponseAuthentication` with new JWT.
+ - If invalid: return BadRequest/NoContent as appropriate.
+6. Client receives JWT, sets `TokenService.SetAccessToken(jwt, expiresAt)`, builds ClaimsPrincipal, and the app moves to authenticated state.
+
+## Token rotation & security
+- Each refresh call rotates the refresh token: old token is revoked and the new token is persisted in DB and set in the HttpOnly cookie. This prevents reuse of leaked tokens.
+- On sensitive events (password reset, explicit logout), the server revokes refresh tokens and clears cookie.
+
+## Logout
+- Client calls `POST /api/account/identity/logout`.
+- Server revokes refresh tokens server-side (best-effort) and instructs browser to delete `refreshToken` cookie via `Response.Cookies.Delete("refreshToken")`.
+- Client clears in-memory `TokenService.Clear()` and removes `HasSession` and session DTO from localStorage.
+
+## WT.Client.Services.TokenService role
+- `TokenService` is a singleton in WASM and stores only the current access token and expiry in memory.
+- API surface:
+ - `string? AccessToken { get; }`
+ - `void SetAccessToken(string token, DateTime expiry

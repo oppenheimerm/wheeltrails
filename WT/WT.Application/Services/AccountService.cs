@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
+using Microsoft.JSInterop;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Net.Mime;
@@ -28,33 +29,90 @@ namespace WT.Application.Services
         private readonly HttpClient _httpClient;
         private readonly ILocalStorageService _localStorage;
         private readonly IConfiguration _configuration;
+        private readonly IJSRuntime? _jsRuntime;
+        private readonly ITokenService? _tokenService;
 
-
-        public AccountService(HttpClient httpClient, IConfiguration config, ILocalStorageService localStorage) : base(httpClient, config, localStorage)
+        public AccountService(HttpClient httpClient, IConfiguration config, ILocalStorageService localStorage, IJSRuntime? jsRuntime = null, ITokenService? tokenService = null) : base(httpClient, config, localStorage)
         {
             _httpClient = httpClient;
             _localStorage = localStorage;
             _configuration = config;
+            _jsRuntime = jsRuntime;
+            _tokenService = tokenService;
         }
 
         /// <summary>
+        /// Try to get a fresh access token from the server. Prefer using JS fetch with credentials include when available
+        /// (Blazor WASM) so HttpOnly refresh cookie is sent. Falls back to server POST via HttpClient when JS runtime is not available.
+        /// </summary>
+        private async Task<APIResponseAuthentication?> TryGetRefreshTokenAsync()
+        {
+            try
+            {
+                // If running in the browser and IJSRuntime provided, perform fetch with credentials: 'include'
+                if (_jsRuntime != null)
+                {
+                    try
+                    {
+                        var json = await _jsRuntime.InvokeAsync<string>("wtApi.fetchRefreshToken");
+                        if (string.IsNullOrEmpty(json)) return null;
+                        var jsResult = JsonSerializer.Deserialize<APIResponseAuthentication>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        return jsResult;
+                    }
+                    catch (JSException jsEx)
+                    {
+                        // Fall through to HttpClient approach if JS fetch fails
+                        Console.WriteLine($"⚠️ JS fetch refresh failed: {jsEx.Message}");
+                    }
+                }
+
+                // Fallback: call API refresh endpoint using HttpClient (may not include cookies in some environments)
+                var response = await _httpClient.PostAsync("api/account/identity/refresh-token", null);
+                if (!response.IsSuccessStatusCode)
+                {
+                    if (response.StatusCode == System.Net.HttpStatusCode.NoContent)
+                        return null;
+
+                    return null;
+                }
+
+                var httpResult = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
+                return httpResult;
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return null;
+            }
+        }
+
+        // Backwards-compatible wrapper used by other methods
+        private Task<APIResponseAuthentication?> GetRefreshTokenAsync() => TryGetRefreshTokenAsync();
+
+        /// <summary>
         /// Ensure the HttpClient Authorization header is set.
-        /// This attempts to get a fresh access token by calling the refresh endpoint which reads the HttpOnly cookie.
-        /// The returned token is not persisted to local storage by this method.
+        /// This prefers the in-memory token (TokenService) if available, otherwise attempts refresh via HttpOnly cookie.
         /// </summary>
         private async Task<bool> EnsureAuthorizationHeaderAsync()
         {
             try
             {
-                // Try to refresh via server which reads HttpOnly cookie and returns a new access token
-                var refreshed = await GetRefreshTokenAsync();
-                if (refreshed is null || string.IsNullOrEmpty(refreshed.JWtToken))
+                // Prefer in-memory access token stored by TokenService (set during login)
+                if (_tokenService != null && !string.IsNullOrEmpty(_tokenService.AccessToken) && !_tokenService.IsExpired())
+                {
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _tokenService.AccessToken);
+                    return true;
+                }
+
+                // Fallback: Try to refresh via server which reads HttpOnly cookie and returns a new access token
+                var refreshed = await TryGetRefreshTokenAsync();
+                if (refreshed is null || string.IsNullOrEmpty(refreshed.JwtToken))
                 {
                     Console.WriteLine("❌ Unable to obtain access token from refresh endpoint");
                     return false;
                 }
 
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshed.JWtToken);
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshed.JwtToken);
                 return true;
             }
             catch (Exception ex)
@@ -113,14 +171,14 @@ namespace WT.Application.Services
 
                             var refreshedToken = await GetRefreshTokenAsync();
 
-                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JwtToken))
                             {
                                 Console.WriteLine("✅ Token refreshed, retrying request...");
                                 tokenWasRefreshed = true;
 
                                 // Update Authorization header with new token
                                 _httpClient.DefaultRequestHeaders.Authorization =
-                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JwtToken);
 
                                 // Don't increment attempt counter for auth retry
                                 currentAttempt--;
@@ -251,19 +309,74 @@ namespace WT.Application.Services
         {
             try
             {
-                // ✅ Use relative URL - HttpClient.BaseAddress already set to https://localhost:5001
+                // If JS runtime is available (WASM), use fetch with credentials to ensure refresh cookie is set
+                if (_jsRuntime != null)
+                {
+                    try
+                    {
+                        // Compute absolute API login URL. Prefer HttpClient.BaseAddress, fall back to configured BaseApiUrl.
+                        string loginUrl;
+                        if (_httpClient.BaseAddress != null)
+                        {
+                            loginUrl = new Uri(_httpClient.BaseAddress, "api/account/identity/login").ToString();
+                        }
+                        else
+                        {
+                            var cfgBase = _configuration["ConnectionStrings:BaseApiUrl"] ?? "";
+                            loginUrl = cfgBase.TrimEnd('/') + "/api/account/identity/login";
+                        }
+
+                        Console.WriteLine($"🔧 JS login URL: {loginUrl}");
+
+                        var jsResponse = await _jsRuntime.InvokeAsync<string>("wtApi.login", loginUrl, model);
+                        if (!string.IsNullOrEmpty(jsResponse))
+                        {
+                            // jsResponse is a JSON string with { status, body }
+                            using var doc = JsonDocument.Parse(jsResponse);
+                            var root = doc.RootElement;
+                            var status = root.GetProperty("status").GetInt32();
+                            var body = root.GetProperty("body").GetString();
+
+                            if (status >=200 && status <300 && !string.IsNullOrEmpty(body))
+                            {
+                                var apiResult = JsonSerializer.Deserialize<APIResponseAuthentication>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                if (apiResult != null && apiResult.Success && !string.IsNullOrEmpty(apiResult.JwtToken))
+                                {
+                                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiResult.JwtToken);
+                                }
+
+                                return apiResult ?? new APIResponseAuthentication { Success = false, Message = "Login failed" };
+                            }
+                            else
+                            {
+                                // Attempt to parse friendly error from body
+                                if (!string.IsNullOrEmpty(body))
+                                {
+                                    var friendly = JsonSerializer.Deserialize<APIResponseAuthentication>(body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                                    if (friendly != null && !string.IsNullOrEmpty(friendly.Message))
+                                        return new APIResponseAuthentication { Success = false, Message = friendly.Message };
+                                }
+
+                                return new APIResponseAuthentication { Success = false, Message = $"Login failed: status {status}" };
+                            }
+                        }
+                    }
+                    catch (JSException jsEx)
+                    {
+                        Console.WriteLine($"⚠️ JS login failed: {jsEx.Message}");
+                        // fallthrough to HttpClient approach
+                    }
+                }
+
+                // Fallback to HttpClient POST (may not include cookies in some environments)
                 var response = await _httpClient.PostAsJsonAsync("api/account/identity/login", model);
 
                 // Check if the response was successful
                 if (!response.IsSuccessStatusCode)
                 {
-                    // respone is a type of APIResponseAuthentication retured by the API
-                    // I want to retun this friendly error message to the caller, not bad request 400 etc.
-                    // So we need to convert the response content to a APIResponseAuthentication object
                     var friendlyError = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
                     Console.WriteLine($"❌ Login failed. Status: {response.StatusCode}");
 
-                    // check if friendlyError is not null and has a message
                     if (friendlyError != null && !string.IsNullOrEmpty(friendlyError.Message))
                     {
                         return new APIResponseAuthentication
@@ -284,6 +397,55 @@ namespace WT.Application.Services
                 }
 
                 var result = await response.Content.ReadFromJsonAsync<APIResponseAuthentication>();
+
+                // Set Authorization header with returned access token so subsequent requests work immediately
+                if (result?.Success == true && !string.IsNullOrEmpty(result.JwtToken))
+                {
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.JwtToken);
+                    Console.WriteLine("✅ Set HttpClient Authorization header after successful login");
+
+                    // Persist access token to in-memory TokenService if available
+                    if (_tokenService != null)
+                    {
+                        try
+                        {
+                            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                            var jwt = handler.ReadJwtToken(result.JwtToken);
+                            _tokenService.SetAccessToken(result.JwtToken, jwt.ValidTo);
+                            Console.WriteLine("🔐 TokenService access token set");
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"⚠️ Failed to set TokenService access token: {ex.Message}");
+                        }
+                    }
+
+                    // Persist small non-sensitive navbar/session info to local storage so UI can render immediately
+                    try
+                    {
+                        var navKey = _configuration["ApplicationSettings:NavBarSettings"] ?? "NavBarSettings";
+                        var session = new AuthenticatedSessionDTO
+                        {
+                            Id = result.User?.Id,
+                            FirstName = result.User?.FirstName,
+                            ProfileUsername = result.User?.ProfileUsername,
+                            UserPhoto = result.User?.ProfilePicture,
+                            Email = result.User?.Email,
+                            GpsAccuracy = result.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
+                            ShowRecordingWarning = result.User?.ShowRecordingWarning ?? true,
+                            TimeStamp = DateTime.UtcNow,
+                            JWtToken = null // do NOT store JWT in local storage
+                        };
+
+                        var json = JsonSerializer.Serialize(session);
+                        await _localStorage.SetItemAsStringAsync(navKey, json);
+                        Console.WriteLine("💾 NavBar session persisted to local storage (non-sensitive data)");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"⚠️ Failed to persist navbar session to local storage: {ex.Message}");
+                    }
+                }
 
                 // Log success (but not sensitive data)
                 if (result?.Success == true)
@@ -309,7 +471,6 @@ namespace WT.Application.Services
                 return new APIResponseAuthentication
                 {
                     Success = false,
-                    // Never return sensitive exception details to the caller, just a generic message
                     Message = "Login error. Please try again."
                 };
             }
@@ -425,7 +586,7 @@ namespace WT.Application.Services
 
                             var refreshedToken = await GetRefreshTokenAsync();
 
-                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JwtToken))
                             {
                                 Console.WriteLine("✅ Token refreshed, retrying request...");
                                 LogException.LogToConsole("✅ Token refreshed in AuthenticatedResetPasswordAsync, retrying request.");
@@ -433,7 +594,7 @@ namespace WT.Application.Services
 
                                 // Update Authorization header with new token
                                 _httpClient.DefaultRequestHeaders.Authorization =
-                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JwtToken);
 
                                 // Don't increment attempt counter for auth retry
                                 currentAttempt--;
@@ -610,14 +771,14 @@ namespace WT.Application.Services
 
                             var refreshedToken = await GetRefreshTokenAsync();
 
-                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JwtToken))
                             {
                                 Console.WriteLine("✅ Token refreshed, retrying request...");
                                 tokenWasRefreshed = true;
 
                                 // Update Authorization header with new token
                                 _httpClient.DefaultRequestHeaders.Authorization =
-                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JwtToken);
 
                                 // Don't increment attempt counter for auth retry
                                 currentAttempt--;
@@ -1143,7 +1304,6 @@ namespace WT.Application.Services
 
                     try
                     {
-                        // ✅ Use relative URL - HttpClient.BaseAddress already set
                         // POST multipart/form-data requires a PostAsync call with MultipartFormDataContent not PostAsJsonAsync
                         response = await _httpClient.PostAsync("api/account/upload-profile-picture", content, cancellationToken);
                         Console.WriteLine($"📡 Response status (Attempt {currentAttempt}/{maxRetries}): {response.StatusCode}");
@@ -1163,7 +1323,7 @@ namespace WT.Application.Services
 
                             var refreshedToken = await GetRefreshTokenAsync();
 
-                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JwtToken))
                             {
                                 Console.WriteLine("✅ Token refreshed, retrying request...");
                                 LogException.LogToConsole("✅ Token refreshed in UpdateProfilePictureUrlAsync, retrying request.");
@@ -1171,7 +1331,7 @@ namespace WT.Application.Services
 
                                 // Update Authorization header with new token
                                 _httpClient.DefaultRequestHeaders.Authorization =
-                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                    new AuthenticationHeaderValue("Bearer", refreshedToken.JwtToken);
 
                                 // Don't increment attempt counter for auth retry
                                 currentAttempt--;
@@ -1361,10 +1521,10 @@ namespace WT.Application.Services
                         if (CheckIfUnauthorized(response) && !tokenWasRefreshed)
                         {
                             var refreshedToken = await GetRefreshTokenAsync();
-                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JWtToken))
+                            if (refreshedToken is not null && !string.IsNullOrEmpty(refreshedToken.JwtToken))
                             {
                                 tokenWasRefreshed = true;
-                                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshedToken.JWtToken);
+                                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", refreshedToken.JwtToken);
                                 currentAttempt--;
                                 continue;
                             }

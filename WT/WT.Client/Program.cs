@@ -33,7 +33,8 @@ builder.Services.AddScoped<IAccountService, AccountService>();
 // Register authentication
 builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
-builder.Services.AddScoped<ITokenService, TokenService>();
+// TokenService should be a singleton in WASM so it persists across components
+builder.Services.AddSingleton<ITokenService, TokenService>();
 
 // Register FAB service
 builder.Services.AddSingleton<IFabService, FabService>();
@@ -41,7 +42,7 @@ builder.Services.AddSingleton<IFabService, FabService>();
 // Optional: logging
 builder.Logging.SetMinimumLevel(LogLevel.Information);
 
-// Configure a single HttpClient that targets the API base URL
+// Configure HttpClient for API calls (simple client). JS fetch helper will be used for cookie operations where needed.
 var apiBase = new Uri(apiBaseUrl ?? "https://localhost:5001");
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = apiBase });
 

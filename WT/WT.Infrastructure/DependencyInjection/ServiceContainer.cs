@@ -94,15 +94,26 @@ namespace WT.Infrastructure.DependencyInjection
             // In-memory cache for per-user navbar data and other short-lived caching
             services.AddMemoryCache();
 
-            var allowedOrigins = new[] { "https://www.wheelytrails.com" }; // add others as needed
+            var allowedOrigins = new List<string> { "https://www.wheelytrails.com" };
+
+
+            // Keep the existing production origin(s) and add localhost entries only when env == Development.
+            var env = config["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            if (!string.IsNullOrEmpty(env) && env.Equals("Development", StringComparison.OrdinalIgnoreCase))
+            {
+                allowedOrigins.Add("https://localhost:7126"); // Blazor WASM dev URL
+                allowedOrigins.Add("https://localhost:7000"); // other dev host if used
+                allowedOrigins.Add("http://localhost:5000");  // optional API http dev port
+            }
+
             services.AddCors(options =>
             {
                 options.AddPolicy("DefaultCorsPolicy", policy =>
                 {
-                    policy.WithOrigins(allowedOrigins)
+                    policy.WithOrigins(allowedOrigins.ToArray())
                           .AllowAnyHeader()
                           .AllowAnyMethod()
-                          .AllowCredentials(); // only if you need cookies
+                          .AllowCredentials(); // keep only if you need cookies/credentials
                 });
             });
 

@@ -575,114 +575,53 @@ This flow is implemented in `API.Controllers.AccountController.UploadProfilePict
 
 ---
 
-## Client-side JWT token storage (in-memory)
+## Client-side JWT token storage (in-memory) — Updated
 
-### Summary
-To reduce exposure of sensitive tokens to cross-site scripting (XSS) attacks, the client app no longer persists JWT access tokens in browser storage. Instead:
+Summary
+- Access tokens (JWT) are kept in-memory only using `WT.Client.Services.TokenService`.
+- Refresh tokens are stored server-side and delivered to the browser as an HttpOnly cookie named `refreshToken`.
+- The client obtains a fresh access token after a full-page reload by calling the API refresh endpoint (`POST /api/account/identity/refresh-token`) with the refresh cookie. The client uses a small JS helper (`wtApi.fetchRefreshToken`) which calls `fetch(..., credentials: 'include')` so the HttpOnly cookie is sent.
 
-- Access tokens are kept in-memory only using `WT.Client.Services.TokenService`.
-- Refresh tokens are handled server-side via an HttpOnly cookie. The client calls the server refresh endpoint (e.g. `POST api/account/identity/refresh-token`) to obtain a fresh access token.
-- The `AuthenticatedLocalStorageDTO` concept was renamed to `AuthenticatedSessionDTO` to make clear that token-bearing DTOs are ephemeral and should not imply localStorage persistence.
+Why this change
+- Keeping the access token only in memory reduces the XSS exposure surface because JavaScript cannot persist or read the HttpOnly refresh cookie.
+- The refresh cookie is scoped and marked `HttpOnly`, `Secure`, and `SameSite=None` so it cannot be read by client scripts and will only be sent when requests are made with credentials.
 
-### Why this change
-- LocalStorage is accessible to JavaScript and increases XSS risk when storing tokens.
-- HttpOnly cookies are not accessible to JavaScript and provide a safer mechanism for refresh tokens.
-- Keeping the access token in-memory prevents long-lived exposure on the client while still allowing the app to call protected APIs.
+How it works (high-level)
+1. Login (credentialed request)
+ - The client calls the API login endpoint using the JS helper `wtApi.login(url, payload)` which performs a `fetch` with `credentials: 'include'`.
+ - The API validates credentials and returns an `APIResponseAuthentication` containing the short-lived JWT (access token) and an opaque refresh token string.
+ - The API controller sets the refresh token as an HttpOnly cookie via `SetTokenCookie(refreshToken)` and returns the authentication DTO in the response body.
+ - The client stores the access token in-memory via `TokenService.SetAccessToken(token, expiresAt)` and updates the `HttpClient` Authorization header for immediate API calls.
+ - The client persists only small, non-sensitive UI/session data (e.g., `HasSession` flag and a `AuthenticatedSessionDTO` without JWT) to localStorage so UI can render user info after reload.
 
-### `TokenService` (WT.Client.Services.TokenService)
-Key members:
+2. Page reload / cold start
+ - Browser reload clears WASM memory (and therefore `TokenService`).
+ - On startup `CustomAuthenticationStateProvider.GetAuthenticationStateAsync()` checks `TokenService`. If no token is present and `HasSession` is true it calls `wtApi.fetchRefreshToken` (JS fetch with credentials) to `POST /api/account/identity/refresh-token`.
+ - The browser sends the `refreshToken` cookie automatically with that fetch request. The API reads the cookie, validates and rotates the refresh token, sets a new refresh cookie, and returns a fresh JWT in the response body.
+ - The client stores the fresh JWT in `TokenService` (in-memory) and rehydrates authentication state.
 
-- `string? AccessToken` — current in-memory access token (or `null`).
-- `void SetAccessToken(string token, DateTime expiresAt)` — store token and expiry in memory.
-- `void Clear()` — clear the token (logout flow).
-- `bool IsExpired()` — true when no token or token expired.
-- `event Action? TokenChanged` — raised when token is set or cleared.
+3. Token rotation and logout
+ - Each successful refresh rotates the refresh token and replaces the HttpOnly cookie (server-side). The API's `RefreshToken` endpoint performs rotation and issues a new cookie.
+ - When logging out the client calls `POST /api/account/identity/logout`. The API revokes refresh tokens server-side and deletes the `refreshToken` cookie (server instructs browser to clear cookie). The client clears `TokenService`.
 
-Class location: `WT.Client/Services/TokenService.cs` (implements `ITokenService`).
+Implementation notes
+- `WT.Client.Services.TokenService` is a simple in-memory store with `SetAccessToken`, `Clear`, `IsExpired`, and a `TokenChanged` event that consumers can subscribe to so `HttpClient` Authorization header stays in sync.
+- `WT.Application.Services.AccountService` prefers the JS fetch helper for refresh/login operations so the HttpOnly refresh cookie is included; it falls back to HttpClient POST when JS runtime is not available.
+- `CustomAuthenticationStateProvider` is responsible for initial auth state on startup. It prefers the in-memory token, otherwise triggers the refresh flow using the JS helper.
+- `API.Controllers.AccountController` sets the refresh cookie using `SetTokenCookie(...)` and exposes `identity/refresh-token` and `identity/logout` endpoints to support this flow.
 
-### DI registration (Blazor WASM)
-Register the token service in the client `Program.cs`:
+Security notes
+- Do NOT store access tokens or refresh tokens in localStorage.
+- Ensure CORS on the API allows credentials (`AllowCredentials()`) and includes the client origin in `WithOrigins(...)` so the browser will send the refresh cookie for cross-origin requests during development.
+- The refresh cookie must be `HttpOnly`, `Secure`, and `SameSite=None` when the client and API are served from different origins.
 
-```csharp
-// Program.cs (WT.Client)
-builder.Services.AddSingleton<WT.Client.Services.ITokenService, WT.Client.Services.TokenService>();
-```
+Diagnostics & troubleshooting
+- On successful login inspect the login response for `Set-Cookie: refreshToken=...; HttpOnly; SameSite=None; Secure`.
+- After reload, check that the client calls `POST /api/account/identity/refresh-token` and that the request includes a `Cookie` header with `refreshToken`.
+- If the cookie is not sent, verify CORS policy and that the JS fetch uses `credentials: 'include'`.
 
-Singleton is appropriate for an in-memory token store in a WebAssembly application because the app runs in a single browser context.
-
-### Typical usage
-
-1) Store token after login (or after refresh):
-
-```csharp
-var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-var jwt = handler.ReadJwtToken(apiResponse.JwtToken);
-_tokenService.SetAccessToken(apiResponse.JwtToken, jwt.ValidTo);
-```
-
-2) Keep `HttpClient` Authorization header in sync (subscribe once):
-
-```csharp
-_tokenService.TokenChanged += () =>
-{
- if (!string.IsNullOrEmpty(_tokenService.AccessToken))
- {
- _httpClient.DefaultRequestHeaders.Authorization =
- new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenService.AccessToken);
- }
- else
- {
- _httpClient.DefaultRequestHeaders.Authorization = null;
- }
-};
-
-// Initialize on startup
-if (!string.IsNullOrEmpty(_tokenService.AccessToken))
-{
- _httpClient.DefaultRequestHeaders.Authorization =
- new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _tokenService.AccessToken);
-}
-```
-
-3) Refresh flow
-
-- When a protected call receives401, the app calls the server refresh endpoint. The server reads the HttpOnly refresh cookie and returns a new access token. The client stores the returned token in `TokenService` (in-memory) and retries the failed request.
-- This flow is implemented in `WT.Application.Extensions.BaseService.GetRefreshTokenAsync()` and `WT.Application.Services.AccountService.EnsureAuthorizationHeaderAsync()`.
-
-4) Logout / clearing token
-
-```csharp
-_tokenService.Clear();
-await _httpClient.PostAsync("api/account/identity/logout", null); // clears server-side cookie
-```
-
-### Example helper to synchronize HttpClient
-
-```csharp
-public static void SyncHttpClientAuth(HttpClient httpClient, WT.Client.Services.ITokenService tokenService)
-{
- if (!string.IsNullOrEmpty(tokenService.AccessToken) && !tokenService.IsExpired())
- {
- httpClient.DefaultRequestHeaders.Authorization =
- new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenService.AccessToken);
- }
- else
- {
- httpClient.DefaultRequestHeaders.Authorization = null;
- }
-}
-```
-
-Call this helper on startup and subscribe it to `TokenChanged` to keep the header current.
-
-### Security notes
-- Do NOT persist access tokens or refresh tokens to `localStorage` or other persistent browser storage.
-- Ensure the server sets the refresh cookie with `HttpOnly`, `Secure`, and an appropriate `SameSite` policy.
-- Never log tokens or include them in error messages.
-
----
-
-(See `WT.Client/Services/TokenService.cs` and `WT.Application/Extensions/BaseService.cs` for implementation details.)
+Notes about the test email diagnostic endpoint
+- The API includes a diagnostic endpoint `POST /api/account/diagnostic/send-test-email` that accepts a `TestEmailRequest` DTO. The `Token` field on that DTO is optional and used only to inject a test token string into emails for diagnostics — it is not part of the authentication or refresh flow.
 
 ## Username validation & profanity list
 
@@ -708,7 +647,7 @@ The API includes a server-side username validator that prevents users from selec
 
 - Behavior
  - Username checks include: length (3-20), allowed characters (letters, numbers, underscores, dashes, dots), and substring matching against the bad-words set.
- - The API endpoints used by the client are:
+ - API endpoints used by the client:
  - `GET api/account/profile-username/check/{profileUsername}` — availability
  - `GET api/account/profile-username/validate/{profileUsername}` — availability + profanity check
  - The client (WT.Client) uses `AccountService.ValidateProfileUsernameAsync` to show immediate feedback on the Register page.
@@ -716,3 +655,108 @@ The API includes a server-side username validator that prevents users from selec
 - Security notes
  - Do not place sensitive or secret data in an embedded resource if you require strict secrecy; an attacker able to retrieve the assembly could extract embedded resources. For highly sensitive lists, store them in a protected secret store.
  - The embedded list is suitable for blocking offensive words and preventing inappropriate usernames but is not a security boundary.
+
+
+### Rate Limiting Configuration ✨ NEW
+
+**Global Rate Limit:**
+- 100 requests per minute per IP address
+- Sliding window with queue support
+- Custom rejection messages
+
+**Auth Endpoint Rate Limit:**
+- 10 requests per minute per IP address
+- Applied to sensitive authentication endpoints
+- Prevents brute force attacks
+
+**Override Rate Limits:**
+To adjust rate limits, modify `Program.cs`:
+
+## 🧪 Testing
+
+### Manual Testing Checklist
+
+#### Registration Flow ✨ ENHANCED
+- [ ] Navigate to `/account/identity/register`
+- [ ] Fill out form with valid data
+- [ ] Test ProfileUsername validation:
+  - [ ] Enter existing username → See "already taken" error
+  - [ ] Enter username with profanity → See "inappropriate content" error
+  - [ ] Enter valid unique username → See green "available!" checkmark
+- [ ] Submit form
+- [ ] Verify email received with verification link
+- [ ] Click verification link
+- [ ] Confirm successful email verification
+
+#### Login Flow
+- [ ] Navigate to `/account/identity/login`
+- [ ] Enter registered email and password
+- [ ] Verify successful login with JWT token
+- [ ] Check LocalStorage for authentication data
+- [ ] Verify user menu displays ProfileUsername
+- [ ] Test logout functionality
+
+#### Password Reset Flow
+- [ ] Click "Forgot Password?" link
+- [ ] Enter registered email
+- [ ] Verify reset email received
+- [ ] Click reset link
+- [ ] Enter new password
+- [ ] Confirm password reset successful
+- [ ] Verify all sessions logged out
+- [ ] Login with new password
+
+#### Trail Likes ✨ NEW
+- [ ] Navigate to a trail detail page
+- [ ] Click "Like" button
+- [ ] Verify like count increments
+- [ ] Verify visual feedback (heart icon filled)
+- [ ] Click "Unlike" button
+- [ ] Verify like count decrements
+- [ ] Attempt to like the same trail twice (should fail with error)
+
+#### Health Checks ✨ NEW
+- [ ] Visit `/health` endpoint
+- [ ] Verify "Healthy" status returned
+- [ ] Visit `/health/ready` endpoint
+- [ ] Verify readiness probe responds
+
+- [ ] 
+## 🐛 Known Issues
+
+### Current Limitations
+- Rate limiting is IP-based (may affect users behind shared IPs)
+- Email verification required before login (no skip option)
+
+## 🗺️ Roadmap
+
+### Planned Features
+
+- [ ] User-to-user messaging system
+- [ ] Trail difficulty voting/consensus
+- [ ] Offline mode for trail discovery
+- [ ] Mobile app (React Native or .NET MAUI)
+- [ ] Advanced search with natural language processing
+- [ ] Trail recommendations based on user preferences
+- [ ] Social features (followers, activity feed)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **LDNOOBW** - List of Dirty, Naughty, Obscene, and Otherwise Bad Words (profanity filter)
+- **Firebase** - Cloud storage for images
+- **Azure** - Application Insights for monitoring
+- **Tailwind CSS** - Utility-first CSS framework
+- **Blazor Community** - Blazor WebAssembly and Server components
+
+## 📞 Contact
+
+- **Project Repository**: [https://github.com/oppenheimerm/wheeltrails](https://github.com/oppenheimerm/wheeltrails)
+- **Issues**: [https://github.com/oppenheimerm/wheeltrails/issues](https://github.com/oppenheimerm/wheeltrails/issues)
+
+---
+
+**Built with ❤️ for the wheelchair community by the WheelyTrails team**
