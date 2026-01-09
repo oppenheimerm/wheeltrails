@@ -95,7 +95,10 @@ namespace API.Controllers
             }
         }
 
-        [AllowAnonymous]
+
+        // While we are still testing, we will comment out the create account endpoint, so that
+        // only login is available.  We will re-enable this later.
+        /*[AllowAnonymous]
         [HttpPost("identity/create")]
         public async Task<ActionResult<BaseAPIResponseDTO>> CreateAccount(RegisterDTO model)
         {
@@ -104,7 +107,7 @@ namespace API.Controllers
 
 
             return await _accountRepository.RegisterAsync(model);
-        }
+        }*/
 
         [AllowAnonymous]
         [HttpPost("identity/login")]
@@ -204,8 +207,11 @@ namespace API.Controllers
             return await _accountRepository.VerifyEmailAsync(model.Token!);
         }
 
+
+        // While we are still testing, we will comment out the create account endpoint, so that
+        // only login is available.  We will re-enable this later.
         // add register route
-        [AllowAnonymous]
+        /*[AllowAnonymous]
         [HttpPost("register")]
         [EnableRateLimiting("AuthPolicy")] // ✅ Strict rate limit
         public async Task<ActionResult<BaseAPIResponseDTO>> Register(RegisterDTO model)
@@ -213,7 +219,7 @@ namespace API.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(new BaseAPIResponseDTO { Success = false, Message = "Invalid Registration Form" });
             return await _accountRepository.RegisterAsync(model);
-        }
+        }*/
 
         /// <summary>
         /// Initiates password reset process.
