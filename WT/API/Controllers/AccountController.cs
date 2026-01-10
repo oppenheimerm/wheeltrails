@@ -711,6 +711,25 @@ namespace API.Controllers
                 Path = "/"
             };
 
+
+            //  10/01/2026
+            //  Forwarded headers fix the "Secure" attribute, but the browser will still
+            //  reject the cookie unless you set:
+            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+            if (!string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase))
+            {
+                cookieOptions.Domain = "wheelytrails.com";
+            }
+
+            //  Now that UseForwardedHeaders() is in place, this line:
+            //          var isHttps = Request.IsHttps;
+            //  will return true on Azure.
+
+
+
+
+
             try
             {
                 LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}");

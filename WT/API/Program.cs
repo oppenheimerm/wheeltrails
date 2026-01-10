@@ -1,12 +1,13 @@
 ﻿using API.Middleware;
-using Scalar.AspNetCore;
-using WT.Infrastructure.DependencyInjection;
-using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using WT.Infrastructure.Data;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+using System.Threading.RateLimiting;
 using WT.Application.Contracts; // ✅ ADD THIS
+using WT.Infrastructure.Data;
+using WT.Infrastructure.DependencyInjection;
+using static System.Net.WebRequestMethods;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,6 +78,22 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+//  10/01/2026
+//  In ASP.NET Core, all service registrations must happen before; builder.Build().Anything added
+//  after that point is ignored.
+//  ✔ This ensures Azure’s X-Forwarded-Proto: https header is honored.
+//  ✔ Request.IsHttps will now be true inside your controllers.
+//  ✔ Your cookie will now be sent with Secure=true.
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 var app = builder.Build();
 
 // ✅ FORCE USERNAME VALIDATOR TO LOAD AT STARTUP
@@ -121,6 +138,9 @@ if (app.Environment.IsDevelopment())
 
 
 
+//  10/01/2026
+//  Must be BEFORE UseHttpsRedirection
+app.UseForwardedHeaders();
 
 app.UseHttpsRedirection();
 
