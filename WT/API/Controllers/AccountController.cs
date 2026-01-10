@@ -711,33 +711,33 @@ namespace API.Controllers
                 Path = "/"
             };
 
-
-            //  10/01/2026
-            //  Forwarded headers fix the "Secure" attribute, but the browser will still
-            //  reject the cookie unless you set:
+            // ✅ Set cookie domain for production with custom domain
+            // 
+            // Development: No explicit domain → cookie defaults to localhost (works)
+            // Production with custom domain: Set .wheelytrails.com to share cookie across subdomains
+            // 
+            // The dot prefix (.) allows the cookie to be shared between:
+            // - wheelytrails.com (client)
+            // - api.wheelytrails.com (API)
+            // - www.wheelytrails.com (if used)
+            
             var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var customDomain = _configuration["CustomDomain:CookieDomain"]; // e.g., ".wheelytrails.com"
+            
+          if (!string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase) && 
+     !string.IsNullOrEmpty(customDomain))
+  {
+        cookieOptions.Domain = customDomain;
+    }
 
-            if (!string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase))
-            {
-                cookieOptions.Domain = "wheelytrails.com";
-            }
+    try
+    {
+        LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}, Domain={cookieOptions.Domain ?? "(default)"}");
+    }
+    catch { }
 
-            //  Now that UseForwardedHeaders() is in place, this line:
-            //          var isHttps = Request.IsHttps;
-            //  will return true on Azure.
-
-
-
-
-
-            try
-            {
-                LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}");
-            }
-            catch { }
-
-            Response.Cookies.Append("refreshToken", token, cookieOptions);
-        }
+    Response.Cookies.Append("refreshToken", token, cookieOptions);
+}
 
         #endregion
 
@@ -796,8 +796,6 @@ namespace API.Controllers
                 return StatusCode(500, new { success = false, message = "Unable to retrieve bad-words diagnostic info" });
             }
         }*/
-
-
 
     }
 }
