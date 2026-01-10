@@ -1,0 +1,60 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Generate runtime config (repo)
+        env:
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+        run: |
+          OUT_DIR="WT.Client/wwwroot/js"
+          mkdir -p "$OUT_DIR"
+          if [ -z "$GOOGLE_MAPS_API_KEY" ]; then
+            echo "GOOGLE_MAPS_API_KEY not set; skipping config generation"
+          else
+            printf 'window.__WT_CONFIG__ = { GOOGLE_MAPS_API_KEY: "%s" };\n' "$GOOGLE_MAPS_API_KEY" > "$OUT_DIR/config.js"
+            echo "Wrote $OUT_DIR/config.js"
+          fi
+
+      - name: Inject Production API URL
+        run: |
+          APPSETTINGS_FILE="WT/WT.Client/wwwroot/appsettings.json"
+          echo "Updating $APPSETTINGS_FILE with production API URL"
+          cat > "$APPSETTINGS_FILE" << 'EOF'
+          {
+            "ConnectionStrings": {
+              "BaseApiUrl": "https://wheelytrails-api-d9gbhufjbug7hsee.westeurope-01.azurewebsites.net"
+            },
+            "ApplicationSettings": {
+              "LocalStorageKey": "WheelTrailsAuth",
+              "NavBarSettings": "WTNavBar"
+            }
+          }
+          EOF
+          echo "API URL configured for production"
+
+      - name: Publish Blazor WASM
+        run: dotnet publish WT/WT.Client/WT.Client.csproj -c Release
+
+      - name: Upload to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: wheelytrails
+          directory: WT/WT.Client/bin/Release/net9.0/publish/wwwroot
