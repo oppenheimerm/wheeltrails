@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using WT.Application.DTO.Request.Trail;
 using WT.Application.APIServiceLogs;
+using Microsoft.Extensions.Hosting;
 
 namespace API.Controllers
 {
@@ -38,6 +39,15 @@ namespace API.Controllers
                 await System.IO.File.WriteAllTextAsync(filePath, json);
 
                 LogException.LogToFile($"Dev submission saved: {filePath}");
+
+                // For developer debugging, when running in Development include the full path in the response so
+                // the developer can easily locate the file written by this endpoint. Do NOT expose file system
+                // paths in Production.
+                if (_env.IsDevelopment())
+                {
+                    return Ok(new { success = true, file = fileName, savedPath = filePath });
+                }
+
                 return Ok(new { success = true, file = fileName });
             }
             catch (Exception ex)
@@ -49,6 +59,7 @@ namespace API.Controllers
 
         // List saved submissions
         [HttpGet("list")]
+        [AllowAnonymous]
         public IActionResult ListSubmissions()
         {
             try
