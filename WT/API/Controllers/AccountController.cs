@@ -711,28 +711,23 @@ namespace API.Controllers
                 Path = "/"
             };
 
-            // ✅ Set cookie domain for production with custom domain
-            // 
-            // Development: No explicit domain → cookie defaults to localhost (works)
-            // Production with custom domain: Set .wheelytrails.com to share cookie across subdomains
-            // 
-            // The dot prefix (.) allows the cookie to be shared between:
-            // - wheelytrails.com (client)
-            // - api.wheelytrails.com (API)
-            // - www.wheelytrails.com (if used)
-            
-            var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-            var customDomain = _configuration["CustomDomain:CookieDomain"]; // e.g., ".wheelytrails.com"
-            
-          if (!string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase) && 
-     !string.IsNullOrEmpty(customDomain))
-  {
-        cookieOptions.Domain = customDomain;
+          // ✅ Set cookie domain for custom subdomain (api.wheelytrails.com)
+    // The dot prefix allows cookie sharing between:
+    // - wheelytrails.com (client)
+    // - api.wheelytrails.com (API)
+    // - www.wheelytrails.com (if used)
+  
+    var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+    
+    // In production with custom domain, set .wheelytrails.com to share cookie across subdomains
+    if (!string.Equals(env, "Development", StringComparison.OrdinalIgnoreCase))
+    {
+        cookieOptions.Domain = ".wheelytrails.com";
     }
 
     try
     {
-        LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}, Domain={cookieOptions.Domain ?? "(default)"}");
+   LogException.LogToConsole($"SetTokenCookie: Request.IsHttps={isHttps}, Secure={cookieOptions.Secure}, SameSite={cookieOptions.SameSite}, Domain={cookieOptions.Domain ?? "(default)"}");
     }
     catch { }
 
