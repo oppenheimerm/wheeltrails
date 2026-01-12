@@ -47,14 +47,11 @@ namespace WT.Domain.Entity
 
         /// <summary>
         /// Foreign Key to the user who uploaded the photo.
+        /// Stored as a plain Guid to keep model simple and avoid navigation complications.
         /// </summary>
         [Required]
-        [ForeignKey(nameof(User))]
         public Guid UserId { get; set; }
 
-        /// <summary>
-        /// Navigation property to the user who uploaded the photo.
-        /// </summary>
-        public ApplicationUser? User { get; set; }
+        // NOTE: intentionally no ApplicationUser navigation property to keep model simple.
     }
 }

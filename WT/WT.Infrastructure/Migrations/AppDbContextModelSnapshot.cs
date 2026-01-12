@@ -314,7 +314,47 @@ namespace WT.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Comments", (string)null);
+                    b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("WT.Domain.Entity.DeletionQueueItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("RelatedUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextAttemptAt");
+
+                    b.ToTable("DeletionQueue");
                 });
 
             modelBuilder.Entity("WT.Domain.Entity.RefreshToken", b =>
@@ -356,7 +396,7 @@ namespace WT.Infrastructure.Migrations
 
                     b.HasIndex("AccountId");
 
-                    b.ToTable("RefreshTokens", (string)null);
+                    b.ToTable("RefreshTokens");
                 });
 
             modelBuilder.Entity("WT.Domain.Entity.TrailLike", b =>
@@ -390,7 +430,7 @@ namespace WT.Infrastructure.Migrations
                     b.HasIndex("UserId", "TrailId")
                         .IsUnique();
 
-                    b.ToTable("TrailLikes", (string)null);
+                    b.ToTable("TrailLikes");
                 });
 
             modelBuilder.Entity("WT.Domain.Entity.WTTrail", b =>
@@ -439,7 +479,7 @@ namespace WT.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Trails", (string)null);
+                    b.ToTable("Trails");
                 });
 
             modelBuilder.Entity("WT.Domain.Entity.WTTrailPhoto", b =>
@@ -455,7 +495,7 @@ namespace WT.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("PhotoName")
+                    b.Property<string>("PhotoUrl")
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
@@ -463,11 +503,18 @@ namespace WT.Infrastructure.Migrations
                     b.Property<Guid>("TrailId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("TrailId");
 
-                    b.ToTable("TrailPhotos", (string)null);
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TrailId", "UserId");
+
+                    b.ToTable("TrailPhotos");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -575,8 +622,35 @@ namespace WT.Infrastructure.Migrations
                     b.HasOne("WT.Domain.Entity.ApplicationUser", "User")
                         .WithMany("Trails")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.OwnsMany("WT.Domain.Geo.WTLatLng", "Waypoints", b1 =>
+                        {
+                            b1.Property<Guid>("Id")
+                                .ValueGeneratedOnAdd()
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<double>("Lat")
+                                .HasColumnType("float")
+                                .HasColumnName("WaypointLat");
+
+                            b1.Property<double>("Lng")
+                                .HasColumnType("float")
+                                .HasColumnName("WaypointLng");
+
+                            b1.Property<Guid>("TrailId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.HasKey("Id");
+
+                            b1.HasIndex("TrailId");
+
+                            b1.ToTable("TrailWaypoints", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("TrailId");
+                        });
 
                     b.OwnsMany("WT.Domain.Geo.WTPointOfInterest", "PointsOfInterest", b1 =>
                         {
@@ -624,7 +698,7 @@ namespace WT.Infrastructure.Migrations
 
                                     b2.HasKey("WTPointOfInterestId");
 
-                                    b2.ToTable("TrailPointsOfInterest", (string)null);
+                                    b2.ToTable("TrailPointsOfInterest");
 
                                     b2.WithOwner()
                                         .HasForeignKey("WTPointOfInterestId");
@@ -632,33 +706,6 @@ namespace WT.Infrastructure.Migrations
 
                             b1.Navigation("Location")
                                 .IsRequired();
-                        });
-
-                    b.OwnsMany("WT.Domain.Geo.WTLatLng", "Waypoints", b1 =>
-                        {
-                            b1.Property<Guid>("Id")
-                                .ValueGeneratedOnAdd()
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<double>("Lat")
-                                .HasColumnType("float")
-                                .HasColumnName("WaypointLat");
-
-                            b1.Property<double>("Lng")
-                                .HasColumnType("float")
-                                .HasColumnName("WaypointLng");
-
-                            b1.Property<Guid>("TrailId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.HasKey("Id");
-
-                            b1.HasIndex("TrailId");
-
-                            b1.ToTable("TrailWaypoints", (string)null);
-
-                            b1.WithOwner()
-                                .HasForeignKey("TrailId");
                         });
 
                     b.OwnsOne("WT.Domain.Geo.WTLatLng", "End", b1 =>
@@ -676,7 +723,7 @@ namespace WT.Infrastructure.Migrations
 
                             b1.HasKey("WTTrailId");
 
-                            b1.ToTable("Trails", (string)null);
+                            b1.ToTable("Trails");
 
                             b1.WithOwner()
                                 .HasForeignKey("WTTrailId");
@@ -697,7 +744,7 @@ namespace WT.Infrastructure.Migrations
 
                             b1.HasKey("WTTrailId");
 
-                            b1.ToTable("Trails", (string)null);
+                            b1.ToTable("Trails");
 
                             b1.WithOwner()
                                 .HasForeignKey("WTTrailId");
@@ -722,6 +769,12 @@ namespace WT.Infrastructure.Migrations
                         .WithMany("Images")
                         .HasForeignKey("TrailId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("WT.Domain.Entity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Trail");
