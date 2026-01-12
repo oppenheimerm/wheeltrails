@@ -153,6 +153,23 @@ namespace WT.Infrastructure.Data
 
             // Index to efficiently find pending deletion items
             builder.Entity<DeletionQueueItem>().HasIndex(d => new { d.Status, d.NextAttemptAt });
+
+            // Prevent cascade delete from TrailPhoto -> User (Identity user)
+            builder.Entity<WTTrailPhoto>()
+                .HasOne<ApplicationUser>() // no navigation property on photo to user
+                .WithMany() // no inverse navigation on ApplicationUser
+                .HasForeignKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Prevent cascade delete from Trail -> User if that is also configured
+            builder.Entity<WTTrail>()
+                .HasOne(t => t.User)
+                .WithMany(u => u.Trails)
+                .HasForeignKey(t => t.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // If you have other relationships that cascade into the same target (e.g. TrailPhotos -> Trail -> User),
+            // make sure at least one link in the chain is NoAction/Restrict so SQL Server has a single cascade path.
         }
 
         // DBSet declarations
