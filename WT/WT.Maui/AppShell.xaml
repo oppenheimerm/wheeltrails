@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="WT.Maui.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:WT.Maui.Views"
+    Title="WheelyTrails"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.TabBarIsVisible="True">
+
+    <!-- 
+        AppShell should never load until the user is authenticated:
+        App → AuthFlow (Login/Register/Forgot) → AppShell.
+        This gives us:
+            - clean navigation
+            - no weird back button behavior
+            - no need to hide pages based on auth state
+            - no mixing of logged‑in and logged‑out UI
+            - a simpler mental model
+
+    -->
+    <FlyoutItem>
+
+        <!-- 
+            Shell XAML (static ShellContent with DataTemplate in AppShell.xaml) instantiates the page via 
+            the XAML parser using a parameterless constructor → constructor injection will not run.
+        
+            Route-based navigation (Shell.Current.GoToAsync) will resolve the target page from the 
+            IServiceProvider if the page type is registered in DI, so constructor injection works automatically.
+        -->
+        <ShellContent
+            Title="Home"
+            ContentTemplate="{DataTemplate local:HomePage}"
+            Route="HomePage">
+            <ShellContent.Icon>
+                <!-- Home: U+E88A -->
+                <FontImageSource Glyph="&#xE88A;" FontFamily="MaterialSymbolsRounded" Size="20" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent
+            Title="Trails"
+            ContentTemplate="{DataTemplate local:TrailsPage}"
+            Route="TrailsPage">
+            <ShellContent.Icon>
+                <!-- Replace the glyph below with the hiking icon codepoint you select -->
+                <FontImageSource Glyph="&#xE88A;" FontFamily="MaterialSymbolsRounded" Size="20" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent
+            Title="Create"
+            ContentTemplate="{DataTemplate local:AddTrailsPage}"
+            Route="AddTrailsPage">
+            <ShellContent.Icon>
+                <!-- Add/plus: U+E145 -->
+                <FontImageSource Glyph="&#xE145;" FontFamily="MaterialSymbolsRounded" Size="22" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent
+            Title="Favourites"
+            ContentTemplate="{DataTemplate local:FavouritesPage}"
+            Route="FavouritesPage">
+            <ShellContent.Icon>
+                <!-- Favorite (heart): U+E87D -->
+                <FontImageSource Glyph="&#xE87D;" FontFamily="MaterialSymbolsRounded" Size="20" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+        <ShellContent
+            Title="Settings"
+            ContentTemplate="{DataTemplate local:SettingsPage}"
+            Route="SettingsPage">
+            <ShellContent.Icon>
+                <!-- Account: U+E853 -->
+                <FontImageSource Glyph="&#xE853;" FontFamily="MaterialSymbolsRounded" Size="20" />
+            </ShellContent.Icon>
+        </ShellContent>
+
+    </FlyoutItem>
+
+</Shell>

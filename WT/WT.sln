@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WT.Infrastructure", "WT.Inf
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WT.Application", "WT.Application\WT.Application.csproj", "{F63F2B7A-A647-4B32-B380-3AFA90D0FFEC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WT.Maui", "WT.Maui\WT.Maui.csproj", "{B91F9BED-BCA7-4972-A4D1-55D3824F4A65}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -47,6 +49,10 @@ Global
 		{F63F2B7A-A647-4B32-B380-3AFA90D0FFEC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F63F2B7A-A647-4B32-B380-3AFA90D0FFEC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F63F2B7A-A647-4B32-B380-3AFA90D0FFEC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B91F9BED-BCA7-4972-A4D1-55D3824F4A65}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B91F9BED-BCA7-4972-A4D1-55D3824F4A65}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B91F9BED-BCA7-4972-A4D1-55D3824F4A65}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B91F9BED-BCA7-4972-A4D1-55D3824F4A65}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -55,6 +61,7 @@ Global
 		{9105F82B-37AB-4AA1-B96B-DA5834E83241} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{41C2EADC-F3AA-43C1-8F02-E25CADE1C6BC} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{E693AFA2-25B2-4135-8AE6-594EF3FD9A4E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{B91F9BED-BCA7-4972-A4D1-55D3824F4A65} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {B2EB1694-1635-4112-94CE-13E74DB684E8}

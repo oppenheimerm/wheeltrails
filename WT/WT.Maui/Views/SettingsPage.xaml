@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WT.Maui.Views.SettingsPage"
+             Title="Settings">
+  <VerticalStackLayout Padding="20" Spacing="16">
+
+    <Label Text="Settings" FontAttributes="Bold" FontSize="18" HorizontalOptions="Center" />
+
+    <!-- Other settings rows can go here -->
+
+    <Frame Padding="12" BackgroundColor="{DynamicResource SecondaryBackgroundColor}" CornerRadius="8">
+      <HorizontalStackLayout VerticalOptions="Center" Spacing="12">
+        <Label Text="Account" VerticalOptions="Center" HorizontalOptions="StartAndExpand"/>
+        <!-- Bind to LogoutCommand on the VM -->
+        <Button Text="Logout"
+                Command="{Binding LogoutCommand}"
+                BackgroundColor="#E53E3E"
+                TextColor="White"
+                IsEnabled="{Binding IsNotBusy}" />
+      </HorizontalStackLayout>
+    </Frame>
+
+    <!-- Busy indicator -->
+    <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" HorizontalOptions="Center" />
+
+    <Label x:Name="StatusLabel" IsVisible="False" TextColor="{DynamicResource DangerColor}" />
+
+  </VerticalStackLayout>
+</ContentPage>
