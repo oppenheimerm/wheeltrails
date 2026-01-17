@@ -12,6 +12,9 @@
     private bool fabVisible = false;
     private bool isOnline = true;
 
+    // New: track whether JS offline registration completed (or final fallback reached)
+    private bool offlineInitialized = false;
+
     private DotNetObjectReference<MainLayout>? offlineDotNetRef;
 
     // Mobile: use header height, Desktop: no top padding needed
@@ -46,10 +49,10 @@
         {
             // close: remove escape handler and return focus to primary
             _ = Task.Run(async () =>
-      {
-          await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
-          try { await primaryFabRef.FocusAsync(); } catch { /* ignore on mobile */ }
-      });
+            {
+                await JS.InvokeVoidAsync("fabInterop.removeEscapeHandler");
+                try { await primaryFabRef.FocusAsync(); } catch { /* ignore on mobile */ }
+            });
         }
     }
 
@@ -67,7 +70,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // Try to set header height once early (for mobile)
+        // Keep OnInitializedAsync light — don't call JS interop here to avoid startup race.
+        // Try to set header height once early (for mobile) — best-effort via JS if available.
         try
         {
             await JS.InvokeVoidAsync("layoutInterop.updateHeaderHeight");
@@ -76,29 +80,59 @@
         {
             // ignore - JS may not be available yet in some startup scenarios
         }
-
-        isOnline = await JS.InvokeAsync<bool>("offlineInterop.isOnline");
-
-        // create and store a DotNetObjectReference so we can unregister later
-        offlineDotNetRef = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync(
- "offlineInterop.registerStatusChanged",
-          offlineDotNetRef
-        );
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender) return;
+
+        try { await JS.InvokeVoidAsync("layoutInterop.startAutoUpdate"); } catch { }
+
+        const int maxAttempts = 6;
+        const int delayMs = 300;
+        for (int i = 0; i < maxAttempts; i++)
         {
-            // start layout auto update so --header-height matches rendered header (mobile only)
-            await JS.InvokeVoidAsync("layoutInterop.startAutoUpdate");
+            try
+            {
+                isOnline = await JS.InvokeAsync<bool>("offlineInterop.isOnlineAsync");
+                //Console.WriteLine($"[Offline] Attempt {i + 1}: isOnline = {isOnline}");
+
+                offlineDotNetRef ??= DotNetObjectReference.Create(this);
+                await JS.InvokeVoidAsync("offlineInterop.registerStatusChanged", offlineDotNetRef);
+
+                // mark initialized after successful registration
+                offlineInitialized = true;
+                //Console.WriteLine($"[Offline] Registration successful. offlineInitialized = {offlineInitialized}, isOnline = {isOnline}");
+                break;
+            }
+            catch (Exception ex)
+            {
+                //Console.WriteLine($"[Offline] Attempt {i + 1} failed: {ex.Message}");
+                if (i == maxAttempts - 1)
+                {
+                    // final fallback: assume online to avoid false negative
+                    isOnline = true;
+                    try { offlineDotNetRef?.Dispose(); offlineDotNetRef = null; } catch { }
+
+                    // mark initialized so banner won't show
+                    offlineInitialized = true;
+                    //Console.WriteLine($"[Offline] Final fallback. offlineInitialized = {offlineInitialized}, isOnline = {isOnline}");
+                }
+                else
+                {
+                    // Wait and retry
+                    await Task.Delay(delayMs);
+                }
+            }
         }
+
+        StateHasChanged();
     }
 
     [JSInvokable]
     public void UpdateOnlineStatus(bool online)
     {
+        //Console.WriteLine($"[Offline] UpdateOnlineStatus called: online = {online}");
         isOnline = online;
         StateHasChanged();
     }
@@ -150,7 +184,8 @@
             <ThemeToggle />
         </div>
 
-        @if (!isOnline)
+        @* Only show the mobile offline banner after offline status initialization *@
+        @if (offlineInitialized && !isOnline)
         {
             <!-- Offline banner inside header so header height includes it -->
             <div id="offline-notice-mobile" role="status" aria-live="polite" aria-atomic="true"
@@ -162,7 +197,8 @@
     </header>
 
     <!-- 🖥️ DESKTOP/TABLET OFFLINE BANNER (shown at top of content area) -->
-    @if (!isOnline)
+    @* Only show the desktop offline banner after offline status initialization *@
+    @if (offlineInitialized && !isOnline)
     {
         <div id="offline-notice-desktop" role="status" aria-live="polite" aria-atomic="true"
              class="hidden md:flex fixed left-[72px] xl:left-[220px] 2xl:left-[244px] right-0 z-60 items-center gap-3 px-4 py-2 bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] border-b border-[var(--md-sys-color-outline-variant)]"

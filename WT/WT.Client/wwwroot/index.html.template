@@ -18,6 +18,11 @@
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
 
+<!-- Material Design3 - FFigtree Font Family -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+
  <!-- Material Symbols (Rounded style for Material3) -->
  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
 
@@ -25,11 +30,8 @@
  <link href="css/material-theme/theme.css" rel="stylesheet" />
 
  <!-- Tailwind CSS (compiled with Material3 tokens) -->
- <link href="css/app.css" rel="stylesheet" />
- <link rel="stylesheet" href="css/app.css" />
+ <link rel="stylesheet" href="css/app.css?vs=17012026-0" />
 
- <!-- App Specific Styles -->
- <link href="WT.Client.styles.css" rel="stylesheet" />
 
  <!-- PWA Assets -->
  <link rel="icon" type="image/png" href="favicon.png" />
@@ -59,7 +61,7 @@
  </style>
 </head>
 
-<body class="font-roboto bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]">
+<body class="font-figtree bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]">
  <!-- Splash screen: shown immediately, removed on load or after short timeout -->
  <div id="splash-screen" role="img" aria-label="WheelyTrails starting">
  <div class="splash-card">
@@ -82,23 +84,23 @@
  </div>
 
  <!-- Material Design3 Theme Management Script -->
- <script src="js/theme.js"></script>
- <script src="js/fetchRefresh.js"></script>
+ <script src="js/theme.js?vs=17012026-0"></script>
+ <script src="js/fetchRefresh.js?vs=17012026-0"></script>
 
  <!-- Blazor WebAssembly Script -->
- <script src="_framework/blazor.webassembly.js"></script>
+ <script src="_framework/blazor.webassembly.js?vs=17012026-0"></script>
 
  <!-- Trail recorder-->
- <script type="module" src="js/trailRecorder.js"></script>
+ <script type="module" src="js/trailRecorder.js?vs=17012026-0"></script>
 
  <!-- Modal Helper Script -->
- <script src="js/modal.js"></script>
+ <script src="js/modal.js?vs=17012026-0"></script>
 
  <!-- Offline Helper Script -->
- <script src="js/offline.js"></script>
+ <script src="js/offline.js?vs=17012026-0"></script>
 
  <!-- Layout helper: measures header and sets --header-height -->
- <script src="js/layoutInterop.js"></script>
+ <script src="js/layoutInterop.js?vs=17012026-0"></script>
 
  <script>
  // Hide splash when page load finishes or after timeout.
@@ -126,7 +128,7 @@
 
  <!-- Google Maps JS: replaced by runtime loader that reads js/config.js -->
  <!-- Do NOT commit real keys. Use CI secrets / local scripts to inject the key. -->
- <script src="js/config.js"></script>
+ <script src="js/config.js?vs=17012026-0"></script>
  <script>
  (function () {
  const key = (window.__WT_CONFIG__ && window.__WT_CONFIG__.GOOGLE_MAPS_API_KEY) || '';
