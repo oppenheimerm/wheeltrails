@@ -3,7 +3,7 @@
         "./**/*.razor",
         "./wwwroot/index.html"
     ],
-    darkMode: 'class', // ✅ Enable dark mode
+    darkMode: 'class',
     theme: {
         extend: {
             animation: {
@@ -93,8 +93,10 @@
                 }
             },
             fontFamily: {
-                'sans': ['Roboto', 'system-ui', 'sans-serif'], // ✅ Material 3 default
-                'playfair': ["Playfair Display", "serif"] // ✅ Keep for backwards compatibility
+                // Make Figtree the primary sans font for the site
+                'sans': ['Figtree', 'Roboto', 'system-ui', 'sans-serif'],
+                'figtree': ['Figtree', 'serif'],
+                'playfair': ['Playfair Display', 'serif']
             }
         },
     },

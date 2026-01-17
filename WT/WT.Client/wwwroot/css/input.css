@@ -87,6 +87,7 @@ html, body {
 
 /* Remove hardcoded body background - use Material 3 variables instead */
 body {
+    font-family: "Figtree", "Roboto", system-ui, -apple-system, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif;
     background-color: var(--md-sys-color-background);
     color: var(--md-sys-color-on-background);
 }
