@@ -28,5 +28,20 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app needs your location to record wheelchair trails.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>This app needs background location to record trails even when the screen is off.</string>
+
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app needs background location to record trails.</string>
+
+	<key>MKDirectionsApplicationSupportedModes</key>
+	<array>
+		<string>walking</string>
+		<string>driving</string>
+	</array>
 </dict>
 </plist>

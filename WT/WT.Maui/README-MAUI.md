@@ -14,15 +14,155 @@ This is your single reference for authentication, token management, navigation, 
 ---
 
 ## Table of Contents
-1. [Authentication Flow Overview](#authentication-flow-overview)
-2. [Token Management Architecture](#token-management-architecture)
-3. [Detailed Flow: Login](#detailed-flow-login)
-4. [Detailed Flow: Token Refresh](#detailed-flow-token-refresh)
-5. [Detailed Flow: Logout](#detailed-flow-logout)
-6. [Adding New Pages and ViewModels](#adding-new-pages-and-viewmodels)
-7. [DI Registration Patterns](#di-registration-patterns)
-8. [Navigation Best Practices](#navigation-best-practices)
-9. [Troubleshooting](#troubleshooting)
+1. [UI / UX — Material 3 Design System](#ui--ux--material-3-design-system)
+2. [Authentication Flow Overview](#authentication-flow-overview)
+3. [Token Management Architecture](#token-management-architecture)
+4. [Detailed Flow: Login](#detailed-flow-login)
+5. [Detailed Flow: Token Refresh](#detailed-flow-token-refresh)
+6. [Detailed Flow: Logout](#detailed-flow-logout)
+7. [Adding New Pages and ViewModels](#adding-new-pages-and-viewmodels)
+8. [DI Registration Patterns](#di-registration-patterns)
+9. [Navigation Best Practices](#navigation-best-practices)
+10. [Troubleshooting](#troubleshooting)
+
+---
+
+## UI / UX — Material 3 Design System
+
+### Design Philosophy
+
+WheelyTrails follows [Material Design 3 (Material You)](https://m3.material.io/) guidelines to deliver a **consistent, accessible, and modern look** across:
+
+- **WT.Client** — Blazor WebAssembly (PWA)
+- **WT.Maui** — Android & iOS native apps
+
+The same color tokens, typography scale, and component patterns are used in both platforms so users experience a unified brand regardless of device.
+
+### Theme Source of Truth
+
+The canonical theme is generated from **Material Theme Builder** and stored as CSS variables in the web client. The MAUI client mirrors these tokens in XAML resources.
+
+| Platform | Light Theme | Dark Theme | Location |
+|----------|-------------|------------|----------|
+| **WT.Client** (Web) | `light.css` | `dark.css` | `WT.Client/wwwroot/css/material-theme/` |
+| **WT.Maui** (Mobile) | `Colors.xaml` + `Styles.xaml` | Same files with `AppThemeBinding` | `WT.Maui/Resources/Styles/` |
+
+### Color Token Mapping
+
+The MAUI `Colors.xaml` defines color resources that match the CSS variables in `theme.css`:
+
+| CSS Variable (Web) | XAML Resource (MAUI) | Light Value | Dark Value |
+|--------------------|----------------------|-------------|------------|
+| `--md-sys-color-primary` | `PrimaryLight` / `PrimaryDark` | `#36693D` | `#9DD49E` |
+| `--md-sys-color-primary-container` | `PrimaryContainerLight` / `PrimaryContainerDark` | `#B8F1B9` | `#1E5128` |
+| `--md-sys-color-on-primary-container` | `OnPrimaryContainerLight` / `OnPrimaryContainerDark` | `#1E5128` | `#B8F1B9` |
+| `--md-sys-color-secondary` | `Secondary` | `#516350` | `#516350` |
+| `--md-sys-color-error` | `Error` | `#BA1A1A` | `#BA1A1A` |
+| `--md-sys-color-background` | `Background` | `#F7FBF2` | — |
+| `--md-sys-color-surface` | `Surface` | `#F7FBF2` | — |
+| `--md-sys-color-on-surface` | `OnSurface` / `OnSurfaceLight` / `OnSurfaceDark` | `#181D18` | `#E0E4DB` |
+| `--md-sys-color-surface-container` | `SurfaceContainerLight` / `SurfaceContainerDark` | `#FFFFFF` | `#101510` |
+
+### Theme-Aware Resources
+
+MAUI does not support CSS variables, so we use two patterns to achieve light/dark theming:
+
+#### 1. AppThemeBinding (for Color properties)
+
+Use `AppThemeBinding` inline when a property expects a `Color`:
+```xml
+<Label Text="Hello, World!"
+       TextColor="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource PrimaryLight}}" />
+```
+
+#### 2. DynamicResource (for other properties)
+
+Use `DynamicResource` for other cases, like `BackgroundColor`:
+```xml
+<ContentPage BackgroundColor="{DynamicResource Background}">
+    <StackLayout>
+        <Button Text="Click Me"
+                BackgroundColor="{DynamicResource Primary}"
+                TextColor="{DynamicResource OnPrimary}" />
+    </StackLayout>
+</ContentPage>
+```
+
+#### 2. Theme-Aware Brushes (for Brush properties)
+
+Define `SolidColorBrush` resources with `AppThemeBinding` in `Colors.xaml`:
+
+```xml
+<SolidColorBrush x:Key="PrimaryBrush" Color="{AppThemeBinding Light={StaticResource PrimaryDark}, Dark={StaticResource PrimaryLight}}" />
+<SolidColorBrush x:Key="SecondaryBrush" Color="{AppThemeBinding Light={StaticResource Secondary}, Dark={StaticResource Secondary}}" />
+```
+
+
+### Key Style Definitions (Styles.xaml)
+
+| Style Key | Target | Purpose |
+|-----------|--------|---------|
+| `HeadlineLarge` | Label | Page titles (24pt, Bold) |
+| `HeadlineMedium` | Label | Section headers (18pt, SemiBold) |
+| `Body` | Label | Body text (14pt, Regular) |
+| `FormLabel` | Label | Form field labels |
+| `FormEntry` | Entry | Text input fields |
+| `FormEditor` | Editor | Multi-line text areas |
+| `PrimaryButton` | Button | Primary action (filled, theme primary color) |
+| `SecondaryButton` | Button | Secondary action |
+| `DangerButton` | Button | Destructive action (error color) |
+| `CardStyle` | Border | Card container with elevation |
+| `PrimaryBanner` | Border | Success/info banner |
+| `ErrorBanner` | Border | Error message banner |
+| `MutedLabel` | Label | De-emphasized text |
+
+### Typography
+
+Both platforms use the **Figtree** font family:
+
+| Weight | MAUI FontFamily | Usage |
+|--------|-----------------|-------|
+| Regular | `FigtreeRegular` | Body text, form inputs |
+| Medium | `FigtreeMedium` | Form labels |
+| SemiBold | `FigtreeSemiBold` | Section headers, buttons |
+| Bold | `FigtreeBold` | Page titles |
+
+### Adding/Updating Theme Colors
+
+When you update the Material Theme Builder output:
+
+1. **Web (WT.Client)**: Replace/update files in `wwwroot/css/material-theme/`
+2. **MAUI (WT.Maui)**: Update corresponding `<Color>` resources in `Colors.xaml`
+3. Ensure light/dark variants are defined (e.g., `PrimaryLight`, `PrimaryDark`)
+4. Update or add `SolidColorBrush` resources for Brush-based properties
+5. Clean + Rebuild + Uninstall/Reinstall app on device (MAUI caches resources)
+
+### Runtime Theme Switching
+
+The app respects system theme by default. Users can override in Settings:
+
+```xml
+// SettingsViewModel.cs Application.Current.UserAppTheme = IsDarkMode ? AppTheme.Dark : AppTheme.Light; Preferences.Set("AppTheme", IsDarkMode ? "Dark" : "Light");
+```
+
+
+On startup, `SettingsViewModel.LoadPreferences()` restores the saved theme.
+
+### Best Practices
+
+| Do ✅ | Don't ❌ |
+|------|---------|
+| Use `{StaticResource PrimaryBrush}` for Brush properties | Hard-code hex colors in XAML |
+| Use `{AppThemeBinding Light=..., Dark=...}` for Color properties | Use a single static color for both themes |
+| Use `{DynamicResource OnSurface}` for text colors that must update at runtime | Use `{StaticResource}` for runtime-switching properties |
+| Define new colors in `Colors.xaml` with Light/Dark variants | Scatter color definitions across multiple files |
+| Reference styles by key (`Style="{StaticResource PrimaryButton}"`) | Duplicate style setters inline |
+
+### File Reference
+
+WT.Maui/ └── Resources/ └── Styles/ ├── Colors.xaml      ← Color tokens + theme-aware Brushes └── Styles.xaml      ← Typography, Button, Entry, Card styles
+WT.Client/ └── wwwroot/ └── css/ └── material-theme/ ├── theme.css    ← CSS variables (light default + .dark overrides) ├── light.css    ← Light theme variables ├── dark.css     ← Dark theme variables ├── light-hc.css ← Light high-contrast ├── dark-hc.css  ← Dark high-contrast ├── light-mc.css ← Light medium-contrast └── dark-mc.css  ← Dark medium-contrastWT.Maui/ └── Resources/ └── Styles/ ├── Colors.xaml      ← Color tokens + theme-aware Brushes └── Styles.xaml      ← Typography, Button, Entry, Card styles
+WT.Client/ └── wwwroot/ └── css/ └── material-theme/ ├── theme.css    ← CSS variables (light default + .dark overrides) ├── light.css    ← Light theme variables ├── dark.css     ← Dark theme variables ├── light-hc.css ← Light high-contrast ├── dark-hc.css  ← Dark high-contrast ├── light-mc.css ← Light medium-contrast └── dark-mc.css  ← Dark medium-contrast
 
 ---
 
@@ -387,7 +527,7 @@ Notes
   - Cause: code instantiates a page via `new LoginPage()` while its constructor expects a `LoginViewModel`. Fix by registering `LoginPage` in DI and navigating via route or resolving page from DI.
 - Error: DI runtime “ValueFactory attempted to access the Value property of this instance”
   - Cause: creating a singleton HttpClient from `IHttpClientFactory` at registration time. Fix: register transient factory or typed client.
-- If `Shell.Current` is null at startup: ensure `CreateWindow` returns a Window hosting `AppShell` before attempting `Shell.Current.GoToAsync()`.
+- If `Shell.Current` is null at startup: ensure `CreateWindow` returns a `Window` hosting `AppShell` before attempting `Shell.Current.GoToAsync()`.
 
 - **Key Points:**
 - `_accessToken` is a **private field** — never persisted to disk
@@ -921,7 +1061,7 @@ return result;
 ### ✅ Logout Flow
 - [ ] `SettingsViewModel` calls `AuthService.LogoutAsync()`
 - [ ] `AuthService` calls API logout endpoint (best-effort)
-- [ ] `AuthService` clears access token (memory) and refresh token (SecureStorage)
+- [ ] `AuthService` clears access token (memory) and refresh token (secure storage)
 - [ ] Navigate to `//login` to clear navigation stack
 
 ### ✅ New Page/ViewModel

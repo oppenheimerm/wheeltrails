@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WT.Maui.ViewModels"
+             x:Class="WT.Maui.Views.Trails.Create"
+             x:DataType="vm:CreateTrailViewModel"
+             Title="Create Trail">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="16">
+
+            <!-- Header -->
+            <Label Text="Record a New Trail"
+                   Style="{StaticResource HeadlineLarge}" />
+
+            <Label Text="Capture waypoints and points of interest for your trail."
+                   Style="{StaticResource MutedLabel}" />
+
+            <!-- Error / Success -->
+            <Border IsVisible="{Binding HasError}" Style="{StaticResource ErrorBanner}">
+                <Label Text="{Binding ErrorMessage}" TextColor="{DynamicResource OnErrorContainer}" />
+            </Border>
+
+            <Border IsVisible="{Binding HasSuccess}" Style="{StaticResource PrimaryBanner}">
+                <Label Text="{Binding SuccessMessage}" TextColor="{DynamicResource OnPrimaryContainer}" />
+            </Border>
+
+            <!-- Stats Card -->
+            <Border Style="{StaticResource CardStyle}">
+                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="16" RowSpacing="12">
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="0">
+                        <Label Text="Points Recorded" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding WaypointCount}" Style="{StaticResource HeadlineMedium}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="0" Grid.Column="1">
+                        <Label Text="Points of Interest" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding PoiCount}" Style="{StaticResource HeadlineMedium}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="0">
+                        <Label Text="Last Position" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding LastPositionDisplay}" Style="{StaticResource Body}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="1" Grid.Column="1">
+                        <Label Text="Altitude" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding AltitudeDisplay}" Style="{StaticResource Body}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="2" Grid.Column="0">
+                        <Label Text="Elapsed Time" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding ElapsedTimeDisplay}" Style="{StaticResource HeadlineMedium}" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Grid.Row="2" Grid.Column="1">
+                        <Label Text="Distance" Style="{StaticResource MutedLabel}" />
+                        <Label Text="{Binding DistanceDisplay}" Style="{StaticResource HeadlineMedium}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </Border>
+
+            <!-- Controls -->
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                <Button Text="{Binding RecordingButtonText}" 
+                        Command="{Binding ToggleRecordingCommand}" 
+                        Style="{StaticResource PrimaryButton}" />
+                <Button Grid.Column="1" 
+                        Text="Add POI" 
+                        Command="{Binding AddPoiCommand}" 
+                        IsEnabled="{Binding CanAddPoi}" 
+                        Style="{StaticResource SecondaryButton}" />
+                <Button Grid.Column="2" 
+                        Text="Get Location" 
+                        Command="{Binding GetCurrentLocationCommand}" 
+                        Style="{StaticResource SecondaryButton}" />
+            </Grid>
+
+            <Border IsVisible="{Binding IsRecording}" Style="{StaticResource PrimaryBanner}">
+                <HorizontalStackLayout Spacing="12">
+                    <Label Text="●" 
+                           FontSize="20" 
+                           TextColor="{DynamicResource OnPrimaryContainer}" 
+                           VerticalOptions="Center" />
+                    <Label Text="Recording — GPS in use" 
+                           Style="{StaticResource Body}" 
+                           TextColor="{DynamicResource OnPrimaryContainer}" 
+                           VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <BoxView HeightRequest="1" 
+                     Color="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray700}}" 
+                     Margin="0,8" />
+
+            <!-- Trail Metadata Form -->
+            <Label Text="Trail Details" Style="{StaticResource HeadlineMedium}" />
+
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Title" Style="{StaticResource FormLabel}" />
+                <Entry Text="{Binding Title}" 
+                       Placeholder="Enter trail title" 
+                       MaxLength="150" 
+                       Style="{StaticResource FormEntry}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Description" Style="{StaticResource FormLabel}" />
+                <Editor Text="{Binding Description}" 
+                        Placeholder="Describe your trail..." 
+                        MaxLength="600" 
+                        Style="{StaticResource FormEditor}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Difficulty" Style="{StaticResource FormLabel}" />
+                <Picker Title="Select difficulty" 
+                        ItemsSource="{Binding DifficultyOptions}" 
+                        SelectedItem="{Binding SelectedDifficulty}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Surface Types" Style="{StaticResource FormLabel}" />
+                <FlexLayout Wrap="Wrap" JustifyContent="Start">
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsPavedSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Paved" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsGrassSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Grass" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsGravelSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Gravel" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsBoardwalkSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Boardwalk" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsRoadSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Road" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsDirtSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Dirt" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="4" Margin="0,0,16,8">
+                        <CheckBox IsChecked="{Binding IsRubberSelected}" 
+                                  Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                        <Label Text="Rubber" VerticalOptions="Center" Style="{StaticResource Body}" />
+                    </HorizontalStackLayout>
+                </FlexLayout>
+            </VerticalStackLayout>
+
+            <Button Text="{Binding SubmitButtonText}" 
+                    Command="{Binding SubmitTrailCommand}" 
+                    IsEnabled="{Binding CanSubmit}" 
+                    Style="{StaticResource PrimaryButton}" />
+
+            <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

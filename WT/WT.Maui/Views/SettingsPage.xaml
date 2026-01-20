@@ -1,30 +1,118 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:WT.Maui.ViewModels"
              x:Class="WT.Maui.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
              Title="Settings">
-  <VerticalStackLayout Padding="20" Spacing="16">
 
-    <Label Text="Settings" FontAttributes="Bold" FontSize="18" HorizontalOptions="Center" />
+  <ScrollView>
+    <VerticalStackLayout Padding="16" Spacing="16">
 
-    <!-- Other settings rows can go here -->
+      <!-- Header -->
+      <Label Text="Account Settings" Style="{StaticResource HeadlineLarge}" />
 
-    <Frame Padding="12" BackgroundColor="{DynamicResource SecondaryBackgroundColor}" CornerRadius="8">
-      <HorizontalStackLayout VerticalOptions="Center" Spacing="12">
-        <Label Text="Account" VerticalOptions="Center" HorizontalOptions="StartAndExpand"/>
-        <!-- Bind to LogoutCommand on the VM -->
-        <Button Text="Logout"
-                Command="{Binding LogoutCommand}"
-                BackgroundColor="#E53E3E"
-                TextColor="White"
-                IsEnabled="{Binding IsNotBusy}" />
-      </HorizontalStackLayout>
-    </Frame>
+      <!-- Profile area -->
+      <Border Style="{StaticResource CardStyle}">
+        <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+          <Border WidthRequest="72" HeightRequest="72" 
+                  StrokeShape="RoundRectangle 36" 
+                  Stroke="Transparent"
+                  BackgroundColor="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray800}}">
+            <Label Text="👤" HorizontalOptions="Center" VerticalOptions="Center" FontSize="32" />
+          </Border>
 
-    <!-- Busy indicator -->
-    <ActivityIndicator IsVisible="{Binding IsBusy}" IsRunning="{Binding IsBusy}" HorizontalOptions="Center" />
+          <VerticalStackLayout Spacing="4" VerticalOptions="CenterAndExpand">
+            <Label Text="{Binding FirstName}" Style="{StaticResource HeadlineMedium}" />
+            <Label Text="{Binding Email}" Style="{StaticResource MutedLabel}" />
+            <HorizontalStackLayout Spacing="8" Margin="0,8,0,0">
+              <Button Text="Change Photo" Style="{StaticResource SecondaryButton}" />
+              <Button Text="Logout" Command="{Binding LogoutCommand}" Style="{StaticResource DangerButton}" />
+            </HorizontalStackLayout>
+          </VerticalStackLayout>
+        </HorizontalStackLayout>
+      </Border>
 
-    <Label x:Name="StatusLabel" IsVisible="False" TextColor="{DynamicResource DangerColor}" />
+      <!-- Success / Error -->
+      <Border IsVisible="{Binding SuccessMessage, Converter={StaticResource StringNotNullOrEmptyConverter}}"
+              Style="{StaticResource PrimaryBanner}">
+        <Label Text="{Binding SuccessMessage}" TextColor="{DynamicResource OnPrimaryContainer}" />
+      </Border>
 
-  </VerticalStackLayout>
+      <Border IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotNullOrEmptyConverter}}"
+              Style="{StaticResource ErrorBanner}">
+        <Label Text="{Binding ErrorMessage}" TextColor="{DynamicResource OnErrorContainer}" />
+      </Border>
+
+      <!-- Recorder Preferences -->
+      <Border Style="{StaticResource CardStyle}">
+        <VerticalStackLayout Spacing="12">
+          <Label Text="Recorder Preferences" Style="{StaticResource HeadlineMedium}" />
+
+          <VerticalStackLayout Spacing="8">
+            <Label Text="GPS Accuracy" Style="{StaticResource FormLabel}" />
+            <Picker SelectedIndex="{Binding GpsAccuracy}" Title="Select GPS accuracy">
+              <Picker.Items>
+                <x:String>Default</x:String>
+                <x:String>High</x:String>
+                <x:String>Balanced</x:String>
+                <x:String>Low Power</x:String>
+              </Picker.Items>
+            </Picker>
+          </VerticalStackLayout>
+
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+            <Label Text="Show recording warning" Style="{StaticResource FormLabel}" />
+            <Label Grid.Row="1" Text="Show a confirmation before starting recording to warn about battery usage." 
+                   Style="{StaticResource MutedLabel}" />
+            <Switch Grid.RowSpan="2" Grid.Column="1" IsToggled="{Binding ShowRecordingWarning}" VerticalOptions="Center" />
+          </Grid>
+
+          <HorizontalStackLayout Spacing="12" Margin="0,8,0,0">
+            <Button Text="Save preferences" Command="{Binding SavePreferencesCommand}" Style="{StaticResource PrimaryButton}" />
+            <Button Text="Reset" Command="{Binding ResetPreferencesCommand}" Style="{StaticResource SecondaryButton}" />
+          </HorizontalStackLayout>
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- Theme -->
+      <Border Style="{StaticResource CardStyle}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="Appearance" Style="{StaticResource HeadlineMedium}" />
+          <Grid ColumnDefinitions="*,Auto">
+            <Label Text="Dark mode" Style="{StaticResource Body}" VerticalOptions="Center" />
+            <Switch Grid.Column="1" IsToggled="{Binding IsDarkMode}" Toggled="ThemeSwitch_Toggled" />
+          </Grid>
+          <Label Text="{Binding ThemeDescription}" Style="{StaticResource MutedLabel}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- About -->
+      <Border Style="{StaticResource CardStyle}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="About You" Style="{StaticResource HeadlineMedium}" />
+          <Label Text="Bio (Optional)" Style="{StaticResource FormLabel}" />
+          <Editor Text="{Binding Bio}" Style="{StaticResource FormEditor}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- Country -->
+      <Border Style="{StaticResource CardStyle}">
+        <VerticalStackLayout Spacing="8">
+          <Label Text="Location" Style="{StaticResource HeadlineMedium}" />
+          <Label Text="Country" Style="{StaticResource FormLabel}" />
+          <Entry Text="{Binding CountryCode}" Placeholder="Country code (e.g. US)" Style="{StaticResource FormEntry}" />
+        </VerticalStackLayout>
+      </Border>
+
+      <!-- Footer actions -->
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+        <Button Text="Save All" Command="{Binding SavePreferencesCommand}" Style="{StaticResource PrimaryButton}" />
+        <Button Grid.Column="1" Text="Reset" Command="{Binding ResetPreferencesCommand}" Style="{StaticResource SecondaryButton}" />
+      </Grid>
+
+      <ActivityIndicator IsRunning="{Binding IsBusy}" IsVisible="{Binding IsBusy}" />
+
+    </VerticalStackLayout>
+  </ScrollView>
 </ContentPage>
