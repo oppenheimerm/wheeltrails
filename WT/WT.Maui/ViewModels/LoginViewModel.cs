@@ -11,7 +11,7 @@ namespace WT.Maui.ViewModels
 {
     public partial class LoginViewModel : BaseViewModel
     {
-        private readonly AuthService _auth;
+        private readonly IAuthService _auth;
         private readonly IServiceProvider _services;
 
         // Use generator-backed fields so bindings update automatically.
@@ -22,7 +22,7 @@ namespace WT.Maui.ViewModels
         [ObservableProperty]
         private string password = string.Empty;
 
-        public LoginViewModel(AuthService auth, IServiceProvider services)
+        public LoginViewModel(IAuthService auth, IServiceProvider services)
         {
             _auth = auth ?? throw new ArgumentNullException(nameof(auth));
             _services = services ?? throw new ArgumentNullException(nameof(services));
@@ -30,7 +30,7 @@ namespace WT.Maui.ViewModels
 
         [RelayCommand]
         private async Task LoginAsync()
-        {
+            {
             ErrorMessage = string.Empty;
             IsBusy = true;
             try

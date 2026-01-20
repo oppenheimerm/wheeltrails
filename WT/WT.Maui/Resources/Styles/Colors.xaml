@@ -4,42 +4,118 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
 
-    <!-- Note: For Android please see also Platforms\Android\Resources\values\colors.xml -->
+  <!--
+    Synchronized MAUI color tokens with WT.Client Material Theme (theme.css).
+    Light-mode values taken from :root in theme.css.
+    Dark-mode values taken from the .dark section in theme.css.
+  -->
 
-    <Color x:Key="Primary">#512BD4</Color>
-    <Color x:Key="PrimaryDark">#ac99ea</Color>
-    <Color x:Key="PrimaryDarkText">#242424</Color>
-    <Color x:Key="Secondary">#DFD8F7</Color>
-    <Color x:Key="SecondaryDarkText">#9880e5</Color>
-    <Color x:Key="Tertiary">#2B0B98</Color>
+  <!-- Core colors (light / dark aware brushes use AppThemeBinding below) -->
+  <Color x:Key="PrimaryLight">#36693D</Color>     <!-- light: rgb(54,105,61) -->
+  <Color x:Key="PrimaryDark">#9DD49E</Color>      <!-- dark: rgb(157,212,158) -->
 
-    <Color x:Key="White">White</Color>
-    <Color x:Key="Black">Black</Color>
-    <Color x:Key="Magenta">#D600AA</Color>
-    <Color x:Key="MidnightBlue">#190649</Color>
-    <Color x:Key="OffBlack">#1f1f1f</Color>
+  <Color x:Key="PrimaryContainerLight">#B8F1B9</Color>       <!-- rgb(184,241,185) -->
+  <Color x:Key="OnPrimaryContainerLight">#1E5128</Color>     <!-- rgb(30,81,40) -->
 
-    <Color x:Key="Gray100">#E1E1E1</Color>
-    <Color x:Key="Gray200">#C8C8C8</Color>
-    <Color x:Key="Gray300">#ACACAC</Color>
-    <Color x:Key="Gray400">#919191</Color>
-    <Color x:Key="Gray500">#6E6E6E</Color>
-    <Color x:Key="Gray600">#404040</Color>
-    <Color x:Key="Gray900">#212121</Color>
-    <Color x:Key="Gray950">#141414</Color>
+  <Color x:Key="PrimaryContainerDark">#1E5128</Color>        <!-- dark .dark primary-container -->
+  <Color x:Key="OnPrimaryContainerDark">#B8F1B9</Color>      <!-- dark .dark on-primary-container -->
 
-    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource Primary}"/>
-    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}"/>
-    <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}"/>
-    <SolidColorBrush x:Key="WhiteBrush" Color="{StaticResource White}"/>
-    <SolidColorBrush x:Key="BlackBrush" Color="{StaticResource Black}"/>
+  <Color x:Key="Secondary">#516350</Color>                   <!-- rgb(81,99,80) -->
+  <Color x:Key="SecondaryContainerLight">#D4E8D0</Color>     <!-- rgb(212,232,208) -->
+  <Color x:Key="OnSecondaryContainerLight">#3A4B3A</Color>   <!-- rgb(58,75,58) -->
 
-    <SolidColorBrush x:Key="Gray100Brush" Color="{StaticResource Gray100}"/>
-    <SolidColorBrush x:Key="Gray200Brush" Color="{StaticResource Gray200}"/>
-    <SolidColorBrush x:Key="Gray300Brush" Color="{StaticResource Gray300}"/>
-    <SolidColorBrush x:Key="Gray400Brush" Color="{StaticResource Gray400}"/>
-    <SolidColorBrush x:Key="Gray500Brush" Color="{StaticResource Gray500}"/>
-    <SolidColorBrush x:Key="Gray600Brush" Color="{StaticResource Gray600}"/>
-    <SolidColorBrush x:Key="Gray900Brush" Color="{StaticResource Gray900}"/>
-    <SolidColorBrush x:Key="Gray950Brush" Color="{StaticResource Gray950}"/>
+  <Color x:Key="SecondaryContainerDark">#3A4B3A</Color>
+  <Color x:Key="OnSecondaryContainerDark">#D4E8D0</Color>
+
+  <Color x:Key="Tertiary">#39656C</Color>                    <!-- rgb(57,101,108) -->
+  <Color x:Key="TertiaryContainerLight">#BDEAF3</Color>      <!-- rgb(189,234,243) -->
+  <Color x:Key="OnTertiaryContainerLight">#1F4D54</Color>    <!-- rgb(31,77,84) -->
+
+  <Color x:Key="TertiaryContainerDark">#1F4D54</Color>
+  <Color x:Key="OnTertiaryContainerDark">#BDEAF3</Color>
+
+  <Color x:Key="Error">#BA1A1A</Color>                       <!-- rgb(186,26,26) -->
+  <Color x:Key="ErrorContainerLight">#FFDAD6</Color>        <!-- rgb(255,218,214) -->
+  <Color x:Key="OnErrorContainerLight">#93000A</Color>       <!-- rgb(147,0,10) -->
+  <Color x:Key="ErrorContainerDark">#93000A</Color>
+  <Color x:Key="OnErrorContainerDark">#FFDAD6</Color>
+
+  <Color x:Key="Background">#F7FBF2</Color>                  <!-- rgb(247,251,242) -->
+  <Color x:Key="OnBackground">#181D18</Color>                <!-- rgb(24,29,24) -->
+
+  <Color x:Key="Surface">#F7FBF2</Color>                     <!-- same as background -->
+  <Color x:Key="OnSurface">#181D18</Color>
+
+  <Color x:Key="SurfaceVariant">#DEE5D9</Color>              <!-- rgb(222,229,217) -->
+  <Color x:Key="OnSurfaceVariant">#424940</Color>            <!-- rgb(66,73,64) -->
+
+  <Color x:Key="SurfaceContainerLight">#FFFFFF</Color>       <!-- surface container lowest / white -->
+  <Color x:Key="SurfaceContainerDark">#101510</Color>        <!-- dark: rgb(16,21,16) -->
+  <Color x:Key="OnSurfaceLight">#181D18</Color>
+  <Color x:Key="OnSurfaceDark">#E0E4DB</Color>               <!-- rgb(224,228,219) -->
+
+  <Color x:Key="Outline">#727970</Color>                     <!-- rgb(114,121,112) -->
+  <Color x:Key="OutlineVariant">#C1C9BE</Color>              <!-- rgb(193,201,190) -->
+
+  <!-- Neutral/grays (preserve for UI components) -->
+  <Color x:Key="Gray100">#E1E1E1</Color>
+  <Color x:Key="Gray200">#C8C8C8</Color>
+  <Color x:Key="Gray300">#ACACAC</Color>
+  <Color x:Key="Gray400">#919191</Color>
+  <Color x:Key="Gray500">#6E6E6E</Color>
+  <Color x:Key="Gray600">#404040</Color>
+  <Color x:Key="Gray700">#2F2F2F</Color>
+  <Color x:Key="Gray800">#262626</Color>
+  <Color x:Key="Gray900">#212121</Color>
+  <Color x:Key="Gray950">#141414</Color>
+
+  <!-- Basic helpers -->
+  <Color x:Key="White">#FFFFFF</Color>
+  <Color x:Key="Black">#000000</Color>
+
+  <!-- Added tokens required by Styles.xaml -->
+  <Color x:Key="OffBlack">#0B0B0B</Color>                    <!-- dark page/shell background -->
+  <Color x:Key="SecondaryDarkText">#E0E4DB</Color>           <!-- dark-mode secondary text (matches OnSurfaceDark) -->
+  <Color x:Key="Magenta">#512BD4</Color>                     <!-- accent used by Shell TabBar in light theme -->
+
+  <!-- Brushes (light/dark aware brushes use AppThemeBinding below) -->
+  <SolidColorBrush x:Key="PrimaryBrush"
+                   Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+  <SolidColorBrush x:Key="PrimaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource PrimaryContainerLight}, Dark={StaticResource PrimaryContainerDark}}" />
+  <SolidColorBrush x:Key="OnPrimaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource OnPrimaryContainerLight}, Dark={StaticResource OnPrimaryContainerDark}}" />
+
+  <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
+  <SolidColorBrush x:Key="SecondaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource SecondaryContainerLight}, Dark={StaticResource SecondaryContainerDark}}" />
+  <SolidColorBrush x:Key="OnSecondaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource OnSecondaryContainerLight}, Dark={StaticResource OnSecondaryContainerDark}}" />
+
+  <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}" />
+  <SolidColorBrush x:Key="TertiaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource TertiaryContainerLight}, Dark={StaticResource TertiaryContainerDark}}" />
+  <SolidColorBrush x:Key="OnTertiaryContainer"
+                   Color="{AppThemeBinding Light={StaticResource OnTertiaryContainerLight}, Dark={StaticResource OnTertiaryContainerDark}}" />
+
+  <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource Error}" />
+  <SolidColorBrush x:Key="ErrorContainer"
+                   Color="{AppThemeBinding Light={StaticResource ErrorContainerLight}, Dark={StaticResource ErrorContainerDark}}" />
+  <SolidColorBrush x:Key="OnErrorContainer"
+                   Color="{AppThemeBinding Light={StaticResource OnErrorContainerLight}, Dark={StaticResource OnErrorContainerDark}}" />
+
+  <SolidColorBrush x:Key="SurfaceContainer"
+                   Color="{AppThemeBinding Light={StaticResource SurfaceContainerLight}, Dark={StaticResource SurfaceContainerDark}}" />
+  <!-- renamed brush to avoid collision with Color 'OnSurface' -->
+  <SolidColorBrush x:Key="OnSurfaceBrush"
+                   Color="{AppThemeBinding Light={StaticResource OnSurfaceLight}, Dark={StaticResource OnSurfaceDark}}" />
+
+  <SolidColorBrush x:Key="OutlineBrush" Color="{StaticResource Outline}" />
+
+  <!-- Numeric tokens -->
+  <x:Double x:Key="TopAppBarHeight">64</x:Double>
+  <x:Double x:Key="TabBarHeight">64</x:Double>
+
+  <!-- Helpful comment: These XAML keys should match the CSS variable's intent.
+       If you change the web theme, update these values to keep parity. -->
 </ResourceDictionary>

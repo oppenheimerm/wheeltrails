@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -14,7 +15,7 @@ namespace WT.Maui.Services
     /// - Stores access token in <see cref="NativeTokenService"/> memory and persists refresh token securely.
     /// - Exposes quick synchronous <see cref="IsLoggedIn"/> check and asynchronous <see cref="RestoreSessionAsync"/> method.
     /// </summary>
-    public class AuthService
+    public class AuthService : IAuthService
     {
         private readonly HttpClient _http;
         private readonly NativeTokenService _tokens;
@@ -109,6 +110,45 @@ namespace WT.Maui.Services
                 }
 
                 return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Ensures the supplied HttpClient has an Authorization header with a valid access token.
+        /// Uses in-memory token when available; otherwise attempts a refresh via TryRefreshAsync().
+        /// Returns true when Authorization header was set.
+        /// </summary>
+        public async Task<bool> EnsureAuthorizationHeaderAsync(HttpClient client)
+        {
+            if (client == null) throw new ArgumentNullException(nameof(client));
+
+            try
+            {
+                // If token present and not expired, set header
+                if (!string.IsNullOrEmpty(_tokens.AccessToken) && !_tokens.IsAccessTokenExpired())
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _tokens.AccessToken);
+                    return true;
+                }
+
+                // Try refreshing using stored refresh token
+                var refresh = await _tokens.GetRefreshTokenAsync().ConfigureAwait(false);
+                if (string.IsNullOrEmpty(refresh)) return false;
+
+                var refreshed = await TryRefreshAsync().ConfigureAwait(false);
+                if (!refreshed) return false;
+
+                if (!string.IsNullOrEmpty(_tokens.AccessToken))
+                {
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _tokens.AccessToken);
+                    return true;
+                }
+
+                return false;
             }
             catch
             {

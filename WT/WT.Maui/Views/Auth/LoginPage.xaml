@@ -3,33 +3,35 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="WT.Maui.Views.Auth.LoginPage"
              Title="Sign in">
+
   <ScrollView>
     <VerticalStackLayout Padding="18" Spacing="12">
 
-      <Label Text="Sign in to WheelyTrails" FontSize="20" FontAttributes="Bold" HorizontalOptions="Center" />
+      <Label Text="Sign in to WheelyTrails" Style="{StaticResource HeadlineMedium}" HorizontalOptions="Center" />
 
-      <Label Text="Email" />
-      <Entry Text="{Binding Email}" Placeholder="you@example.com" Keyboard="Email" />
+      <Label Text="Email" Style="{StaticResource FormLabel}" />
+      <Entry Text="{Binding Email}" Placeholder="you@example.com" Keyboard="Email" Style="{StaticResource FormEntry}" />
 
-      <Label Text="Password" />
-      <Entry Text="{Binding Password}" IsPassword="True" Placeholder="Password" />
+      <Label Text="Password" Style="{StaticResource FormLabel}" />
+      <Entry Text="{Binding Password}" IsPassword="True" Placeholder="Password" Style="{StaticResource FormEntry}" />
 
-      <Label TextColor="Red" IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotNullOrEmptyConverter}}" 
-             Text="{Binding ErrorMessage}" />
+      <Border IsVisible="{Binding ErrorMessage, Converter={StaticResource StringNotNullOrEmptyConverter}}"
+              Style="{StaticResource ErrorBanner}">
+        <Label Text="{Binding ErrorMessage}" TextColor="{DynamicResource OnErrorContainer}" />
+      </Border>
 
-      <Grid>
-        <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="*" />
-          <ColumnDefinition Width="Auto" />
-        </Grid.ColumnDefinitions>
-
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <Button Text="{Binding IsSubmitting, Converter={StaticResource BoolToSubmittingTextConverter}}"
                 Command="{Binding LoginCommand}"
                 IsEnabled="{Binding IsSubmitting, Converter={StaticResource InverseBoolConverter}}"
-                HeightRequest="44" />
+                Style="{StaticResource PrimaryButton}" />
 
-        <ActivityIndicator Grid.Column="1" IsVisible="{Binding IsSubmitting}" IsRunning="{Binding IsSubmitting}" 
-                           VerticalOptions="Center" HorizontalOptions="End" WidthRequest="44" />
+        <ActivityIndicator Grid.Column="1" 
+                           IsVisible="{Binding IsSubmitting}" 
+                           IsRunning="{Binding IsSubmitting}" 
+                           VerticalOptions="Center" 
+                           HorizontalOptions="End" 
+                           WidthRequest="44" />
       </Grid>
 
     </VerticalStackLayout>

@@ -4,6 +4,7 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:local="clr-namespace:WT.Maui.Views"
+    xmlns:trails="clr-namespace:WT.Maui.Views.Trails"
     Title="WheelyTrails"
     Shell.FlyoutBehavior="Disabled"
     Shell.TabBarIsVisible="True">
@@ -50,8 +51,8 @@
 
         <ShellContent
             Title="Create"
-            ContentTemplate="{DataTemplate local:AddTrailsPage}"
-            Route="AddTrailsPage">
+            ContentTemplate="{DataTemplate trails:Create}"
+            Route="trailcreate">
             <ShellContent.Icon>
                 <!-- Add/plus: U+E145 -->
                 <FontImageSource Glyph="&#xE145;" FontFamily="MaterialSymbolsRounded" Size="22" />
