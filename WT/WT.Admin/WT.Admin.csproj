@@ -16,4 +16,10 @@
     <ProjectReference Include="..\WT.Application\WT.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Components\Pages\Trails\" />
+    <Folder Include="Styles\" />
+    <Folder Include="wwwroot\img\" />
+  </ItemGroup>
+
 </Project>

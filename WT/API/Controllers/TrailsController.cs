@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using WT.Application.APIServiceLogs;
+using WT.Application.Common.Paging;
 using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Request.Trail;
@@ -31,6 +32,23 @@ namespace API.Controllers
             _trailRepository = trailRepository;
             _fileStorageService = fileStorageService;
         }
+
+        [HttpGet("all")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PagedList<TrailDTO>>>GetTrailsAll([FromQuery] PagingParameters pagingParameters, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var trails = await _trailRepository.GetAllTrailsAsync(pagingParameters,cancellationToken);
+                return Ok(trails);
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { success = false, message = "An error occurred while retrieving trails" });
+            }
+        }
+
 
         [HttpPost]
         [Authorize] // ✅ Requires valid JWT token

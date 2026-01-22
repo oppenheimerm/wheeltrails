@@ -631,6 +631,9 @@ namespace WT.Infrastructure.Migrations
                                 .ValueGeneratedOnAdd()
                                 .HasColumnType("uniqueidentifier");
 
+                            b1.Property<double?>("Altitude")
+                                .HasColumnType("float");
+
                             b1.Property<double>("Lat")
                                 .HasColumnType("float")
                                 .HasColumnName("WaypointLat");
@@ -638,6 +641,9 @@ namespace WT.Infrastructure.Migrations
                             b1.Property<double>("Lng")
                                 .HasColumnType("float")
                                 .HasColumnName("WaypointLng");
+
+                            b1.Property<DateTime?>("Timestamp")
+                                .HasColumnType("datetime2");
 
                             b1.Property<Guid>("TrailId")
                                 .HasColumnType("uniqueidentifier");
@@ -688,6 +694,9 @@ namespace WT.Infrastructure.Migrations
                                     b2.Property<Guid>("WTPointOfInterestId")
                                         .HasColumnType("uniqueidentifier");
 
+                                    b2.Property<double?>("Altitude")
+                                        .HasColumnType("float");
+
                                     b2.Property<double>("Lat")
                                         .HasColumnType("float")
                                         .HasColumnName("PoiLat");
@@ -695,6 +704,9 @@ namespace WT.Infrastructure.Migrations
                                     b2.Property<double>("Lng")
                                         .HasColumnType("float")
                                         .HasColumnName("PoiLng");
+
+                                    b2.Property<DateTime?>("Timestamp")
+                                        .HasColumnType("datetime2");
 
                                     b2.HasKey("WTPointOfInterestId");
 
@@ -713,6 +725,9 @@ namespace WT.Infrastructure.Migrations
                             b1.Property<Guid>("WTTrailId")
                                 .HasColumnType("uniqueidentifier");
 
+                            b1.Property<double?>("Altitude")
+                                .HasColumnType("float");
+
                             b1.Property<double>("Lat")
                                 .HasColumnType("float")
                                 .HasColumnName("EndLat");
@@ -720,6 +735,9 @@ namespace WT.Infrastructure.Migrations
                             b1.Property<double>("Lng")
                                 .HasColumnType("float")
                                 .HasColumnName("EndLng");
+
+                            b1.Property<DateTime?>("Timestamp")
+                                .HasColumnType("datetime2");
 
                             b1.HasKey("WTTrailId");
 
@@ -734,6 +752,9 @@ namespace WT.Infrastructure.Migrations
                             b1.Property<Guid>("WTTrailId")
                                 .HasColumnType("uniqueidentifier");
 
+                            b1.Property<double?>("Altitude")
+                                .HasColumnType("float");
+
                             b1.Property<double>("Lat")
                                 .HasColumnType("float")
                                 .HasColumnName("StartLat");
@@ -741,6 +762,9 @@ namespace WT.Infrastructure.Migrations
                             b1.Property<double>("Lng")
                                 .HasColumnType("float")
                                 .HasColumnName("StartLng");
+
+                            b1.Property<DateTime?>("Timestamp")
+                                .HasColumnType("datetime2");
 
                             b1.HasKey("WTTrailId");
 

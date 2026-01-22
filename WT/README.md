@@ -46,7 +46,56 @@ Summary of notable, recent changes in this branch (adds hard-delete + persistent
 Why this approach?
 - Remote storage operations (Firebase/Cloud Storage) can fail or be slow. Doing deletions outside of the DB transaction avoids partial failures and provides operational visibility, retries, and auditability.
 
-Telemetry & observability
+Persistent Deletion Queue — Enqueue → Worker Flow
+This project uses a durable, database-backed deletion queue to perform best-effort removal of remote files (for example, profile pictures) outside of user-facing transactions. Additions and processing are implemented in the Infrastructure layer.
+
+#### Where the code lives
+- **Enqueue**: `WT.Infrastructure.Repositories.WTAccount::HardDeleteUserAsync`
+  - Creates and persists a `WT.Domain.Entity.DeletionQueueItem` and calls `dbContext.DeletionQueue.Add(...)` followed by `SaveChangesAsync()`.
+- **Queue model**: `WT.Domain.Entity.DeletionQueueItem` — fields: `Id, FileUrl, RelatedUserId, AttemptCount, NextAttemptAt, Status, LastError, CreatedAt, UpdatedAt`.
+- **Worker**: `WT.Infrastructure.Services.DeletionQueueWorker` (hosted BackgroundService) — polls DB, processes items, updates status and scheduling.
+- **DI registration**: `WT.Infrastructure.DependencyInjection.ServiceContainer.AddInfrastructureServices()` registers the worker via `services.AddHostedService<DeletionQueueWorker>();` and registers `IFileStorageService` implementation (Firebase).
+- **Admin API**: `API.Controllers.Admin.DeletionQueueController` exposes list/inspect/requeue/delete endpoints (admin role required).
+
+#### Flow: Enqueue → Dequeue → Process
+1. **Hard delete occurs** (example: `HardDeleteUserAsync`):
+   - The user and related data are removed or reassigned inside a DB transaction.
+   - If a remote file (e.g., `ProfilePicture`) must be removed, code creates `DeletionQueueItem` with `Status = Pending` and `NextAttemptAt = DateTime.UtcNow`, then saves it to the database. This avoids blocking the user transaction on an external storage call.
+2. **Background worker polling** (`DeletionQueueWorker`):
+   - Worker runs as a hosted service and wakes periodically (configurable `_pollInterval`).
+   - It opens a scoped `AppDbContext` and `IFileStorageService` from DI and queries the earliest `Pending` item whose `NextAttemptAt <= UtcNow`.
+3. **Claim & attempt**:
+   - The worker marks the item `InProgress` and `SaveChangesAsync()` so other workers do not immediately reprocess it.
+   - It performs short inline retries (in-memory) to handle transient failures without incrementing the persisted `AttemptCount`.
+   - It calls `IFileStorageService.DeleteFileAsync(item.FileUrl)` (Firebase implementation by default). The method should be idempotent and treat "not found" as success.
+4. **Success path**:
+   - On success the worker sets `Status = Succeeded`, updates timestamps, logs the event and persists changes.
+5. **Failure path**:
+   - On failure the worker increments `AttemptCount`, sets `LastError`, and either:
+     - If `AttemptCount >= _maxAttempts` → set `Status = Failed` (dead-letter), or
+     - Otherwise compute exponential backoff (`NextAttemptAt = UtcNow + 2^AttemptCount seconds`), set `Status = Pending`, and persist.
+6. **Administrative control**:
+   - Admin endpoints allow listing pending/failed items, inspecting errors, requeueing specific items (set `Status = Pending`, reset `AttemptCount`), or removing records.
+
+#### Operational notes & recommendations
+- **Database table**: the `DeletionQueue` table is defined by EF migrations. If you see `Invalid object name 'DeletionQueue'`, run migrations or apply the create-table SQL shown in the code comments.
+- **Idempotency**: ensure `IFileStorageService.DeleteFileAsync` treats remote "not found" as success to avoid unnecessary retries.
+- **Atomic claiming**: the worker marks items `InProgress` in a separate Save step. In multi-instance deployments consider an atomic claim pattern (UPDATE ... OUTPUT) or use a row-version check to avoid race conditions.
+- **Cancellation**: the worker observes `CancellationToken` for graceful shutdown; controllers pass `HttpContext.RequestAborted` for upload flows.
+- **Backoff & dead-letter**: tune `_maxAttempts` and retention; consider an automated prune job for old `Succeeded`/`Failed` items.
+- **Telemetry & privacy**: worker logs `FileUrl` — redact or hash if file paths are sensitive before shipping to Application Insights.
+
+### Sequence (quick)
+1. `WTAccount.HardDeleteUserAsync` enqueues `DeletionQueueItem` (Pending).
+2. Host starts `DeletionQueueWorker` (registered in `ServiceContainer`).
+3. Worker polls DB, claims an item (InProgress).
+4. Worker calls `IFileStorageService.DeleteFileAsync(...)` with inline retries.
+5. Worker updates DB: `Succeeded` or `Failed` / reschedules with `NextAttemptAt`.
+6. Admin UI / API can inspect, requeue or delete items.
+
+This section documents the durable deletion pattern used across the codebase and links the enqueue site in the account repository to the hosted worker and admin controller. It is designed for production robustness while keeping user-facing operations fast and deterministic.
+
+### Telemetry & observability
 - The deletion worker emits structured logs via `ILogger`. Telemetry integration with Application Insights is optional:
  - By default the worker compiles and runs without requiring the Application Insights SDK (no hard dependency in `WT.Infrastructure`).
  - To enable full Application Insights telemetry (events/metrics/traces) you must:
@@ -62,7 +111,7 @@ builder.Services.AddApplicationInsightsTelemetry();
 3. Provide the connection string via `APPINSIGHTS_CONNECTIONSTRING` or `ApplicationInsights:ConnectionString` in User Secrets or environment variables.
  - When enabled, `TelemetryClient` will be available from DI and can be used by hosted workers and services.
 
-Privacy note
+### Privacy note
 - Telemetry may include `FileUrl` by default in some events. If this exposes sensitive information in your environment, redact or hash file paths before sending to Application Insights.
 
 What to run (migrations & enable telemetry)
@@ -420,12 +469,7 @@ The design documentation includes:
  - Existing users: run a small migration or admin script to recompute `NormalizedUserName` and `NormalizedEmail` using the new normalizer so previously created accounts continue to match during login/lookups.
  - Some email providers don't accept non-ASCII local parts; consider this when allowing Unicode in the local part.
 -`ILookupNormalizer` Dependency Injection Notes
-	- Register the `ILookupNormalizer` before Identity so Identity consumes the custom normalizer for `NormalizedUserName`/`NormalizedEmail`.
-For development and deployment, see the "Next steps" recommendations in the Technical Notes section below.
-
-<!-- Developer note: UnicodeLookupNormalizer added -->
-
-> Developer note: The project includes a Unicode-aware Identity lookup normalizer implemented in `WT.Infrastructure.Services.UnicodeLookupNormalizer.cs`. This class implements `ILookupNormalizer` and provides `NormalizeName` and `NormalizeEmail` (FormKC normalization + invariant upper-casing, and domain punycode conversion for emails). Register it before Identity is configured via `services.AddSingleton<ILookupNormalizer, UnicodeLookupNormalizer>();` so Identity uses the custom normalizer for `NormalizedUserName`/`NormalizedEmail` values.
+	- Register the `ILookupNormalizer` before Identity so Identity consumes the custom normalizer for `NormalizedUserName`/`NormalizedEmail` values.
 
 --- 
 ## Project Solution Structure / Notes
@@ -497,7 +541,7 @@ This in-memory caching strategy provides a low-risk performance win for frequent
 
 #### Development URLs
 
-| Project | Purpose | HTTPS URL | HTTPURL |
+| Project | Purpose | HTTPS URL | HTTP URL |
 |---------|---------|-----------|----------|
 | API | Web API Backend | https://localhost:5001 | http://localhost:5000 |
 | WT.Admin | Admin Panel | https://localhost:7127 | http://localhost:5041 |
@@ -507,7 +551,7 @@ This in-memory caching strategy provides a low-risk performance win for frequent
 
 **GET** `/health`
 
-**Description:** General health statuscheck
+**Description:** General health status check
 
 **Response:**
 ```json
@@ -567,7 +611,6 @@ To securely manage the Google Maps API key in the Blazor WebAssembly client with
 2. **Insert the API Key**: At build time, ensure the API key is injected into a new `index.html` file by your build or deploy process, replacing the placeholder with the actual key. This prevents the API key from being hardcoded in the source files.
 3. **Secure the Key**: Use environment variables or a secret manager to store the API key securely and access it during the build process without exposing it in the source. 
 
-
 ***NOTES:***
 - Do not commit the generated index.html (ensure WT.Client/wwwroot/index.html is in .gitignore).
 - Verify the script tag in the generated file contains the new key.
@@ -622,20 +665,20 @@ Why this change
 - The refresh cookie is scoped and marked `HttpOnly`, `Secure`, and `SameSite=None` so it cannot be read by client scripts and will only be sent when requests are made with credentials.
 
 How it works (high-level)
-1. Login (credentialed request)
+1. **Login** (credentialed request)
  - The client calls the API login endpoint using the JS helper `wtApi.login(url, payload)` which performs a `fetch` with `credentials: 'include'`.
  - The API validates credentials and returns an `APIResponseAuthentication` containing the short-lived JWT (access token) and an opaque refresh token string.
  - The API controller sets the refresh token as an HttpOnly cookie via `SetTokenCookie(refreshToken)` and returns the authentication DTO in the response body.
  - The client stores the access token in-memory via `TokenService.SetAccessToken(token, expiresAt)` and updates the `HttpClient` Authorization header for immediate API calls.
  - The client persists only small, non-sensitive UI/session data (e.g., `HasSession` flag and a `AuthenticatedSessionDTO` without JWT) to localStorage so UI can render user info after reload.
 
-2. Page reload / cold start
+2. **Page reload / cold start**
  - Browser reload clears WASM memory (and therefore `TokenService`).
  - On startup `CustomAuthenticationStateProvider.GetAuthenticationStateAsync()` checks `TokenService`. If no token is present and `HasSession` is true it calls `wtApi.fetchRefreshToken` (JS fetch with credentials) to `POST /api/account/identity/refresh-token`.
  - The browser sends the `refreshToken` cookie automatically with that fetch request. The API reads the cookie, validates and rotates the refresh token, sets a new refresh cookie, and returns a fresh JWT in the response body.
  - The client stores the fresh JWT in `TokenService` (in-memory) and rehydrates authentication state.
 
-3. Token rotation and logout
+3. **Token rotation and logout**
  - Each successful refresh rotates the refresh token and replaces the HttpOnly cookie (server-side). The API's `RefreshToken` endpoint performs rotation and issues a new cookie.
  - When logging out the client calls `POST /api/account/identity/logout`. The API revokes refresh tokens server-side and deletes the `refreshToken` cookie (server instructs browser to clear cookie). The client clears `TokenService`.
 

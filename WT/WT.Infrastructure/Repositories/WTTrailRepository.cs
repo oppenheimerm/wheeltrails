@@ -1,13 +1,16 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using WT.Application.APIServiceLogs;
-using WT.Application.DTO.Request.Account;
-using WT.Application.DTO.Request.Trail;
+using WT.Application.Common.Paging;
 using WT.Application.DTO.Response;
+using WT.Application.DTO.Request.Trail;
 using WT.Application.Extensions;
 using WT.Application.Services;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
+using WT.Application.DTO.Response.Account;
+using SendGrid.Helpers.Mail;
+using WT.Application.DTO.Request.Account; // add this at top with other usings
+using System.Threading;
 
 namespace WT.Infrastructure.Repositories
 {
@@ -24,6 +27,7 @@ namespace WT.Infrastructure.Repositories
     public class WTTrailRepository : IWTTrailRepository
     {
         private readonly AppDbContext _context;
+        int DefaultPageSize = 20;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WTTrailRepository"/> class.
@@ -374,6 +378,67 @@ namespace WT.Infrastructure.Repositories
                     Message = "Failed to add photo to database"
                 };
             }
+        }
+
+
+        /// <summary>
+        /// Returns a paged list of trails projected to <see cref="TrailDTO"/>.
+        /// Uses EF Core async APIs and observes the provided <see cref="CancellationToken"/>.
+        /// </summary>
+        public async Task<PagedList<TrailDTO>> GetAllTrailsAsync(PagingParameters pagingParameters, CancellationToken cancellationToken = default)
+        {
+            if (pagingParameters == null) throw new ArgumentNullException(nameof(pagingParameters));
+
+            if (pagingParameters.PageNumber <= 0)
+                pagingParameters.PageNumber = 1;
+
+            if (pagingParameters.PageSize <= 0)
+                pagingParameters.PageSize = DefaultPageSize;
+
+            // Project at database level into DTO so EF can translate to SQL
+            var projected = _context.Trails
+                .AsNoTracking()
+                .Select(t => new TrailDTO
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    // Make sure to test for null User to avoid null reference exceptions
+                    User = t.User == null ? null : new ApplicationUserDTO
+                    {
+                        Id = t.User.Id,
+                        FirstName = t.User.FirstName,
+                        // Never expose email in such queries unless specially required the authorized user.
+                        Email = null,
+                        ProfilePicture = t.User.ProfilePicture,
+                        ProfileUsername = t.User.ProfileUsername,
+                        Bio = t.User.Bio,
+                        CountryCode = t.User.CountryCode,
+                        RegistrationDate = t.User.ProfileUsernameCreatedAt
+                    },
+                    Start = t.Start,
+                    End = t.End,
+                    Waypoints = t.Waypoints,
+                    LengthMeters = t.LengthMeters,
+                    ElevationProfile = t.ElevationProfile,
+                    PointsOfInterest = t.PointsOfInterest,
+                    Difficulty = t.Difficulty,
+                    SurfaceTypes = t.SurfaceTypes,
+                    CreatedAt = t.CreatedAt,
+                    UpdatedAt = t.UpdatedAt,
+                    LikeCount = t.Likes!.Count(),
+                    RatingCount = t.Likes!.Count(l => l.Rating.HasValue),
+                    AverageRating = t.Likes!.Where(l => l.Rating.HasValue).Select(l => (double?)l.Rating).Average(),
+                    CommentCount = t.Comments!.Count(),
+                    PhotoCount = t.Images!.Count(),
+                    TrailLocked = t.TrailLocked
+                });
+
+            // Observe cancellation before starting the database work
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Use EF Core async creation which accepts a cancellation token
+            return await PagedList<TrailDTO>.CreateAsync(projected, pagingParameters.PageNumber, pagingParameters.PageSize, cancellationToken).ConfigureAwait(false);
         }
     }
 }
