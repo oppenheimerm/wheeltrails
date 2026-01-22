@@ -1,0 +1,14 @@
+﻿<h3>Logout</h3>
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<button class="btn btn-link" @onclick="DoLogout">Logout</button>
+
+@code {
+    private async Task DoLogout()
+    {
+        await Http.PostAsync("/account/logout", null);
+        Nav.NavigateTo("/account/login", true);
+    }
+}

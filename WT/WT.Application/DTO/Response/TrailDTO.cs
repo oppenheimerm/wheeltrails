@@ -90,6 +90,6 @@ namespace WT.Application.DTO.Response
         /// </summary>
         public int? PhotoCount {get; set; }
 
-        public bool TrailLocked { get;  }
+        public bool TrailLocked { get; set; }
     }
 }

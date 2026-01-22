@@ -1,14 +1,16 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using WT.Infrastructure.Data;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Linq;
+using WT.Infrastructure.Data;
 
 namespace API.Controllers
 {
     [Route("api/[controller]")]
+    [Authorize]
     [ApiController]
     public class AdminController : ControllerBase
     {
@@ -38,7 +40,7 @@ namespace API.Controllers
         ///
         /// In Development you only need to call this endpoint once.
         /// </summary>
-        [HttpPost("purge-database")]
+        /*[HttpPost("purge-database")]
         public async Task<IActionResult> PurgeDatabase()
         {
             // If not development, require explicit allow + secret header
@@ -122,6 +124,6 @@ IF OBJECT_ID(N'dbo.AspNetUsers','U') IS NOT NULL
                 _logger.LogError(ex, "Purge failed");
                 return StatusCode(500, new { success = false, message = "Purge failed", error = ex.Message });
             }
-        }
+        }*/
     }
 }

@@ -1,0 +1,25 @@
+﻿@namespace WT.Admin.Components.Layout
+@using Microsoft.AspNetCore.Components
+@inherits LayoutComponentBase
+@implements IDisposable
+
+<!--
+  Auth layout — outer container expands on desktop so the auth card and
+  its inner content aren't squeezed. Uses Material3/Tailwind tokens.
+  - Outer container: full width up to max-w-7xl (desktop)
+  - Inner card: centered and constrained but larger on desktop
+-->
+<div class="min-h-screen flex items-center justify-center bg-[var(--md-sys-color-background)] dark:bg-[var(--md-sys-color-background)] py-12">
+    <div class="w-full max-w-7xl mx-auto px-6">
+        <div class="mx-auto w-full md:max-w-3xl lg:max-w-4xl bg-[var(--md-sys-color-surface-container)] dark:bg-[var(--md-sys-color-surface-container-high)] rounded-xl shadow-elevation-3 p-6 md:p-8">
+            @Body
+        </div>
+    </div>
+</div>
+
+@code {
+    public void Dispose()
+    {
+        // cleanup if needed
+    }
+}

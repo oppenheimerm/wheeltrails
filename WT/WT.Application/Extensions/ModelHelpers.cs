@@ -81,7 +81,15 @@ namespace WT.Application.Extensions
                 PointsOfInterest = entity.PointsOfInterest,
                 Difficulty = entity.Difficulty,
                 SurfaceTypes = entity.SurfaceTypes,
-                CreatedAt = entity.CreatedAt
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
+                LikeCount = entity.LikeCount,
+                AverageRating = entity.AverageRating,
+                RatingCount = entity.RatingCount,
+                CommentCount = entity.CommentCount,
+                PhotoCount = entity.PhotoCount,
+                TrailLocked = entity.TrailLocked
+                //  Navigaiton properties properties are loaded as a separate call
             };
             return _trail;
         }

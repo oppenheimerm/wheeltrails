@@ -1,23 +1,131 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<div class="min-h-screen bg-[var(--md-sys-color-background)] text-[var(--md-sys-color-on-background)]">
+    <!-- App container to provide rounded card-like panel (matches Material 3 surface).
+         Use a calc height so the inner panel fills the viewport minus outer margins. -->
+    <div class="mx-6 my-6 rounded-2xl bg-[var(--md-sys-color-surface-container)] shadow-elevation-3 overflow-hidden h-[calc(100vh-3rem)] flex flex-col">
+        <!-- Top bar (fixed height 64px as per design notes) -->
+        <header class="flex items-center justify-between h-16 px-6 border-b border-[var(--md-sys-color-outline-variant)] flex-shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <img src="/images/logo.svg" alt="WheelTrails" class="h-8 w-8" />
+                    <span class="font-semibold text-lg">WheelTrails Admin</span>
+                </div>
+                <div class="hidden lg:flex items-center text-sm text-[var(--md-sys-color-on-surface-variant)]">
+                    <span>Welcome, Admin</span>
+                </div>
+            </div>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+            <div class="flex items-center gap-3">
+                <button class="p-2 rounded-md hover:bg-[var(--md-sys-color-surface-variant)]" aria-label="Search">
+                    <span class="material-symbols-rounded">search</span>
+                </button>
+
+                <button class="p-2 rounded-md hover:bg-[var(--md-sys-color-surface-variant)]" aria-label="Notifications">
+                    <span class="material-symbols-rounded">notifications</span>
+                </button>
+
+                <button class="ml-2 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-2">
+                    <span class="material-symbols-rounded">add</span>
+                    <span class="font-medium">Add New</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Content area: make this a flex row that fills remaining height -->
+        <div class="flex flex-1 overflow-hidden">
+            <!-- Sidebar: full height, column layout; nav scrolls, bottom area sticks to bottom -->
+            <aside id="sidebarcontent" class="w-72 hidden lg:flex flex-col bg-[var(--md-sys-color-surface)] border-r border-[var(--md-sys-color-outline-variant)] h-full">
+                <nav class="flex-1 px-4 py-6 overflow-auto">
+                    <ul class="space-y-1">
+                        <li>
+                            <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)]"
+                                     ActiveClass="sidenav-active" href="/dashboard" exact="true">
+                                <span class="material-symbols-rounded">dashboard</span>
+                                <span class="font-medium">Dashboard</span>
+                            </NavLink>
+                        </li>
+
+                        <li>
+                            <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)]"
+                                     ActiveClass="sidenav-active" href="/users">
+                                <span class="material-symbols-rounded">people</span>
+                                <span>Users</span>
+                            </NavLink>
+                        </li>
+
+                        <li>
+                            <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)]"
+                                     ActiveClass="sidenav-active" href="/trails">
+                                <span class="material-symbols-rounded">terrain</span>
+                                <span>Trails</span>
+                            </NavLink>
+                        </li>
+
+                        <li>
+                            <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)]"
+                                     ActiveClass="sidenav-active" href="/shop">
+                                <span class="material-symbols-rounded">shopping_bag</span>
+                                <span>Shop</span>
+                            </NavLink>
+                        </li>
+
+                        <li>
+                            <NavLink class="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--md-sys-color-on-surface-variant)] hover:bg-[var(--md-sys-color-surface-variant)]"
+                                     ActiveClass="sidenav-active" href="/reports">
+                                <span class="material-symbols-rounded">insights</span>
+                                <span>Reports</span>
+                            </NavLink>
+                        </li>
+                    </ul>
+                </nav>
+
+                <!-- Bottom area: pushed to bottom via mt-auto for consistent placement -->
+                <div id="sidebarcontent-bottom" class="px-4 py-4 border-t border-[var(--md-sys-color-outline-variant)] mt-auto">
+                    <div class="flex items-center gap-3">
+                        <img src="/images/avatar-placeholder.png" alt="Admin" class="h-10 w-10 rounded-full object-cover" />
+                        <div class="text-sm">
+                            <div class="font-medium">Admin User</div>
+                            <div class="text-[var(--md-sys-color-on-surface-variant)]">admin@wheeltrails.local</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center gap-2">
+                        <button class="p-2 rounded-md hover:bg-[var(--md-sys-color-surface-variant)]" title="Settings">
+                            <span class="material-symbols-rounded">settings</span>
+                        </button>
+                        <button class="p-2 rounded-md hover:bg-[var(--md-sys-color-surface-variant)]" title="Logout">
+                            <span class="material-symbols-rounded">logout</span>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main content area: full height and scrollable -->
+            <main id="maincontentarea" class="flex-1 p-6 pt-8 h-full overflow-auto">
+                <!-- Page heading area -->
+                <section class="mb-6">
+                    <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+                    <p class="text-sm text-[var(--md-sys-color-on-surface-variant)] mt-1">Overview and management</p>
+                </section>
+
+                <!-- Content area for @Body -->
+                <section class="bg-[var(--md-sys-color-surface)] rounded-lg p-4 border border-[var(--md-sys-color-outline-variant)] min-h-[320px]">
+                    @Body
+                </section>
+            </main>
         </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
+    </div>
 </div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+<div id="blazor-error-ui" data-nosnippet class="wt-blazor-error">
+    <div>
+        <div class="text-sm font-semibold">An unhandled error has occurred.</div>
+        <div class="text-xs text-[var(--md-sys-color-on-error-container)]">Please reload or contact support.</div>
+    </div>
+
+    <div class="flex items-center gap-2">
+        <a href="." class="wt-link">Reload</a>
+        <button class="wt-blazor-error-dismiss" onclick="document.getElementById('blazor-error-ui')?.remove()">Dismiss</button>
+    </div>
 </div>

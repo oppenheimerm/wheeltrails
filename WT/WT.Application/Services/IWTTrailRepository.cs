@@ -1,5 +1,7 @@
 ﻿using WT.Application.DTO.Request.Trail;
 using WT.Application.DTO.Response;
+using WT.Application.Common.Paging;
+using System.Threading;
 
 namespace WT.Application.Services
 {
@@ -94,5 +96,13 @@ namespace WT.Application.Services
         /// </para>
         /// </remarks>
         Task<BaseAPIResponseDTO> AddTrailPhotoAsync(AddTrailPhotoDbEntityDTO model);
+
+        /// <summary>
+        /// Returns a paged list of trails projected to <see cref="TrailDTO"/>.
+        /// </summary>
+        /// <param name="pagingParameters">Paging parameters (page number, page size)</param>
+        /// <param name="cancellationToken">Cancellation token observed by async DB operations</param>
+        /// <returns>Paged list of trails</returns>
+        Task<PagedList<TrailDTO>> GetAllTrailsAsync(PagingParameters pagingParameters, CancellationToken cancellationToken = default);
     }
 }
