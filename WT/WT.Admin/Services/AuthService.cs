@@ -7,7 +7,13 @@ using WT.Application.DTO.Response;
 
 namespace WT.Admin.Services
 {
-    public class AuthService
+    public interface IAuthService
+    {
+        Task<APIResponseAuthentication> LoginAsync(LoginDTO model);
+        Task LogoutAsync();
+    }
+
+    public class AuthService : IAuthService
     {
         private readonly IHttpClientFactory _httpFactory;
         private readonly IServerTokenService _tokenService;
@@ -23,6 +29,7 @@ namespace WT.Admin.Services
         public async Task<APIResponseAuthentication> LoginAsync(LoginDTO model)
         {
             var client = _httpFactory.CreateClient("ApiNoAuth"); // no bearer handler here
+            // Call the API identity login endpoint. The API returns JWT + refresh token.
             var resp = await client.PostAsJsonAsync("api/account/identity/login", model);
             if (!resp.IsSuccessStatusCode)
             {

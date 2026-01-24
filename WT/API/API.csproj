@@ -28,4 +28,8 @@
     <ProjectReference Include="..\WT.Infrastructure\WT.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Properties\PublishProfiles\" />
+  </ItemGroup>
+
 </Project>

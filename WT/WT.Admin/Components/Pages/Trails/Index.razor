@@ -1,0 +1,516 @@
+﻿@page "/trails/index"
+@attribute [Authorize]
+
+
+@using Microsoft.AspNetCore.Authorization
+@using WT.Application.Common.Paging
+@using WT.Application.DTO.Response
+@using WT.Admin.Services
+@using Microsoft.AspNetCore.WebUtilities
+@using WT.Application.Extensions
+
+@inject ITrailService TrailService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<PageTitle>Trails Management</PageTitle>
+
+@code {
+    private PagedList<TrailDTO>? trails;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private int currentPage = 1;
+    private int pageSize = 20;
+    private string searchTerm = string.Empty;
+    private CancellationTokenSource? cts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Read query parameters from URL
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        // Parse page number from query string
+        if (queryParams.TryGetValue("page", out var pageValue) && int.TryParse(pageValue, out var page))
+        {
+            currentPage = page;
+        }
+
+        // Parse page size from query string
+        if (queryParams.TryGetValue("pageSize", out var sizeValue) && int.TryParse(sizeValue, out var size))
+        {
+            pageSize = size;
+        }
+
+        // Parse search term from query string
+        if (queryParams.TryGetValue("search", out var search))
+        {
+            searchTerm = search.ToString();
+        }
+
+        await LoadTrailsAsync();
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Re-read query parameters when navigation occurs
+        var uri = new Uri(Navigation.Uri);
+        var queryParams = QueryHelpers.ParseQuery(uri.Query);
+
+        if (queryParams.TryGetValue("page", out var pageValue) && int.TryParse(pageValue, out var page))
+        {
+            if (page != currentPage)
+            {
+                currentPage = page;
+                InvokeAsync(LoadTrailsAsync);
+            }
+        }
+    }
+
+    private async Task LoadTrailsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        
+        try
+        {
+            // Cancel previous request if still running
+            cts?.Cancel();
+            cts = new CancellationTokenSource();
+
+            var pagingParams = new PagingParameters
+            {
+                PageNumber = currentPage,
+                PageSize = pageSize,
+                Search = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm
+            };
+
+            trails = await TrailService.GetAllTrailsAsync(pagingParams, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            // Request was cancelled, ignore
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Failed to load trails. Please try again.";
+            Console.WriteLine($"Error loading trails: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task SearchTrailsAsync()
+    {
+        currentPage = 1; // Reset to first page on search
+        UpdateUrl(); // Update URL with new parameters
+        await LoadTrailsAsync();
+    }
+
+    private async Task GoToPage(int page)
+
+    {
+        if (page < 1 || page > trails?.TotalPages) return;
+        
+        currentPage = page;
+        UpdateUrl(); // Update URL when page changes
+        await LoadTrailsAsync();
+    }
+
+    private void UpdateUrl()
+    {
+        // Build query string with current state - use object? as value type
+        var queryParams = new Dictionary<string, object?>
+        {
+            ["page"] = currentPage.ToString(),
+            ["pageSize"] = pageSize.ToString()
+        };
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            queryParams["search"] = searchTerm;
+        }
+
+        var uri = Navigation.GetUriWithQueryParameters(queryParams);
+        Navigation.NavigateTo(uri, forceLoad: false); // false = don't reload page, just update URL
+    }
+
+    private IEnumerable<int> GetPageNumbers()
+    {
+        if (trails == null) return Enumerable.Empty<int>();
+
+        var currentPage = trails.CurrentPage;
+        var totalPages = trails.TotalPages;
+        var maxVisible = 5;
+
+        var start = Math.Max(1, currentPage - maxVisible / 2);
+        var end = Math.Min(totalPages, start + maxVisible - 1);
+
+        // Adjust start if we're near the end
+        if (end - start < maxVisible - 1)
+        {
+            start = Math.Max(1, end - maxVisible + 1);
+        }
+
+        return Enumerable.Range(start, end - start + 1);
+    }
+
+    private string GetPageButtonClass(int page)
+    {
+        var isActive = page == trails?.CurrentPage;
+        var baseClass = "min-w-[40px] px-3 py-2 rounded-lg transition-all text-label-large font-medium";
+        
+        return isActive 
+            ? $"{baseClass} bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] shadow-elevation-1"
+            : $"{baseClass} text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-highest)]";
+    }
+
+    private string GetDifficultyClass(int difficulty)
+    {
+        return difficulty switch
+        {
+            1 => "bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)]",
+            2 => "bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)]",
+            3 => "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)]",
+            _ => "bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]"
+        };
+    }
+
+    private void ViewTrail(Guid trailId)
+    {
+        Navigation.NavigateTo($"/trails/{trailId}");
+    }
+
+    private void EditTrail(Guid trailId)
+    {
+        Navigation.NavigateTo($"/trails/{trailId}/edit");
+    }
+
+    private async Task ToggleLock(Guid trailId, bool currentLockState)
+    {
+        // TODO: Implement trail lock/unlock functionality
+        // This would call an API endpoint to toggle the lock status
+        Console.WriteLine($"Toggle lock for trail {trailId}. Current state: {currentLockState}");
+    }
+
+    public void Dispose()
+    {
+        cts?.Cancel();
+        cts?.Dispose();
+    }
+}
+
+
+    <div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-display-small font-bold text-[var(--md-sys-color-on-surface)] mb-2">
+            Trail Management
+        </h1>
+        <p class="text-body-large text-[var(--md-sys-color-on-surface-variant)]">
+            View and manage all trails in the system
+        </p>
+    </div>
+
+    <!-- Search and Filter Bar -->
+    <div class="bg-[var(--md-sys-color-surface-container)] rounded-xl p-4 mb-6 shadow-elevation-1">
+        <div class="flex flex-col lg:flex-row gap-4">
+            <!-- Search Input -->
+            <div class="flex-1">
+                <div class="relative">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[var(--md-sys-color-on-surface-variant)]">
+                        search
+                    </span>
+                    <input 
+                        type="text" 
+                        @bind="searchTerm"
+                        @bind:event="oninput"
+                        placeholder="Search trails..."
+                        class="w-full pl-12 pr-4 py-3 bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] rounded-lg border border-[var(--md-sys-color-outline-variant)] focus:outline-none focus:ring-2 focus:ring-[var(--md-sys-color-primary)] transition-all"
+                    />
+                </div>
+            </div>
+
+            <!-- Page Size Selector -->
+            <div class="flex items-center gap-2">
+                <label class="text-body-medium text-[var(--md-sys-color-on-surface-variant)]">Show:</label>
+                <select 
+                    @bind="pageSize"
+                    @bind:after="LoadTrailsAsync"
+                    class="px-4 py-3 bg-[var(--md-sys-color-surface-container-high)] text-[var(--md-sys-color-on-surface)] rounded-lg border border-[var(--md-sys-color-outline-variant)] focus:outline-none focus:ring-2 focus:ring-[var(--md-sys-color-primary)]"
+                >
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+            </div>
+
+            <!-- Search Button -->
+            <button 
+                @onclick="SearchTrailsAsync"
+                class="px-6 py-3 bg-[var(--md-sys-color-primary)] text-[var(--md-sys-color-on-primary)] rounded-lg font-semibold hover:bg-[var(--md-sys-color-primary)]/90 transition-all shadow-elevation-1 hover:shadow-elevation-2"
+            >
+                <span class="flex items-center gap-2">
+                    <span class="material-symbols-outlined">search</span>
+                    Search
+                </span>
+            </button>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <!-- Loading State -->
+        <div class="flex justify-center items-center py-20">
+            <div class="flex flex-col items-center gap-4">
+                <div class="w-12 h-12 border-4 border-[var(--md-sys-color-primary)] border-t-transparent rounded-full animate-spin"></div>
+                <p class="text-body-large text-[var(--md-sys-color-on-surface-variant)]">Loading trails...</p>
+            </div>
+        </div>
+    }
+    else if (errorMessage != null)
+    {
+        <!-- Error State -->
+        <div class="bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)] rounded-xl p-6 mb-6">
+            <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined text-2xl">error</span>
+                <div>
+                    <h3 class="font-semibold mb-1">Error Loading Trails</h3>
+                    <p class="text-body-medium">@errorMessage</p>
+                </div>
+            </div>
+        </div>
+    }
+    else if (trails == null || !trails.Any())
+    {
+        <!-- Empty State -->
+        <div class="bg-[var(--md-sys-color-surface-container)] rounded-xl p-12 text-center">
+            <span class="material-symbols-outlined text-6xl text-[var(--md-sys-color-on-surface-variant)] mb-4">
+                explore_off
+            </span>
+            <h3 class="text-headline-small font-semibold text-[var(--md-sys-color-on-surface)] mb-2">
+                No Trails Found
+            </h3>
+            <p class="text-body-large text-[var(--md-sys-color-on-surface-variant)]">
+                @if (!string.IsNullOrWhiteSpace(searchTerm))
+                {
+                    <span>No trails match your search criteria. Try adjusting your search.</span>
+                }
+                else
+                {
+                    <span>There are no trails in the system yet.</span>
+                }
+            </p>
+        </div>
+    }
+    else
+    {
+        <!-- Trails Table -->
+        <div class="bg-[var(--md-sys-color-surface-container)] rounded-xl shadow-elevation-1 overflow-hidden">
+            <!-- Table Header with Count -->
+            <div class="px-6 py-4 border-b border-[var(--md-sys-color-outline-variant)]">
+                <p class="text-body-medium text-[var(--md-sys-color-on-surface-variant)]">
+                    Showing @trails.Count of @trails.TotalCount trails
+                </p>
+            </div>
+
+            <!-- Responsive Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-[var(--md-sys-color-surface-container-high)]">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)]">Date</th>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)]">Trail</th>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)] hidden lg:table-cell">Creator</th>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var,--md-sys-color-on-surface)] hidden md:table-cell">Difficulty</th>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var,--md-sys-color-on-surface)]">Status</th>
+                            <th class="px-6 py-4 text-center text-label-large font-semibold text-[var,--md-sys-color-on-surface)]">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[var,--md-sys-color-outline-variant)]">
+                        @foreach (var trail in trails)
+                        {
+                            <tr class="hover:bg-[var,--md-sys-color-surface-container-highest)] transition-colors">
+                                <!-- Date -->
+                                <td class="px-6 py-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <h4 class="text-body-large font-semibold text-[var,--md-sys-color-on-surface)] truncate">
+                                                @trail.CreatedAt.ToString("MMM dd, yyyy")
+                                            </h4>
+                                        </div>
+                                    </div>
+                                </td>
+
+
+                                <!-- Trail Info -->
+                                <td class="px-6 py-4">
+                                    <div class="flex items-start gap-3">
+                                        <div class="min-w-0 flex-1">
+                                            <h4 class="text-body-large font-semibold text-[var,--md-sys-color-on-surface)] truncate">
+                                                @StringHelpers.TrimText(trail.Title!, 20)
+                                            </h4>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Creator (Hidden on mobile) -->
+                                <td class="px-6 py-4 hidden lg:table-cell">
+                                    @if (trail.User != null)
+                                    {
+                                        <div class="flex items-center gap-2">
+                                            @if (!string.IsNullOrEmpty(trail.User.ProfilePicture))
+                                            {
+                                                <img src="@trail.User.ProfilePicture" alt="@trail.User.FirstName" class="w-8 h-8 rounded-full object-cover" />
+                                            }
+                                            else
+                                            {
+                                                <div class="w-8 h-8 bg-[var,--md-sys-color-secondary-container)] rounded-full flex items-center justify-center">
+                                                    <span class="text-label-large text-[var,--md-sys-color-on-secondary-container)]">
+                                                        @(trail.User.FirstName?.FirstOrDefault() ?? '?')
+                                                    </span>
+                                                </div>
+                                            }
+                                            <span class="text-body-medium text-[var,--md-sys-color-on-surface)]">
+                                                @(trail.User.ProfileUsername ?? trail.User.FirstName ?? "Unknown")
+                                            </span>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-body-medium text-[var,--md-sys-color-on-surface-variant)]">N/A</span>
+                                    }
+                                </td>
+
+                                <!-- Difficulty (Hidden on small screens) -->
+                                <td class="px-6 py-4 hidden md:table-cell">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-label-medium font-medium @GetDifficultyClass((int)trail.Difficulty)">
+                                        @trail.Difficulty.ToString()
+                                    </span>
+                                </td>
+
+
+                                <!-- Status -->
+                                <td class="px-6 py-4">
+                                    @if (trail.TrailLocked)
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[var,--md-sys-color-error-container)] text-[var,--md-sys-color-on-error-container)] text-label-medium font-medium">
+                                            <span class="material-symbols-rounded text-sm">lock</span>
+                                            Locked
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[var,--md-sys-color-tertiary-container)] text-[var,--md-sys-color-on-tertiary-container)] text-label-medium font-medium">
+                                            <span class="material-symbols-rounded text-sm">lock_open</span>
+                                            Active
+                                        </span>
+                                    }
+                                </td>
+
+                                <!-- Actions -->
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <button 
+                                            @onclick="() => ViewTrail(trail.Id)"
+                                            class="p-2 text-[var,--md-sys-color-primary)] hover:bg-[var,--md-sys-color-primary-container)] rounded-lg transition-colors"
+                                            title="View Trail"
+                                        >
+                                            <span class="material-symbols-rounded">visibility</span>
+                                        </button>
+                                        <button 
+                                            @onclick="() => EditTrail(trail.Id)"
+                                            class="p-2 text-[var,--md-sys-color-secondary)] hover:bg-[var,--md-sys-color-secondary-container)] rounded-lg transition-colors"
+                                            title="Edit Trail"
+                                        >
+                                            <span class="material-symbols-rounded">edit</span>
+                                        </button>
+                                        <button 
+                                            @onclick="() => ToggleLock(trail.Id, trail.TrailLocked)"
+                                            class="p-2 text-[var,--md-sys-color-tertiary)] hover:bg-[var,--md-sys-color-tertiary-container)] rounded-lg transition-colors"
+                                            title="@(trail.TrailLocked ? "Unlock" : "Lock") Trail"
+                                        >
+                                            <span class="material-symbols-rounded">
+                                                @(trail.TrailLocked ? "lock_open" : "lock")
+                                            </span>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            @if (trails.TotalPages > 1)
+            {
+                <div class="px-6 py-4 border-t border-[var,--md-sys-color-outline-variant)]">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <!-- Page Info -->
+                        <p class="text-body-medium text-[var,--md-sys-color-on-surface-variant)]">
+                            Page @trails.CurrentPage of @trails.TotalPages
+                        </p>
+
+                        <!-- Pagination Controls -->
+                        <div class="flex items-center gap-2">
+                            <!-- First Page -->
+                            <button 
+                                @onclick="() => GoToPage(1)"
+                                disabled="@(!trails.HasPrevious)"
+                                class="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[var,--md-sys-color-on-surface)] hover:bg-[var,--md-sys-color-surface-container-highest)]"
+                                title="First Page"
+                            >
+                                <span class="material-symbols-outlined">first_page</span>
+                            </button>
+
+                            <!-- Previous Page -->
+                            <button 
+                                @onclick="() => GoToPage(trails.CurrentPage - 1)"
+                                disabled="@(!trails.HasPrevious)"
+                                class="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[var,--md-sys-color-on-surface)] hover:bg-[var,--md-sys-color-surface-container-highest)]"
+                                title="Previous Page"
+                            >
+                                <span class="material-symbols-outlined">chevron_left</span>
+                            </button>
+
+                            <!-- Page Numbers -->
+                            @foreach (var pageNum in GetPageNumbers())
+                            {
+                                <button 
+                                    @onclick="() => GoToPage(pageNum)"
+                                    class="@GetPageButtonClass(pageNum)"
+                                >
+                                    @pageNum
+                                </button>
+                            }
+
+                            <!-- Next Page -->
+                            <button 
+                                @onclick="() => GoToPage(trails.CurrentPage + 1)"
+                                disabled="@(!trails.HasNext)"
+                                class="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[var,--md-sys-color-on-surface)] hover:bg-[var,--md-sys-color-surface-container-highest)]"
+                                title="Next Page"
+                            >
+                                <span class="material-symbols-outlined">chevron_right</span>
+                            </button>
+
+                            <!-- Last Page -->
+                            <button 
+                                @onclick="() => GoToPage(trails.TotalPages)"
+                                disabled="@(!trails.HasNext)"
+                                class="p-2 rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[var,--md-sys-color-on-surface)] hover:bg-[var,--md-sys-color-surface-container-highest)]"
+                                title="Last Page"
+                            >
+                                <span class="material-symbols-outlined">last_page</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
