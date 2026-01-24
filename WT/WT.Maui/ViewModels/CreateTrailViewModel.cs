@@ -57,16 +57,22 @@ namespace WT.Maui.ViewModels
         [NotifyPropertyChangedFor(nameof(RecordingButtonText))]
         [NotifyPropertyChangedFor(nameof(RecordingButtonColor))]
         [NotifyPropertyChangedFor(nameof(CanAddPoi))]
+        [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+        [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
         [NotifyCanExecuteChangedFor(nameof(SubmitTrailCommand))]
         private bool isRecording;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+        [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
         private bool isSubmitting;
 
         // Location data
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(LastPositionDisplay))]
         [NotifyPropertyChangedFor(nameof(CanAddPoi))]
+        [NotifyPropertyChangedFor(nameof(CanStartRecording))]
+        [NotifyPropertyChangedFor(nameof(CanToggleRecording))]
         private WTLatLng? lastKnownPosition;
 
         [ObservableProperty]
@@ -133,6 +139,10 @@ namespace WT.Maui.ViewModels
 
         public bool CanAddPoi => IsRecording && LastKnownPosition is not null;
 
+        // New computed properties used to enable/disable recording affordances
+        public bool CanStartRecording => !IsRecording && !IsSubmitting && LastKnownPosition is not null;
+        public bool CanToggleRecording => IsRecording || CanStartRecording;
+
         public bool CanSubmit => !IsRecording && !IsSubmitting && Waypoints.Count >= 2 && !string.IsNullOrWhiteSpace(Title);
 
         public string SubmitButtonText => IsSubmitting ? "Submitting..." : "Submit Trail";
@@ -168,6 +178,28 @@ namespace WT.Maui.ViewModels
             };
         }
 
+        /// <summary>
+        /// Try to silently use the device's last known location when the view appears.
+        /// This avoids prompting the permission dialog immediately and gives the UI a cached fix if available.
+        /// </summary>
+        public async Task TryUseLastKnownLocationAsync()
+        {
+            try
+            {
+                var location = await Geolocation.Default.GetLastKnownLocationAsync();
+                if (location is not null)
+                {
+                    LastKnownPosition = new WTLatLng(location.Latitude, location.Longitude, location.Altitude, DateTime.UtcNow);
+                    LastAltitude = location.Altitude;
+                    // No success message to avoid surprising the user — it's a silent seed.
+                }
+            }
+            catch
+            {
+                // Ignore failures silently; don't surface permission prompts here.
+            }
+        }
+
         [RelayCommand]
         private async Task ToggleRecordingAsync()
         {
@@ -186,7 +218,18 @@ namespace WT.Maui.ViewModels
             ErrorMessage = string.Empty;
             SuccessMessage = string.Empty;
 
-            // Request location permission
+            // If we don't already have a fix, attempt a one-time acquisition so Start Recording is a single action.
+            if (LastKnownPosition is null)
+            {
+                await GetCurrentLocationAsync();
+                if (LastKnownPosition is null)
+                {
+                    // GetCurrentLocationAsync will have set an error message if it failed/was denied.
+                    return;
+                }
+            }
+
+            // Request location permission (if not already granted by the previous call)
             var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
             if (status != PermissionStatus.Granted)
             {
