@@ -14,6 +14,10 @@
   <Color x:Key="PrimaryLight">#36693D</Color>     <!-- light: rgb(54,105,61) -->
   <Color x:Key="PrimaryDark">#9DD49E</Color>      <!-- dark: rgb(157,212,158) -->
 
+  <!-- On-primary colors (maps to md-sys-color-on-primary) -->
+  <Color x:Key="OnPrimaryLight">#FFFFFF</Color>
+  <Color x:Key="OnPrimaryDark">#013913</Color>
+
   <Color x:Key="PrimaryContainerLight">#B8F1B9</Color>       <!-- rgb(184,241,185) -->
   <Color x:Key="OnPrimaryContainerLight">#1E5128</Color>     <!-- rgb(30,81,40) -->
 
@@ -27,12 +31,20 @@
   <Color x:Key="SecondaryContainerDark">#3A4B3A</Color>
   <Color x:Key="OnSecondaryContainerDark">#D4E8D0</Color>
 
+  <!-- On-secondary colors -->
+  <Color x:Key="OnSecondaryLight">#FFFFFF</Color>
+  <Color x:Key="OnSecondaryDark">#243424</Color> <!-- rgb(36,52,36) -->
+
   <Color x:Key="Tertiary">#39656C</Color>                    <!-- rgb(57,101,108) -->
   <Color x:Key="TertiaryContainerLight">#BDEAF3</Color>      <!-- rgb(189,234,243) -->
   <Color x:Key="OnTertiaryContainerLight">#1F4D54</Color>    <!-- rgb(31,77,84) -->
 
   <Color x:Key="TertiaryContainerDark">#1F4D54</Color>
   <Color x:Key="OnTertiaryContainerDark">#BDEAF3</Color>
+
+  <!-- On-tertiary colors -->
+  <Color x:Key="OnTertiaryLight">#FFFFFF</Color>
+  <Color x:Key="OnTertiaryDark">#00363D</Color> <!-- rgb(0,54,61) -->
 
   <Color x:Key="Error">#BA1A1A</Color>                       <!-- rgb(186,26,26) -->
   <Color x:Key="ErrorContainerLight">#FFDAD6</Color>        <!-- rgb(255,218,214) -->
@@ -81,18 +93,25 @@
   <!-- Brushes (light/dark aware brushes use AppThemeBinding below) -->
   <SolidColorBrush x:Key="PrimaryBrush"
                    Color="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+  <SolidColorBrush x:Key="OnPrimaryBrush"
+                   Color="{AppThemeBinding Light={StaticResource OnPrimaryLight}, Dark={StaticResource OnPrimaryDark}}" />
+
   <SolidColorBrush x:Key="PrimaryContainer"
                    Color="{AppThemeBinding Light={StaticResource PrimaryContainerLight}, Dark={StaticResource PrimaryContainerDark}}" />
   <SolidColorBrush x:Key="OnPrimaryContainer"
                    Color="{AppThemeBinding Light={StaticResource OnPrimaryContainerLight}, Dark={StaticResource OnPrimaryContainerDark}}" />
 
   <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource Secondary}" />
+  <SolidColorBrush x:Key="OnSecondaryBrush"
+                   Color="{AppThemeBinding Light={StaticResource OnSecondaryLight}, Dark={StaticResource OnSecondaryDark}}" />
   <SolidColorBrush x:Key="SecondaryContainer"
                    Color="{AppThemeBinding Light={StaticResource SecondaryContainerLight}, Dark={StaticResource SecondaryContainerDark}}" />
   <SolidColorBrush x:Key="OnSecondaryContainer"
                    Color="{AppThemeBinding Light={StaticResource OnSecondaryContainerLight}, Dark={StaticResource OnSecondaryContainerDark}}" />
 
   <SolidColorBrush x:Key="TertiaryBrush" Color="{StaticResource Tertiary}" />
+  <SolidColorBrush x:Key="OnTertiaryBrush"
+                   Color="{AppThemeBinding Light={StaticResource OnTertiaryLight}, Dark={StaticResource OnTertiaryDark}}" />
   <SolidColorBrush x:Key="TertiaryContainer"
                    Color="{AppThemeBinding Light={StaticResource TertiaryContainerLight}, Dark={StaticResource TertiaryContainerDark}}" />
   <SolidColorBrush x:Key="OnTertiaryContainer"

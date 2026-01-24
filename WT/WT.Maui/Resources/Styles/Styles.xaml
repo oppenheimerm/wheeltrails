@@ -2,7 +2,13 @@
 <?xaml-comp compile="true" ?>
 <ResourceDictionary 
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:converters="clr-namespace:WT.Maui.Converters">
+
+    <!-- Converters -->
+    <converters:StringNotNullOrEmptyConverter x:Key="StringNotNullOrEmptyConverter" />
+    <converters:BoolToSubmittingTextConverter x:Key="BoolToSubmittingTextConverter" />
+    <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
 
     <!-- Typography styles (Material 3 inspired) -->
     <Style x:Key="HeadlineLarge" TargetType="Label">
@@ -46,8 +52,9 @@
 
     <!-- Buttons -->
     <Style x:Key="PrimaryButton" TargetType="Button">
-        <Setter Property="BackgroundColor" Value="{StaticResource PrimaryBrush}" />
-        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <!-- Use Brush-backed Background and DynamicResource so theme changes update at runtime -->
+        <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+        <Setter Property="TextColor" Value="{DynamicResource OnPrimaryBrush}" />
         <Setter Property="FontFamily" Value="FigtreeSemiBold" />
         <Setter Property="FontSize" Value="15" />
         <Setter Property="CornerRadius" Value="12" />
@@ -56,8 +63,9 @@
     </Style>
 
     <Style x:Key="SecondaryButton" TargetType="Button">
-        <Setter Property="BackgroundColor" Value="{StaticResource SecondaryBrush}" />
-        <Setter Property="TextColor" Value="{DynamicResource OnSurface}" />
+        <Setter Property="Background" Value="{DynamicResource SecondaryBrush}" />
+        <!-- Ensure sufficient contrast for secondary buttons using theme-aware on-secondary colors -->
+        <Setter Property="TextColor" Value="{DynamicResource OnSecondaryBrush}" />
         <Setter Property="FontFamily" Value="FigtreeRegular" />
         <Setter Property="FontSize" Value="14" />
         <Setter Property="CornerRadius" Value="10" />
@@ -65,8 +73,9 @@
     </Style>
 
     <Style x:Key="DangerButton" TargetType="Button">
-        <Setter Property="BackgroundColor" Value="{StaticResource Error}" />
-        <Setter Property="TextColor" Value="{StaticResource White}" />
+        <!-- ErrorBrush is a SolidColorBrush; keep TextColor white for contrast -->
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}" />
+        <Setter Property="TextColor" Value="{DynamicResource OnErrorContainer}" />
         <Setter Property="CornerRadius" Value="10" />
         <Setter Property="HeightRequest" Value="44" />
     </Style>
@@ -78,11 +87,11 @@
 
     <Style x:Key="OutlinedButton" TargetType="Button">
         <!-- Transparent background, primary colored stroke and text -->
-        <Setter Property="BackgroundColor" Value="Transparent" />
+        <Setter Property="Background" Value="Transparent" />
         <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                Value="{DynamicResource PrimaryBrush}" />
         <Setter Property="BorderColor"
-                Value="{AppThemeBinding Light={StaticResource PrimaryLight}, Dark={StaticResource PrimaryDark}}" />
+                Value="{DynamicResource PrimaryBrush}" />
         <Setter Property="BorderWidth" Value="2" />
         <Setter Property="CornerRadius" Value="12" />
         <Setter Property="FontFamily" Value="FigtreeSemiBold" />
@@ -101,6 +110,7 @@
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray800}}" />
         <Setter Property="HeightRequest" Value="44" />
         <Setter Property="Margin" Value="0" />
+        <Setter Property="TextColor" Value="{DynamicResource OnSurface}" />
     </Style>
 
     <Style x:Key="FormEditor" TargetType="Editor">
@@ -108,6 +118,7 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray800}}" />
         <Setter Property="HeightRequest" Value="100" />
+        <Setter Property="TextColor" Value="{DynamicResource OnSurface}" />
     </Style>
 
     <!-- Small UI helpers -->
@@ -138,6 +149,12 @@
     <!-- Page default -->
     <Style TargetType="Page" ApplyToDerivedTypes="True">
         <Setter Property="Padding" Value="0"/>
+        <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource SurfaceContainerDark}}" />
+    </Style>
+
+    <!-- Explicit ContentPage style to ensure ContentPage-based pages inherit the same background behavior -->
+    <Style TargetType="ContentPage" ApplyToDerivedTypes="True">
+        <Setter Property="Padding" Value="0" />
         <Setter Property="BackgroundColor" Value="{AppThemeBinding Light={StaticResource Background}, Dark={StaticResource SurfaceContainerDark}}" />
     </Style>
 

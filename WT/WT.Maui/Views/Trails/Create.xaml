@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:WT.Maui.ViewModels"
              x:Class="WT.Maui.Views.Trails.Create"
              x:DataType="vm:CreateTrailViewModel"
+             x:Name="CreatePage"
              Title="Create Trail">
 
     <ScrollView>
@@ -64,6 +65,7 @@
             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
                 <Button Text="{Binding RecordingButtonText}" 
                         Command="{Binding ToggleRecordingCommand}" 
+                        IsEnabled="{Binding CanToggleRecording}"
                         Style="{StaticResource PrimaryButton}" />
                 <Button Grid.Column="1" 
                         Text="Add POI" 
