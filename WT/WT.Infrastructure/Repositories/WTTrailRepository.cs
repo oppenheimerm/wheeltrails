@@ -161,9 +161,10 @@ namespace WT.Infrastructure.Repositories
         /// All exceptions are caught and logged without exposing internal details to the API consumer.
         /// </para>
         /// </remarks>
-        public async Task<BaseAPIResponseDTO> AddTrailLikeAsync( AddTrailLikeDTO model, Guid userId)
+        public async Task<BaseAPIResponseDTO> AddTrailLikeAsync(AddTrailLikeDTO model, Guid userId)
         {
-            try {
+            try
+            {
 
                 //  Does the trail exist?
                 var trail = await _context.Trails.FindAsync(model.TrailId);
@@ -404,17 +405,18 @@ namespace WT.Infrastructure.Repositories
                     Title = t.Title,
                     Description = t.Description,
                     // Make sure to test for null User to avoid null reference exceptions
-                    User = t.User == null ? null : new ApplicationUserDTO
+                    User = t.User == null ? null : new PublicViewProfileDTO
                     {
                         Id = t.User.Id,
                         FirstName = t.User.FirstName,
-                        // Never expose email in such queries unless specially required the authorized user.
-                        Email = null,
-                        ProfilePicture = t.User.ProfilePicture,
                         ProfileUsername = t.User.ProfileUsername,
+                        MemberSince = t.User.ProfileUsernameCreatedAt,
+                        ProfilePicture = t.User.ProfilePicture,
                         Bio = t.User.Bio,
                         CountryCode = t.User.CountryCode,
-                        RegistrationDate = t.User.ProfileUsernameCreatedAt
+                        TrailsCount = t.User.Trails!.Count(),
+                        CommentsCount = t.User.Comments!.Count(),
+                        LikesCount = t.User.LikedTrails!.Count()
                     },
                     Start = t.Start,
                     End = t.End,
@@ -439,6 +441,59 @@ namespace WT.Infrastructure.Repositories
 
             // Use EF Core async creation which accepts a cancellation token
             return await PagedList<TrailDTO>.CreateAsync(projected, pagingParameters.PageNumber, pagingParameters.PageSize, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Get an instance of a <see cref="TrailDTO"/> by its unique identifier.
+        /// </summary>
+        /// <param name="trailId"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<TrailDTO?> GetTrailByIdAsync(Guid trailId, CancellationToken cancellationToken = default)
+        {
+            // Project at database level into DTO so EF can translate to SQL
+            var trailDto = await _context.Trails
+                .AsNoTracking()
+                .Where(t => t.Id == trailId)
+                .Select(t => new TrailDTO
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    User = t.User == null ? null : new PublicViewProfileDTO
+                    {
+                        Id = t.User.Id,
+                        FirstName = t.User.FirstName,
+                        ProfileUsername = t.User.ProfileUsername,
+                        MemberSince = t.User.ProfileUsernameCreatedAt,
+                        ProfilePicture = t.User.ProfilePicture,                        
+                        Bio = t.User.Bio,
+                        CountryCode = t.User.CountryCode,
+                        TrailsCount = t.User.Trails!.Count(),
+                        CommentsCount = t.User.Comments!.Count(),
+                        LikesCount = t.User.LikedTrails!.Count()
+
+                    },
+                    Start = t.Start,
+                    End = t.End,
+                    Waypoints = t.Waypoints,
+                    LengthMeters = t.LengthMeters,
+                    ElevationProfile = t.ElevationProfile,
+                    PointsOfInterest = t.PointsOfInterest,
+                    Difficulty = t.Difficulty,
+                    SurfaceTypes = t.SurfaceTypes,
+                    CreatedAt = t.CreatedAt,
+                    UpdatedAt = t.UpdatedAt,
+                    LikeCount = t.Likes!.Count(),
+                    RatingCount = t.Likes!.Count(l => l.Rating.HasValue),
+                    AverageRating = t.Likes!.Where(l => l.Rating.HasValue).Select(l => (double?)l.Rating).Average(),
+                    CommentCount = t.Comments!.Count(),
+                    PhotoCount = t.Images!.Count(),
+                    TrailLocked = t.TrailLocked
+                    // Navigation properites such as Image, Commennts and Like are loaded separately to optimize performance
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+            return trailDto;
         }
     }
 }

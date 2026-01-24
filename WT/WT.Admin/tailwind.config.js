@@ -1,6 +1,8 @@
 ﻿module.exports = {
     content: [
-        "./**/*.razor"
+        "./**/*.razor",
+        "./**/*.cshtml",
+        '../WT.Client/**/*.razor'
     ],
     darkMode: 'class',
     theme: {

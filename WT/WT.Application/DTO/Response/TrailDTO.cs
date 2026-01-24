@@ -2,6 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using WT.Application.DTO.Request.Account;
+using WT.Application.DTO.Response.Account;
 using WT.Domain.Entity;
 using WT.Domain.Enums;
 using WT.Domain.Geo;
@@ -18,7 +19,7 @@ namespace WT.Application.DTO.Response
         /// <summary>
         /// Profile of the user who created the trail.
         /// </summary>
-        public ApplicationUserDTO? User { get; set; }
+        public PublicViewProfileDTO? User { get; set; }
 
         /// <summary>
         /// Starting geographical coordinates of the trail.

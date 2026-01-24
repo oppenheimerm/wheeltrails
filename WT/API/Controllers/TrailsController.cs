@@ -49,6 +49,26 @@ namespace API.Controllers
             }
         }
 
+        // Controller to get a trail by its ID
+        [HttpGet("{trailId:guid}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<TrailDTO?>> GetTrailById(Guid trailId, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var trail = await _trailRepository.GetTrailByIdAsync(trailId, cancellationToken);
+                if (trail == null)
+                {
+                    return NotFound(new { success = false, message = "Trail not found" });
+                }
+                return Ok(new { success = true, trail });
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return StatusCode(500, new { success = false, message = "An error occurred while retrieving the trail" });
+            }
+        }
 
         [HttpPost]
         [Authorize] // ✅ Requires valid JWT token

@@ -104,5 +104,14 @@ namespace WT.Application.Services
         /// <param name="cancellationToken">Cancellation token observed by async DB operations</param>
         /// <returns>Paged list of trails</returns>
         Task<PagedList<TrailDTO>> GetAllTrailsAsync(PagingParameters pagingParameters, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Gets a trail by its unique identifier. Navigation properties such as Images, Commennts and Like are loaded separately to 
+        /// optimize performance.
+        /// </summary>
+        /// <param name="trailId"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task<TrailDTO?> GetTrailByIdAsync(Guid trailId, CancellationToken cancellationToken = default);
     }
 }

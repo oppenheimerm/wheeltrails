@@ -8,6 +8,13 @@ namespace WT.Application.Extensions
 {
     public static class ModelHelpers
     {
+        /// <summary>
+        /// Converts ApplicationUser entity to ApplicationUserDTO. This method is for an authenticated user's own profile data,
+        /// or admin views where more detailed information is required. for public profile views, use <see cref="ToDtoPublic(ApplicationUser)"/>."/>
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
         public static ApplicationUserDTO ToDto(this ApplicationUser entity)
         {
             if (entity == null) throw new ArgumentNullException(nameof(entity));
@@ -37,6 +44,34 @@ namespace WT.Application.Extensions
                     _user.Roles = _userRoles;
                 }
             }
+
+            return _user;
+        }
+
+        /// <summary>
+        /// Converts ApplicationUser entity to PublicViewProfileDTO. This is used for public profile views.
+        /// </summary>
+        /// <param name="entity"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static PublicViewProfileDTO ToDtoPublic(this ApplicationUser entity)
+        {
+            if (entity == null) throw new ArgumentNullException(nameof(entity));
+
+            var _user = new PublicViewProfileDTO
+            {
+
+                Id = entity.Id,
+                FirstName = entity.FirstName,
+                ProfileUsername = entity.ProfileUsername,
+                MemberSince = entity.ProfileUsernameCreatedAt,
+                ProfilePicture = entity.ProfilePicture,
+                Bio = entity.Bio,
+                CountryCode = entity.CountryCode,
+                TrailsCount = entity.Trails!.Count(),
+                CommentsCount = entity.Comments!.Count(),
+                LikesCount = entity.LikedTrails!.Count()
+            };
 
             return _user;
         }
@@ -72,7 +107,7 @@ namespace WT.Application.Extensions
                 Id = entity.Id,
                 Title = entity.Title,
                 Description = entity.Description,
-                User = entity.User!.ToDto(),
+                User = entity.User!.ToDtoPublic(),
                 Start = entity.Start,
                 End = entity.End,
                 Waypoints = entity.Waypoints,

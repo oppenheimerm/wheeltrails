@@ -11,6 +11,26 @@ namespace WT.Application.Extensions
     /// </remarks>
     public static class StringHelpers
     {
+
+        /// <summary>
+        /// Helper method to trim text to a specified maximum length, adding ellipsis if trimmed.
+        /// </summary>
+        /// <param name="text"></param>
+        /// <param name="maxLength"></param>
+        /// <returns></returns>
+        public static string TrimText(string text, int maxLength)
+        {
+            if (string.IsNullOrEmpty(text) || maxLength <= 0)
+            {
+                return string.Empty;
+            }
+            if (text.Length <= maxLength)
+            {
+                return text;
+            }
+            return text.Substring(0, maxLength - 3) + "...";
+        }
+
         /// <summary>
         /// Converts a country code to its full country name.
         /// </summary>

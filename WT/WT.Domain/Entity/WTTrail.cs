@@ -113,7 +113,8 @@ namespace WT.Domain.Entity
         public int PhotoCount => Images?.Count ?? 0;
 
         // ✅ NEW: Trail lock status to prevent edits/deletions
-        // This is usefule trail promoted or featured trails.
+        // This is usefull for
+        // promoted or featured trails.
         public bool TrailLocked { get; set; } = false;
     }
 }

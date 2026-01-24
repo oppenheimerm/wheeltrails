@@ -1,0 +1,54 @@
+    @page
+@model WT.Admin.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Admin Sign In";
+    Layout = "~/Pages/Shared/_AuthLayout.cshtml"; // Use shared auth layout so styles and fonts are included
+}
+
+<div class="min-h-screen pt-0">
+    <div class="max-w-2xl mx-auto px-4 py-16">
+        <div class="w-full mx-auto">
+            <div class="bg-[var(--md-sys-color-surface-container-lowest)] dark:bg-[var(--md-sys-color-surface)] rounded-xl shadow-elevation-2 p-8">
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">
+                        @Model.ErrorMessage
+                    </div>
+                }
+
+                <div class="mb-6">
+                    <h1 class="text-2xl md:text-3xl font-semibold text-[var(--md-sys-color-on-surface)]">Admin sign in</h1>
+                    <p class="mt-2 text-sm text-[var(--md-sys-color-on-surface-variant)]">Sign in with your admin credentials.</p>
+                </div>
+
+                <form method="post">
+                    @* Render antiforgery token explicitly (we generate it in the page model). Remove the helper to avoid duplicate inputs. *@
+                    @if (!string.IsNullOrEmpty(Model.AntiForgeryToken))
+                    {
+                        <input type="hidden" name="__RequestVerificationToken" value="@Model.AntiForgeryToken" />
+                    }
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="wt-form-lbl" for="Email">Email</label>
+                            <div class="relative">
+                                <input id="Email" name="Email" placeholder="Email address" value="@Model.Input.Email" class="wt-form-input" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="wt-form-lbl" for="Password">Password</label>
+                            <div class="relative">
+                                <input id="Password" name="Password" type="password" placeholder="Enter password" value="@Model.Input.Password" class="wt-form-input pr-10" />
+                            </div>
+                        </div>
+
+                        <div class="mt-8">
+                            <button type="submit" class="w-full py-3 px-4 rounded-full text-[var(--md-sys-color-on-primary)] bg-[var(--md-sys-color-primary)]">Sign in</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

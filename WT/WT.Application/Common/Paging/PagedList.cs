@@ -8,13 +8,20 @@ namespace WT.Application.Common.Paging
     /// </summary>
     public class PagedList<T> : List<T>
     {
-        public int CurrentPage { get; private init; }
-        public int PageSize { get; private init; }
-        public int TotalCount { get; private init; }
-        public int TotalPages { get; private init; }
+        // Public setters allow JSON deserializers to populate metadata when the object
+        // is received over the wire. A parameterless constructor is required by System.Text.Json.
+        public int CurrentPage { get; set; }
+        public int PageSize { get; set; }
+        public int TotalCount { get; set; }
+        public int TotalPages { get; set; }
 
         public bool HasPrevious => CurrentPage > 1;
         public bool HasNext => CurrentPage < TotalPages;
+
+        // Parameterless constructor for deserialization
+        public PagedList()
+        {
+        }
 
         private PagedList(IEnumerable<T> items, int count, int pageNumber, int pageSize)
         {

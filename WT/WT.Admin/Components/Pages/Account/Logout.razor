@@ -8,7 +8,23 @@
 @code {
     private async Task DoLogout()
     {
-        await Http.PostAsync("/account/logout", null);
-        Nav.NavigateTo("/account/login", true);
+        try
+        {
+            var resp = await Http.PostAsync("/account/logout", null);
+            if (resp.IsSuccessStatusCode)
+            {
+                // Force reload to clear the Blazor Server circuit state
+                Nav.NavigateTo("/account/login", true);
+            }
+            else
+            {
+                // If logout failed, still navigate to the login page to avoid leaving the user in a bad state
+                Nav.NavigateTo("/account/login", true);
+            }
+        }
+        catch
+        {
+            Nav.NavigateTo("/account/login", true);
+        }
     }
 }
