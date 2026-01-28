@@ -103,7 +103,7 @@ namespace WT.Application.Extensions
                 // Brasilia
                 new CountryCode("BR", "Brazil", new LatLng(-15.79, -47.88)),
                 // Ottawa
-                new CountryCode("CD", "Canada", new LatLng(45.4215, -75.6972)),
+                new CountryCode("CA", "Canada", new LatLng(45.4215, -75.6972)),
                 // Berlin
                 new CountryCode("DE", "Germany", new LatLng(52.5200, 13.4050)),
                 // Paris
