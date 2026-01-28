@@ -450,6 +450,64 @@ namespace API.Controllers
             });
         }
 
+
+        // Create an endpoint: identity/update-settings that takes UpdateSettingsRequest
+        // and requires authorization, acquire the user ID from the JWT token. additionally use
+        //  IsUsernameValidAsync to validate the UpdateSettingsRequest.Firstname to check for profanity.
+        [HttpPut("identity/update-settings")]
+        [Authorize]
+        public async Task<IActionResult> UpdateAccountSettings([FromBody] UpdateSettingsRequest model)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new APIResponseUpdateUserSetting
+                {
+                    Success = false,
+                    Message = "User not authorized."
+                });
+            }
+
+
+
+            // we shouul only validate if FirstName is being changed, if not ignore validation,
+            if (!string.IsNullOrEmpty(model.FirstName))
+            {
+
+                var usernameValidator = HttpContext.RequestServices.GetRequiredService<IUsernameValidator>();
+                var isValid = await usernameValidator.IsUsernameValidAsync(model.FirstName);
+                if (!isValid)
+                {
+                    var reason = usernameValidator.GetRejectionReason(model.FirstName);
+                    return BadRequest(new BaseAPIResponseDTO
+                    {
+                        Success = false,
+                        Message = reason ?? "First name contains inappropriate content."
+                    });
+                }
+            }
+
+            // userId neeeds to be a guid
+            if (!Guid.TryParse(userId, out var userGuid))
+            {
+                return Unauthorized(new APIResponseUpdateUserSetting
+                {
+                    Success = false,
+                    Message = "Invalid user ID."
+                });
+            }
+
+            var result = await _accountRepository.UpdateUserSettingAsync(userGuid, model);
+            if (result.Success)
+            {
+                return Ok(result);
+            }
+            else
+            {
+                return BadRequest(result);
+            }
+        }
+
         /// <summary>
         /// Get user profile by ProfileUsername (for profile URLs).  This is public info metadata. To
         /// keep the response ligth, we only return profile meta + counts (i.e. follower count, trail count, etc).

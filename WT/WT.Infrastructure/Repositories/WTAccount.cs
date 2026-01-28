@@ -15,6 +15,7 @@ using WT.Application.DTO.Response;
 using WT.Application.DTO.Response.Account;
 using WT.Application.Extensions;
 using WT.Domain.Entity;
+using WT.Domain.Enums;
 using WT.Infrastructure.Data;
 
 namespace WT.Infrastructure.Repositories
@@ -946,9 +947,6 @@ namespace WT.Infrastructure.Repositories
         }
 
 
-
-
-
         // ✅ IAccountRepository implementation (already exists, just make it public)
         public async Task<ApplicationUser?> FindUserByIdAsync(Guid id)
         {
@@ -1014,8 +1012,243 @@ namespace WT.Infrastructure.Repositories
             }
         }
 
+        /// <summary>
+        /// Updates user account settings with robust validation and error handling.
+        /// </summary>
+        /// <param name="userId">The unique identifier (GUID) of the user whose settings should be updated.</param>
+        /// <param name="model">
+        /// The settings update request containing:
+        /// <list type="bullet">
+        /// <item><description>FirstName: Required, max 50 characters</description></item>
+        /// <item><description>Bio: Optional, max 500 characters</description></item>
+        /// <item><description>CountryCode: Optional, exactly 2 characters</description></item>
+        /// <item><description>GpsAccuracy: Required, must be a valid GpsAccuracyLevel enum value</description></item>
+        /// </list>
+        /// </param>
+        /// <returns>
+        /// An <see cref="APIResponseUpdateUserSetting"/> containing:
+        /// <list type="bullet">
+        /// <item><description>Success: Boolean indicating if the update succeeded</description></item>
+        /// <item><description>Message: User-friendly status or error message</description></item>
+        /// <item><description>UpdatedSettings: ALL current user settings (not just changed values) if successful</description></item>
+        /// </list>
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Update Process:</strong></para>
+        /// <list type="number">
+        /// <item><description>Validates the input model is not null</description></item>
+        /// <item><description>Finds the user by ID and checks if account exists</description></item>
+        /// <item><description>Verifies the account is not soft-deleted (IsDeleted flag)</description></item>
+        /// <item><description>Applies settings update via <see cref="ApplySettingsUpdate"/> helper with validation</description></item>
+        /// <item><description>Persists changes to database via ASP.NET Identity's UserManager</description></item>
+        /// <item><description>Reloads user from database to ensure fresh values</description></item>
+        /// <item><description>Returns ALL current settings in response DTO (not just updated fields)</description></item>
+        /// <item><description>Logs all operations for audit trail</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Validation Rules (via ApplySettingsUpdate helper):</strong></para>
+        /// <list type="bullet">
+        /// <item><description><strong>FirstName:</strong> Optional update, 2-50 characters if provided, converted to Title Case with spaces removed</description></item>
+        /// <item><description><strong>Bio:</strong> Optional, max 500 characters, trimmed, set to null if empty</description></item>
+        /// <item><description><strong>CountryCode:</strong> Optional, exactly 2 characters if provided, converted to uppercase</description></item>
+        /// <item><description><strong>GpsAccuracy:</strong> Must be a valid <see cref="GpsAccuracyLevel"/> enum value (Default or High)</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Important - Response Behavior:</strong></para>
+        /// <para>
+        /// The <c>UpdatedSettings</c> property in the response contains <strong>ALL</strong> current user settings,
+        /// not just the fields that were updated. This ensures clients have complete, current data and prevents
+        /// partial/incomplete state on the frontend. For example, if only Bio is updated, the response will still
+        /// include FirstName, CountryCode, and GpsAccuracy with their current values.
+        /// </para>
+        /// 
+        /// <para><strong>Security & Authorization:</strong></para>
+        /// <list type="bullet">
+        /// <item><description>Should be called from an authorized API endpoint with authenticated user</description></item>
+        /// <item><description>Validates user ownership via userId parameter (from JWT claims)</description></item>
+        /// <item><description>Prevents updates to soft-deleted accounts</description></item>
+        /// <item><description>All operations are logged for security audit trail</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Error Handling:</strong></para>
+        /// <list type="bullet">
+        /// <item><description>Returns user-friendly error messages (no sensitive data)</description></item>
+        /// <item><description>Logs detailed errors to file for debugging</description></item>
+        /// <item><description>Handles null model, missing user, deleted accounts, validation failures</description></item>
+        /// <item><description>Catches and logs unexpected exceptions</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Database Impact:</strong></para>
+        /// <para>
+        /// Updates the following <see cref="ApplicationUser"/> properties in the database:
+        /// </para>
+        /// <list type="bullet">
+        /// <item><description><c>FirstName</c>: User's display name in Title Case (only if provided and different from current)</description></item>
+        /// <item><description><c>Bio</c>: User's biographical information</description></item>
+        /// <item><description><c>CountryCode</c>: ISO 3166-1 alpha-2 country code (e.g., "US", "GB")</description></item>
+        /// <item><description><c>CreateTrailGpsAccuracy</c>: GPS accuracy preference for trail recording</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Usage Example (from API Controller):</strong></para>
+        /// <code>
+        /// [Authorize(Roles = "USER")]
+        /// [HttpPut("settings")]
+        /// public async Task&lt;IActionResult&gt; UpdateSettings([FromBody] UpdateSettingsRequest model)
+        /// {
+        ///     var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        ///     if (!Guid.TryParse(userId, out var userGuid))
+        ///         return BadRequest("Invalid user identifier");
+        ///     
+        ///     var result = await _accountRepository.UpdateUserSettingAsync(userGuid, model);
+        ///     
+        ///     // result.UpdatedSettings contains ALL current settings, not just changed values
+        ///     return result.Success ? Ok(result) : BadRequest(result);
+        /// }
+        /// </code>
+        /// 
+        /// <para><strong>Logging:</strong></para>
+        /// <para>All operations are logged with timestamps to <c>LogException.LogToFile()</c>:</para>
+        /// <list type="bullet">
+        /// <item><description>Invalid model or user ID</description></item>
+        /// <item><description>User not found or deleted</description></item>
+        /// <item><description>Validation failures with error details</description></item>
+        /// <item><description>Successful updates with user ID</description></item>
+        /// <item><description>Database update failures with Identity errors</description></item>
+        /// <item><description>Unexpected exceptions with full stack trace</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Related Methods:</strong></para>
+        /// <list type="bullet">
+        /// <item><description><see cref="ApplySettingsUpdate"/>: Helper method that performs validation and applies changes</description></item>
+        /// <item><description><see cref="GetAccountSettingsAsync"/>: Retrieves current user settings</description></item>
+        /// <item><description><see cref="FindUserByIdAsync"/>: Finds user by GUID</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Thread Safety:</strong></para>
+        /// <para>
+        /// This method uses ASP.NET Identity's <c>UserManager</c> which is scoped per request.
+        /// Safe for concurrent requests from different users, but should not be called
+        /// concurrently for the same user to avoid race conditions.
+        /// </para>
+        /// </remarks>
+        /// <exception cref="Exception">
+        /// Catches and logs all exceptions, returning a generic error message to prevent
+        /// information disclosure. Detailed errors are logged to file for troubleshooting.
+        /// </exception>
+        /// <seealso cref="UpdateSettingsRequest"/>
+        /// <seealso cref="APIResponseUpdateUserSetting"/>
+        /// <seealso cref="UpdateSettingsResonseDTO"/>
+        /// <seealso cref="ApplySettingsUpdate"/>
+        /// <seealso cref="ApplicationUser"/>
+        /// <seealso cref="GpsAccuracyLevel"/>
+        public async Task<APIResponseUpdateUserSetting> UpdateUserSettingAsync(Guid userId, UpdateSettingsRequest model)
+        {
+            try 
+            {
+                // Validate input parameters
+                if (model == null)
+                {
+                    LogException.LogToFile($"UpdateUserSettingAsync: Null model provided for user ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = false,
+                        Message = "Settings data is required."
+                    };
+                }
+
+                // Find user by ID
+                var user = await FindUserByIdAsync(userId);
+                if (user == null)
+                {
+                    LogException.LogToFile($"UpdateUserSettingAsync: User not found for ID {userId} at {DateTime.UtcNow}");
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = false,
+                        Message = "User not found."
+                    };
+                }
+
+                // Check if user is deleted
+                if (user.IsDeleted)
+                {
+                    LogException.LogToFile($"UpdateUserSettingAsync: Attempted to update deleted user {userId} at {DateTime.UtcNow}");
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = false,
+                        Message = "Cannot update settings for a deleted account."
+                    };
+                }
+
+                // Apply settings update using helper method (includes validation)
+                var (success, errorMessage) = ApplySettingsUpdate(user, model);
+                if (!success)
+                {
+                    LogException.LogToFile($"UpdateUserSettingAsync: Validation failed for user {userId} at {DateTime.UtcNow}. Error: {errorMessage}");
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = false,
+                        Message = errorMessage ?? "Settings validation failed."
+                    };
+                }
+
+                // Save changes to database via UserManager
+                var result = await userManager.UpdateAsync(user);
+                if (result.Succeeded)
+                {
+                    LogException.LogToFile($"User settings updated successfully for user ID {userId} at {DateTime.UtcNow}");
+                    
+                    // Reload user from database to ensure we have the latest values
+                    var updatedUser = await FindUserByIdAsync(userId);
+                    if (updatedUser == null)
+                    {
+                        LogException.LogToFile($"UpdateUserSettingAsync: Unable to reload user after update for ID {userId} at {DateTime.UtcNow}");
+                        return new APIResponseUpdateUserSetting
+                        {
+                            Success = false,
+                            Message = "Settings updated but unable to retrieve updated values."
+                        };
+                    }
+                    
+                    // Return success with ALL current user settings (not just the updated ones)
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = true,
+                        Message = "Settings updated successfully.",
+                        UpdatedSettings = new UpdateSettingsResonseDTO
+                        {
+                            FirstName = updatedUser.FirstName,
+                            Bio = updatedUser.Bio,
+                            CountryCode = updatedUser.CountryCode,
+                            GpsAccuracy = updatedUser.CreateTrailGpsAccuracy
+                        }
+                    };
+                }
+                else
+                {
+                    var errors = string.Join("; ", result.Errors.Select(e => e.Description));
+                    LogException.LogToFile($"UpdateUserSettingAsync failed for user ID {userId} at {DateTime.UtcNow}. Errors: {errors}");
+                    return new APIResponseUpdateUserSetting
+                    {
+                        Success = false,
+                        Message = $"Failed to update settings: {errors}"
+                    };
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException.LogExceptions(ex);
+                return new APIResponseUpdateUserSetting
+                {
+                    Success = false,
+                    Message = "An error occurred while updating user settings. Please try again later."
+                };
+            }
+        }
+
 
         #region Helpers
+
+        // Helper method that takes ApplicatioUser and a UpdateSettingsRequest, updates the user settings accordingly
 
         /// <summary>
         /// Retrieves all roles assigned to a specific user.
@@ -1867,9 +2100,7 @@ namespace WT.Infrastructure.Repositories
         /// <item><description>Checks if the username is available (not already taken by another user).</description></item>
         /// <item><description>Checks if the username is allowed (does not contain profanity or inappropriate content).</description></item>
         /// </list>
-        /// <para>
-        /// <strong>Returns:</strong>
-        /// </para>
+        /// <para><strong>Returns:</strong></para>
         /// <list type="bullet">
         /// <item><description><c>IsValid</c>: Overall validity of the username (true if passes all checks).</description></item>
         /// <item><description><c>IsAvailable</c>: Availability status (true if not taken, false if already in use).</description></item>
@@ -2123,5 +2354,125 @@ namespace WT.Infrastructure.Repositories
                 return new BaseAPIResponseDTO { Success = false, Message = "Failed to hard delete user" };
             }
         }
+
+        #region Helpers
+
+        /// <summary>
+        /// Helper method that updates an ApplicationUser entity with values from UpdateSettingsRequest.
+        /// Performs robust validation to ensure data integrity before applying changes.
+        /// </summary>
+        /// <param name="user">The ApplicationUser entity to update. Must not be null.</param>
+        /// <param name="request">The UpdateSettingsRequest containing new values. Must not be null.</param>
+        /// <returns>
+        /// A tuple containing:
+        /// - Success: Boolean indicating if the update was valid
+        /// - ErrorMessage: Descriptive error message if validation failed, otherwise null
+        /// </returns>
+        /// <remarks>
+        /// <para><strong>Validation Rules:</strong></para>
+        /// <list type="bullet">
+        /// <item><description><strong>FirstName:</strong> Optional update, 2-50 characters if provided, converted to Title Case with spaces removed</description></item>
+        /// <item><description><strong>Bio:</strong> Optional, max 500 characters, trimmed, set to null if empty</description></item>
+        /// <item><description><strong>CountryCode:</strong> Optional, exactly 2 characters if provided, converted to uppercase</description></item>
+        /// <item><description><strong>GpsAccuracy:</strong> Must be a valid <see cref="GpsAccuracyLevel"/> enum value (Default or High)</description></item>
+        /// </list>
+        /// 
+        /// <para><strong>Usage Example:</strong></para>
+        /// <code>
+        /// var user = await FindUserByIdAsync(userId);
+        /// var request = new UpdateSettingsRequest { FirstName = "John", Bio = "Trail enthusiast" };
+        /// var (success, error) = ApplySettingsUpdate(user, request);
+        /// if (success) {
+        ///     await userManager.UpdateAsync(user);
+        /// }
+        /// </code>
+        /// </remarks>
+        private (bool Success, string? ErrorMessage) ApplySettingsUpdate(ApplicationUser user, UpdateSettingsRequest request)
+        {
+            // Null checks
+            if (user == null)
+            {
+                return (false, "User entity cannot be null.");
+            }
+
+            if (request == null)
+            {
+                return (false, "Update request cannot be null.");
+            }
+
+            // I think this is  logical error, if the user is not updating their first name, we should not throw an error.
+            /*if (string.IsNullOrWhiteSpace(request.FirstName))
+            {
+                return (false, "First name is required.");
+            }*/
+
+            // only apply the following checks if the user is updating their first name
+            if(request.FirstName is not null)
+            {
+                // if user.FirtName != request.FirstName then, user intends to update their first name
+                if (user.FirstName!.ToLower() != request.FirstName.Trim().ToLower())
+                {
+                    if (request.FirstName.Trim().Length < 2)
+                    {
+                        return (false, "First name must be at least 2 characters.");
+                    }
+
+                    var trimmedFirstName = request.FirstName.Trim();
+                    if (trimmedFirstName.Length > 50)
+                    {
+                        return (false, "First name cannot exceed 50 characters.");
+                    }
+
+                    // Convert to Title Case and remove spaces (as per existing pattern)
+                    user.FirstName = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(
+                        trimmedFirstName.Replace(" ", "").ToLower());
+
+                }
+            }         
+
+
+
+            // Validate and update Bio (optional)
+            if (request.Bio != null)
+            {
+                var trimmedBio = request.Bio.Trim();
+                if (trimmedBio.Length > 500)
+                {
+                    return (false, "Bio cannot exceed 500 characters.");
+                }
+                user.Bio = string.IsNullOrEmpty(trimmedBio) ? null : trimmedBio;
+            }
+            else
+            {
+                user.Bio = null;
+            }
+
+            // Validate and update CountryCode (optional)
+            if (!string.IsNullOrWhiteSpace(request.CountryCode))
+            {
+                var trimmedCode = request.CountryCode.Trim().ToUpper();
+                if (trimmedCode.Length != 2)
+                {
+                    return (false, "Country code must be exactly 2 characters.");
+                }
+                user.CountryCode = trimmedCode;
+            }
+            else
+            {
+                user.CountryCode = null;
+            }
+
+            // Validate and update GpsAccuracy
+            if (!Enum.IsDefined(typeof(GpsAccuracyLevel), request.GpsAccuracy))
+            {
+                return (false, "Invalid GPS accuracy level.");
+            }
+            user.CreateTrailGpsAccuracy = request.GpsAccuracy;
+
+            // All validations passed
+            return (true, null);
+        }
+
+        #endregion
     }
 }

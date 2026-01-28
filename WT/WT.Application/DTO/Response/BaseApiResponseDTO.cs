@@ -76,6 +76,14 @@ namespace WT.Application.DTO.Response
         string Message = null!,
         TrailDTO? Trail = null!) : BaseAPIResponseDTO(Success, Message);
 
-
-
+    /// <summary>
+    /// Handles the response for updating user settings.
+    /// </summary>
+    /// <param name="Success"></param>
+    /// <param name="Message"></param>
+    /// <param name="UpdatedSettings"></param>
+    public record APIResponseUpdateUserSetting(
+        bool Success = false,
+        string Message = null!,
+        UpdateSettingsResonseDTO? UpdatedSettings = null! ) : BaseAPIResponseDTO(Success, Message);
 }
