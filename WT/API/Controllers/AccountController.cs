@@ -14,6 +14,7 @@ using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
 using static WT.Application.Extensions.Constants;
 using Microsoft.Extensions.Hosting;
+using WT.Application.Extensions;
 
 namespace API.Controllers
 {
@@ -690,6 +691,14 @@ namespace API.Controllers
                 LogException.LogExceptions(ex);
                 return StatusCode(500, new APIResponseViewAccountSettings { Success = false, Message = "Unable to retrieve navbar info" });
             }
+        }
+
+        [HttpGet("metadata/countries")]
+        [AllowAnonymous] // Usually public so registration can see it
+        public IActionResult GetCountries()
+        {
+            var countries = StringHelpers.GetCountryCodes();
+            return Ok(countries);
         }
 
         #region Helpers

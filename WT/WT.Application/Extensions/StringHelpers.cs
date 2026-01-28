@@ -91,34 +91,73 @@ namespace WT.Application.Extensions
         {
             return new List<CountryCode>
             {
+                // Austria
+                new CountryCode("AT", "Austria", new LatLng(48.2082, 16.3738)),
                 // Canberra
-                new CountryCode("AU", "Australia", (-35.28, 149.13)),
+                new CountryCode("AU", "Australia", new LatLng(-35.28, 149.13)),
+                // Ireland
+                new CountryCode("IE", "Ireland", new LatLng(53.3498, -6.2603)),
+                // Belgium
+                new CountryCode("BE", "Belgium", new LatLng(50.8503, 4.3517)),
+                // Canberra (duplicate removed)
                 // Brasilia
-                new CountryCode("BZ", "Brazil", (-15.79, -47.88)),
+                new CountryCode("BR", "Brazil", new LatLng(-15.79, -47.88)),
                 // Ottawa
-                new CountryCode("CD", "Canada", (45.4215, -75.6972)),
+                new CountryCode("CD", "Canada", new LatLng(45.4215, -75.6972)),
                 // Berlin
-                new CountryCode("DE", "Germany", (52.5200, 13.4050)),
+                new CountryCode("DE", "Germany", new LatLng(52.5200, 13.4050)),
                 // Paris
-                new CountryCode("FR", "France", (48.8566, 2.3522)),
+                new CountryCode("FR", "France", new LatLng(48.8566, 2.3522)),
                 // Rome
-                new CountryCode("IT", "Italy", (41.9028, 12.4964)),
+                new CountryCode("IT", "Italy", new LatLng(41.9028, 12.4964)),
                 // Wellington
-                new CountryCode("NZ", "New Zealand", (-40.9006, 174.8860)),
+                new CountryCode("NZ", "New Zealand", new LatLng(-40.9006, 174.8860)),
                 // Warsaw
-                new CountryCode("PL", "Poland", (52.2370, 21.0173)),
+                new CountryCode("PL", "Poland", new LatLng(52.2370, 21.0173)),
                 // Bucharest
-                new CountryCode("RO", "Romania", (44.4268, 26.1025)),
+                new CountryCode("RO", "Romania", new LatLng(44.4268, 26.1025)),
                 // London
-                new CountryCode("UK", "United Kingdom", (55.3781, -3.4360)),
+                new CountryCode("GB", "United Kingdom", new LatLng(55.3781, -3.4360)),
                 // Washington, D.C.
-                new CountryCode("US", "United States", (37.0902, -95.7129)),
-                //  Spain
-                new CountryCode("ES", "Spain", (40.4637, -3.7038)),
-                //  Japan
-                new CountryCode("JP", "Japan", (36.2048, 138.2529)),
-                //  South Africa
-                new CountryCode("ZA", "South Africa", (-30.5595, 22.9375)),
+                new CountryCode("US", "United States", new LatLng(37.0902, -95.7129)),
+                // Spain
+                new CountryCode("ES", "Spain", new LatLng(40.4637, -3.7038)),
+                // Sweden
+                new CountryCode("SE", "Sweden", new LatLng(60.1282, 18.6435)),
+                // Norway
+                new CountryCode("NO", "Norway", new LatLng(60.4720, 8.4689)),
+                // Finland
+                new CountryCode("FI", "Finland", new LatLng(61.9241, 25.7482)),
+                // Denmark
+                new CountryCode("DK", "Denmark", new LatLng(56.2639, 9.5018)),
+                // Switzerland
+                new CountryCode("CH", "Switzerland", new LatLng(46.8182, 8.2275)),
+                // Portugal
+                new CountryCode("PT", "Portugal", new LatLng(39.3999, -8.2245)),
+                // Slovakia
+                new CountryCode("SK", "Slovakia", new LatLng(48.6690, 19.6990)),
+                // Greece
+                new CountryCode("GR", "Greece", new LatLng(39.0742, 21.8243)),
+                // Slovenia
+                new CountryCode("SI", "Slovenia", new LatLng(46.1512, 14.9955)),
+                // Peru
+                new CountryCode("PE", "Peru", new LatLng(-9.1900, -75.0152)),
+                // Netherlands
+                new CountryCode("NL", "Netherlands", new LatLng(52.1326, 5.2913)),
+                // Japan
+                new CountryCode("JP", "Japan", new LatLng(36.2048, 138.2529)),
+                // Uruguay
+                new CountryCode("UY", "Uruguay", new LatLng(-32.5228, -55.7658)),
+                // South Korea
+                new CountryCode("KR", "South Korea", new LatLng(35.9078, 127.7669)),
+                // Argentina
+                new CountryCode("AR", "Argentina", new LatLng(-34.6037, -58.3816)),
+                // Chile
+                new CountryCode("CL", "Chile", new LatLng(-33.4489, -70.6693)),
+                // Mexico
+                new CountryCode("MX", "Mexico", new LatLng(23.6345, -102.5528)),
+                // South Africa
+                new CountryCode("ZA", "South Africa", new LatLng(-30.5595, 22.9375)),
 
 
             }.OrderBy(code => code.Name).ToList();
@@ -147,7 +186,10 @@ namespace WT.Application.Extensions
 
     }
 
-
+    /// <summary>
+    /// Simple serializable latitude/longitude type to avoid tuple serialization issues.
+    /// </summary>
+    public record LatLng(double Latitude, double Longitude);
 
     /// <summary>
     /// Represents a country with its ISO 3166-1 alpha-2 code and full name.
@@ -164,7 +206,7 @@ namespace WT.Application.Extensions
         /// <param name="code">Two-letter ISO 3166-1 alpha-2 country code (e.g., "US", "GB").</param>
         /// <param name="name">Full name of the country (e.g., "United States", "United Kingdom").</param>
         /// <param name="capital">Geographical coordinates of the country's capital city.</param>
-        public CountryCode(string code, string name, (double latitude, double longitude) capital)
+        public CountryCode(string code, string name, LatLng capital)
         {
             Code = code;
             Name = name;
@@ -188,7 +230,7 @@ namespace WT.Application.Extensions
         /// It is used as fallback coordinates on the client side <see cref="WT.Domain.Entity.WTTrail"/>
         /// When you initialize the google map for a trail creation, if no start or end coordinates are provided
         /// </summary>
-        public (double latitude, double longitude) Capital { get; set; }
+        public LatLng Capital { get; set; }
     }
 
 
