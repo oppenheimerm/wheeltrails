@@ -146,7 +146,7 @@ function addPoiMarker(poi) {
     });
 }
 
-// New helper: get current position (one-shot) - returns a Promise resolving {lat,lng}
+// New helper: get current position (one-shot) - returns a Promise resolving {lat,lng,altitude,timestamp}
 function getCurrentPosition(options) {
     return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -156,7 +156,12 @@ function getCurrentPosition(options) {
 
         navigator.geolocation.getCurrentPosition(
             (pos) => {
-                resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                resolve({ 
+                    lat: pos.coords.latitude, 
+                    lng: pos.coords.longitude,
+                    altitude: pos.coords.altitude,
+                    timestamp: new Date(pos.timestamp).toISOString()
+                });
             },
             (err) => {
                 reject(err.message || err.code || 'Error getting position');
@@ -178,7 +183,9 @@ function startWatchPosition(dotNetRef, options) {
             if (dotNetRef && typeof dotNetRef.invokeMethodAsync === 'function') {
                 dotNetRef.invokeMethodAsync("OnPositionUpdate", {
                     lat: pos.coords.latitude,
-                    lng: pos.coords.longitude
+                    lng: pos.coords.longitude,
+                    altitude: pos.coords.altitude,
+                    timestamp: new Date(pos.timestamp).toISOString()
                 });
             }
         },

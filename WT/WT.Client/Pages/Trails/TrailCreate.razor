@@ -245,8 +245,9 @@
     }
 
     [JSInvokable]
-    public async Task OnPositionUpdate(WTLatLng point)
+    public async Task OnPositionUpdate(Geoposition geoPos)
     {
+        var point = new WTLatLng(geoPos.lat, geoPos.lng, geoPos.altitude, geoPos.timestamp);
         lastKnownPosition = point;
         Waypoints.Add(point);
         await JS.InvokeVoidAsync("updateTrailPath", Waypoints);
@@ -351,7 +352,17 @@
                 lengthMeters += CalculateDistance(Waypoints[i], Waypoints[i + 1]);
             }
             NewTrail.LengthMeters = lengthMeters;
-            if (NewTrail.ElevationProfile == null) NewTrail.ElevationProfile = new List<double>();
+            
+            // Build elevation profile from waypoint altitudes
+            NewTrail.ElevationProfile = Waypoints
+                .Where(w => w.Altitude.HasValue)
+                .Select(w => w.Altitude!.Value)
+                .ToList();
+            
+            if (NewTrail.ElevationProfile.Count == 0)
+            {
+                NewTrail.ElevationProfile = new List<double>();
+            }
 
             // create cancellation token source
             cts = new CancellationTokenSource();
@@ -481,7 +492,13 @@
         editContext?.NotifyFieldChanged(new FieldIdentifier(NewTrail, nameof(NewTrail.SurfaceTypes)));
     }
 
-    private class Geoposition { public double lat { get; set; } public double lng { get; set; } }
+    public class Geoposition 
+    { 
+        public double lat { get; set; } 
+        public double lng { get; set; }
+        public double? altitude { get; set; }
+        public DateTime? timestamp { get; set; }
+    }
 
     private async Task SendDevSubmission()
     {
@@ -522,6 +539,15 @@
                     lengthMeters += CalculateDistance(payload.Waypoints[i], payload.Waypoints[i + 1]);
                 }
                 payload.LengthMeters = lengthMeters;
+            }
+            
+            // Build elevation profile from waypoint altitudes if not already set
+            if (payload.ElevationProfile == null || payload.ElevationProfile.Count == 0)
+            {
+                payload.ElevationProfile = payload.Waypoints
+                    .Where(w => w.Altitude.HasValue)
+                    .Select(w => w.Altitude!.Value)
+                    .ToList();
             }
 
             var resp = await Http.PostAsJsonAsync("api/dev/log-trail", payload);
@@ -580,7 +606,7 @@
 
                     @if (!string.IsNullOrEmpty(errorMessage))
                     {
-                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]">@errorMessage</div>
+                        <div class="mb-4 p-3 rounded-md bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container]">@errorMessage</div>
                     }
 
                     @if (!string.IsNullOrEmpty(successMessage))
@@ -744,7 +770,7 @@
 
 <!-- POI list -->
 <div class="max-w-6xl mx-auto px-4 py-4">
-    <div id="poi-detail-wrap" class="bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface-container)] rounded-xl shadow-elevation-3 p-6 max-w-xl mx-auto min-h-[120px] border border-[var(--md-sys-color-outline-variant)]" role="region" aria-label="Points of Interest">
+    <div id="poi-detail-wrap" class="bg-[var(--md-sys-color-surface)] dark:bg-[var(--md-sys-color-surface-container)] rounded-xl shadow-elevation-3 p-6 max-w-xl mx-auto min-h-[120px] border border-[var(--md-sys-color-outline-variant]" role="region" aria-label="Points of Interest">
         <h4 class="font-semibold mb-2">Points of Interest</h4>
         @if (PointsOfInterest.Count == 0)
         {
