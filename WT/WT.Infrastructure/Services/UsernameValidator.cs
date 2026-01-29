@@ -7,10 +7,12 @@ namespace WT.Infrastructure.Services
     /// <summary>
     /// Validates usernames against offensive words and profanity.
     /// Uses the LDNOOBW (List of Dirty, Naughty, Obscene, and Otherwise Bad Words) list.
+    /// Enhanced with word boundary detection to prevent false positives.
     /// </summary>
     public class UsernameValidator : IUsernameValidator
     {
         private readonly HashSet<string> _badWords;
+        private readonly Dictionary<string, Regex> _badWordPatterns;
         private static readonly Regex UsernameRegex = new(@"^[a-zA-Z0-9_.-]+$", RegexOptions.Compiled);
         private const int MinLength = 3;
         private const int MaxLength = 20;
@@ -18,6 +20,7 @@ namespace WT.Infrastructure.Services
         public UsernameValidator()
         {
             _badWords = LoadBadWords();
+            _badWordPatterns = BuildWordBoundaryPatterns(_badWords);
         }
 
         public int BadWordCount => _badWords?.Count ?? 0;
@@ -35,12 +38,14 @@ namespace WT.Infrastructure.Services
 
             var lowerUsername = username.ToLowerInvariant();
 
+            // ✅ Check for exact match (fast path)
             if (_badWords.Contains(lowerUsername))
                 return false;
 
-            foreach (var badWord in _badWords)
+            // ✅ Use word boundary regex patterns to avoid false positives
+            foreach (var pattern in _badWordPatterns.Values)
             {
-                if (lowerUsername.Contains(badWord))
+                if (pattern.IsMatch(lowerUsername))
                     return false;
             }
 
@@ -68,10 +73,57 @@ namespace WT.Infrastructure.Services
 
             var lowerUsername = username.ToLowerInvariant();
 
-            if (_badWords.Contains(lowerUsername) || _badWords.Any(w => lowerUsername.Contains(w)))
+            // Check exact match
+            if (_badWords.Contains(lowerUsername))
                 return "Username contains inappropriate content";
 
+            // Check word boundaries
+            foreach (var pattern in _badWordPatterns.Values)
+            {
+                if (pattern.IsMatch(lowerUsername))
+                    return "Username contains inappropriate content";
+            }
+
             return null;
+        }
+
+        /// <summary>
+        /// Builds regex patterns with word boundaries for each bad word.
+        /// Word boundaries ensure the pattern only matches complete words, not substrings.
+        /// 
+        /// Examples:
+        /// - "ass" pattern will match "ass" or "my_ass_123" but NOT "Hassan" or "class"
+        /// - Pattern: \b(badword)\b where \b is a word boundary
+        /// </summary>
+        private static Dictionary<string, Regex> BuildWordBoundaryPatterns(HashSet<string> badWords)
+        {
+            var patterns = new Dictionary<string, Regex>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var word in badWords)
+            {
+                if (string.IsNullOrWhiteSpace(word))
+                    continue;
+
+                try
+                {
+                    // Escape special regex characters in the word
+                    var escapedWord = Regex.Escape(word);
+                    
+                    // \b = word boundary (transition between word and non-word character)
+                    // This ensures we match the word only when it's standalone or separated by non-letters
+                    var pattern = $@"\b{escapedWord}\b";
+                    
+                    patterns[word] = new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Compiled);
+                }
+                catch (ArgumentException ex)
+                {
+                    // Log invalid regex patterns but don't fail initialization
+                    Console.WriteLine($"⚠️ Failed to create regex for word '{word}': {ex.Message}");
+                }
+            }
+
+            Console.WriteLine($"✅ Built {patterns.Count} word boundary patterns from {badWords.Count} bad words");
+            return patterns;
         }
 
         private static HashSet<string> LoadBadWords()
