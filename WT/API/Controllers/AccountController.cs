@@ -1,20 +1,21 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Caching.Memory;
-using System.Security.Claims;
+using Microsoft.Extensions.Hosting;
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using WT.Application.APIServiceLogs;
 using WT.Application.Contracts;
 using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response;
+using WT.Application.Extensions;
 using WT.Domain.Entity;
 using WT.Infrastructure.Data;
 using WT.Infrastructure.Repositories;
 using static WT.Application.Extensions.Constants;
-using Microsoft.Extensions.Hosting;
-using WT.Application.Extensions;
 
 namespace API.Controllers
 {
@@ -146,20 +147,25 @@ namespace API.Controllers
 
         [HttpPost("identity/refresh-token")]
         [AllowAnonymous]
-        public async Task<ActionResult<APIResponseAuthentication>> RefreshToken()
+        public async Task<ActionResult<APIResponseAuthentication>> RefreshToken([FromBody] MobileRefreshRequest? mobileRequest)
         {
-            // Read refresh token from HttpOnly cookie. This endpoint allows anonymous
-            // access because the refresh cookie is used to authenticate the session.
-            var cookieToken = Request.Cookies["refreshToken"];
+            // 1. Try to get token from JSON body (Mobile)
+            var token = mobileRequest?.RefreshToken;
 
-            if (string.IsNullOrEmpty(cookieToken))
+            // 2. Fallback to Cookie (Web)
+            if (string.IsNullOrEmpty(token))
             {
-                // No refresh cookie present -> not an error, just no-op. Return204 No Content
+                token = Request.Cookies["refreshToken"];
+            }
+
+            // 3. Return NoContent if no token found
+            if (string.IsNullOrEmpty(token))
+            {
                 return NoContent();
             }
 
             var wtAccount = _accountRepository as WTAccount;
-            var result = await wtAccount!.RefreshTokenWithIpAsync(cookieToken, ipAddress());
+            var result = await wtAccount!.RefreshTokenWithIpAsync(token, ipAddress());
             if (result.Success)
             {
                 // Rotate the refresh cookie
