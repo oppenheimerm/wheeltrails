@@ -19,12 +19,5 @@ namespace WT.Application.DTO.Response.Account
         public string? ProfilePicture { get; set; }
         public string? Bio { get; set; }
         public string? CountryCode { get; set; }
-        public GpsAccuracyLevel GpsAccuracy { get; set; }
-
-        /// <summary>
-        /// Whether to show the battery/recording warning before starting recording.
-        /// Default: true (show warning).
-        /// </summary>
-        public bool ShowRecordingWarning { get; set; } = true;
     }
 }

@@ -371,8 +371,6 @@ namespace WT.Application.Services
                                             ProfileUsername = apiResult.User?.ProfileUsername,
                                             UserPhoto = apiResult.User?.ProfilePicture,
                                             Email = apiResult.User?.Email,
-                                            GpsAccuracy = apiResult.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
-                                            ShowRecordingWarning = apiResult.User?.ShowRecordingWarning ?? true,
                                             TimeStamp = DateTime.UtcNow,
                                             JWtToken = null // do NOT store JWT in local storage
                                         };
@@ -473,8 +471,6 @@ namespace WT.Application.Services
                             ProfileUsername = result.User?.ProfileUsername,
                             UserPhoto = result.User?.ProfilePicture,
                             Email = result.User?.Email,
-                            GpsAccuracy = result.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
-                            ShowRecordingWarning = result.User?.ShowRecordingWarning ?? true,
                             TimeStamp = DateTime.UtcNow,
                             JWtToken = null // do NOT store JWT in local storage
                         };

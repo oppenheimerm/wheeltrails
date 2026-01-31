@@ -172,14 +172,38 @@ namespace WT.Application.Extensions
                 new PointOfInterestType("REST", "Rest Area"),
                 new PointOfInterestType("INFO", "Information Center"),
                 new PointOfInterestType("FOOD", "Food Stand"),
+                // food restaurant
+                new PointOfInterestType("FDRT", "Restaurant"),                
+                // food bar
+                new PointOfInterestType("FDBR", "Bar"),
+                // shop 
+                new PointOfInterestType("SHOP", "Shop"),
+                // Sport venue
+                new PointOfInterestType("SPRT", "Sport Venue"),
                 new PointOfInterestType("TOIL", "Toilet Facility"),
                 new PointOfInterestType("ACCS", "Accessibility Feature"),
                 new PointOfInterestType("HIST", "Historical Site"),
+                //  beach
+                new PointOfInterestType("BEAC", "Beach"),
+                // boradwalk / dock
+                new PointOfInterestType("DOCK", "Dock / Boardwalk"),
+                // Lake
+                new PointOfInterestType("LAKE", "Lake"),
+                // River
+                new PointOfInterestType("RIVR", "River"),
+                // Waterfall
+                new PointOfInterestType("WATR", "Waterfall"),
+                // Mountain
+                new PointOfInterestType("MNTN", "Mountain Peak"),
+
                 new PointOfInterestType("NATU", "Natural Reserve"),
                 new PointOfInterestType("OBST", "Obstruction"),
                 new PointOfInterestType("CNST", "Construction"),
                 new PointOfInterestType("OBSV", "Observation Deck"),
+                // Hospital
+                new PointOfInterestType("HOSP", "Hospital"),
                 new PointOfInterestType("FSTN", "First Aid Station"),
+                new PointOfInterestType("OTHR", "Other"),
             }.OrderBy(poi => poi.POIName).ToList();
         }
         

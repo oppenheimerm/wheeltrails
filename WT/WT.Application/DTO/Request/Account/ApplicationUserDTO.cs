@@ -18,7 +18,5 @@ namespace WT.Application.DTO.Request.Account
         public string? CountryCode { get; set; }
         public string? Bio { get; set; }
         public DateTime? RegistrationDate { get; set; }
-        public GpsAccuracyLevel GpsAccuracy { get; set; }
-        public bool ShowRecordingWarning { get; set; } = true;
     }
 }

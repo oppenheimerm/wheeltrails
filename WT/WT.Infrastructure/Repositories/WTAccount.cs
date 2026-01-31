@@ -1219,7 +1219,6 @@ namespace WT.Infrastructure.Repositories
                             FirstName = updatedUser.FirstName,
                             Bio = updatedUser.Bio,
                             CountryCode = updatedUser.CountryCode,
-                            GpsAccuracy = updatedUser.CreateTrailGpsAccuracy
                         }
                     };
                 }
@@ -1469,8 +1468,6 @@ namespace WT.Infrastructure.Repositories
                     ProfilePicture = userDto.ProfilePicture,
                     Bio = userDto.Bio,
                     CountryCode = userDto.CountryCode,
-                    GpsAccuracy = userDto.GpsAccuracy,
-                    ShowRecordingWarning = userDto.ShowRecordingWarning
                 }
             };
 
@@ -2061,8 +2058,6 @@ namespace WT.Infrastructure.Repositories
                     ProfilePicture = user.ProfilePicture,
                     Bio = user.Bio,
                     CountryCode = user.CountryCode,
-                    GpsAccuracy = user.CreateTrailGpsAccuracy,
-                    ShowRecordingWarning = user.ShowRecordingWarning
                 };
 
                 LogException.LogToFile($"Account settings retrieved for user {user.Email} at {DateTime.UtcNow}");
@@ -2462,12 +2457,6 @@ namespace WT.Infrastructure.Repositories
                 user.CountryCode = null;
             }
 
-            // Validate and update GpsAccuracy
-            if (!Enum.IsDefined(typeof(GpsAccuracyLevel), request.GpsAccuracy))
-            {
-                return (false, "Invalid GPS accuracy level.");
-            }
-            user.CreateTrailGpsAccuracy = request.GpsAccuracy;
 
             // All validations passed
             return (true, null);

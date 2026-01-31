@@ -55,15 +55,5 @@ namespace WT.Application.DTO.Request.Account
         /// User email (only used for the authenticated user's private views; avoid exposing publicly).
         /// </summary>
         public string? Email { get; set; }
-
-        /// <summary>
-        /// Trail creation GPS accuracy preference for the user.
-        /// </summary>
-        public GpsAccuracyLevel GpsAccuracy { get; set; }
-
-        /// <summary>
-        /// Whether to show the recording/battery warning in the client UI.
-        /// </summary>
-        public bool ShowRecordingWarning { get; set; }
     }
 }

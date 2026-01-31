@@ -22,6 +22,7 @@ namespace API.Controllers
 
         // WARNING: Intended for testing by authenticated developers. Keep protected.
         [HttpPost("log-trail")]
+        [AllowAnonymous]
         public async Task<IActionResult> LogTrail([FromBody] CreateTrailDTO? model)
         {
             if (model == null)

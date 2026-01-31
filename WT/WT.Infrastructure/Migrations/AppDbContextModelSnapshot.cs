@@ -177,9 +177,6 @@ namespace WT.Infrastructure.Migrations
                         .HasMaxLength(2)
                         .HasColumnType("nvarchar(2)");
 
-                    b.Property<int>("CreateTrailGpsAccuracy")
-                        .HasColumnType("int");
-
                     b.Property<string>("DeleteReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -239,9 +236,6 @@ namespace WT.Infrastructure.Migrations
 
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("ShowRecordingWarning")
-                        .HasColumnType("bit");
 
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
