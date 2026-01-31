@@ -1,9 +1,10 @@
-using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using WT.Application.DTO.Request.Trail;
-using WT.Application.APIServiceLogs;
 using Microsoft.Extensions.Hosting;
+using System.Text.Json;
+using WT.Application.APIServiceLogs;
+using WT.Application.DTO.Request.Dev;
+using WT.Application.DTO.Request.Trail;
 
 namespace API.Controllers
 {
@@ -23,9 +24,9 @@ namespace API.Controllers
         // WARNING: Intended for testing by authenticated developers. Keep protected.
         [HttpPost("log-trail")]
         [AllowAnonymous]
-        public async Task<IActionResult> LogTrail([FromBody] CreateTrailDTO? model)
+        public async Task<IActionResult> LogTrail([FromBody] DevCreateTrailDTO? model)
         {
-            if (model == null)
+            if (model == null)  
                 return BadRequest(new { success = false, message = "No payload supplied" });
 
             try
