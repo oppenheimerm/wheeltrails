@@ -104,7 +104,7 @@ namespace API.Controllers
 
         // While we are still testing, we will comment out the create account endpoint, so that
         // only login is available.  We will re-enable this later.
-        /*[AllowAnonymous]
+        [AllowAnonymous]
         [HttpPost("identity/create")]
         public async Task<ActionResult<BaseAPIResponseDTO>> CreateAccount(RegisterDTO model)
         {
@@ -113,7 +113,7 @@ namespace API.Controllers
 
 
             return await _accountRepository.RegisterAsync(model);
-        }*/
+        }
 
         [AllowAnonymous]
         [HttpPost("identity/login")]
@@ -462,10 +462,11 @@ namespace API.Controllers
         // and requires authorization, acquire the user ID from the JWT token. additionally use
         //  IsUsernameValidAsync to validate the UpdateSettingsRequest.Firstname to check for profanity.
         [HttpPut("identity/update-settings")]
-        [Authorize]
+        //[Authorize]
+        [AllowAnonymous]
         public async Task<IActionResult> UpdateAccountSettings([FromBody] UpdateSettingsRequest model)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            /*var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new APIResponseUpdateUserSetting
@@ -473,7 +474,11 @@ namespace API.Controllers
                     Success = false,
                     Message = "User not authorized."
                 });
-            }
+            }*/
+
+
+            // REMOVE AFTER TESTING!!!
+            var userId = "bcd5bec3-1905-4d26-a974-08de5dc98a66";
 
 
 

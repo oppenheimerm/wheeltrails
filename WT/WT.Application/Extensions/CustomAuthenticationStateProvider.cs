@@ -152,8 +152,6 @@ namespace WT.Application.Extensions
                                                 ProfileUsername = apiResult.User?.ProfileUsername,
                                                 UserPhoto = apiResult.User?.ProfilePicture,
                                                 Email = userClaims.Email,
-                                                GpsAccuracy = apiResult.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
-                                                ShowRecordingWarning = apiResult.User?.ShowRecordingWarning ?? true,
                                                 Bio = apiResult.User?.Bio
                                             };
 
@@ -225,8 +223,6 @@ namespace WT.Application.Extensions
                                 ProfileUsername = apiResult2.User?.ProfileUsername,
                                 UserPhoto = apiResult2.User?.ProfilePicture,
                                 Email = userClaims2.Email,
-                                GpsAccuracy = apiResult2.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
-                                ShowRecordingWarning = apiResult2.User?.ShowRecordingWarning ?? true,
                                 Bio = apiResult2.User?.Bio
                             };
 
@@ -453,8 +449,6 @@ namespace WT.Application.Extensions
                                     ProfileUsername = apiResponseAuthentication.User?.ProfileUsername,
                                     UserPhoto = apiResponseAuthentication.User?.ProfilePicture,
                                     Email = getUserClaims.Email,
-                                    GpsAccuracy = apiResponseAuthentication.User?.GpsAccuracy ?? WT.Domain.Enums.GpsAccuracyLevel.Default,
-                                    ShowRecordingWarning = apiResponseAuthentication.User?.ShowRecordingWarning ?? true,
                                     Bio = apiResponseAuthentication.User?.Bio
                                 };
 

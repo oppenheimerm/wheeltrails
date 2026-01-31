@@ -100,9 +100,7 @@ namespace WT.Application.Extensions
                     ProfileUsername = result.User?.ProfileUsername,
                     Email = result.User?.Email,
                     UserPhoto = result.User?.ProfilePicture,
-                    Bio = result.User?.Bio,
-                    GpsAccuracy = result.User?.GpsAccuracy ?? 0,
-                    ShowRecordingWarning = result.User?.ShowRecordingWarning ?? false
+                    Bio = result.User?.Bio
                 };
 
                 Console.WriteLine("✅ Token refreshed successfully (server rotated cookie)");
