@@ -179,5 +179,6 @@ namespace WT.Infrastructure.Data
         public DbSet<Comment> Comments { get; set; } = default!;
         public DbSet<TrailLike> TrailLikes { get; set; } = default!;
         public DbSet<DeletionQueueItem> DeletionQueue { get; set; } = default!;
+        public DbSet<DevLogEntry> DevLogEntries { get; set; } = default!;
     }
 }

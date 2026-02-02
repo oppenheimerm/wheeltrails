@@ -51,6 +51,7 @@ namespace WT.Infrastructure.DependencyInjection
               .AddSignInManager()
               .AddDefaultTokenProviders();
 
+            //  Add authentication and authorization
             //  Since we're using JWT, we need to register authentication
             services.AddAuthentication(options =>
             {
@@ -70,8 +71,7 @@ namespace WT.Infrastructure.DependencyInjection
                 };
             });
 
-            //  Add authentication and authorization
-            services.AddAuthentication();
+           
             services.AddAuthorization();
 
             // ✅ Server-side only - used by API controllers
@@ -85,6 +85,7 @@ namespace WT.Infrastructure.DependencyInjection
             services.AddScoped<IFileStorageService, FirebaseStorageService>();
             services.AddSingleton<IUsernameValidator, UsernameValidator>();
             services.AddScoped<IWTTrailRepository, WTTrailRepository>();
+            services.AddScoped<IDevLogRepository, DevLogRepository>();
 
             // Background task queue for best-effort operations (e.g., file deletions)
             services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
@@ -119,6 +120,12 @@ namespace WT.Infrastructure.DependencyInjection
                           .AllowAnyHeader()
                           .AllowAnyMethod()
                           .AllowCredentials(); // keep only if you need cookies/credentials
+                });
+                options.AddPolicy("MobilePolicy", policy =>
+                {
+                    policy.AllowAnyOrigin() // Native apps don't have a stable origin
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
                 });
             });
 

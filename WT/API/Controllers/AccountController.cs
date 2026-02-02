@@ -104,7 +104,7 @@ namespace API.Controllers
 
         // While we are still testing, we will comment out the create account endpoint, so that
         // only login is available.  We will re-enable this later.
-        [AllowAnonymous]
+        /*[AllowAnonymous]
         [HttpPost("identity/create")]
         public async Task<ActionResult<BaseAPIResponseDTO>> CreateAccount(RegisterDTO model)
         {
@@ -113,7 +113,7 @@ namespace API.Controllers
 
 
             return await _accountRepository.RegisterAsync(model);
-        }
+        }*/
 
         [AllowAnonymous]
         [HttpPost("identity/login")]
@@ -466,7 +466,7 @@ namespace API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> UpdateAccountSettings([FromBody] UpdateSettingsRequest model)
         {
-            /*var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized(new APIResponseUpdateUserSetting
@@ -474,13 +474,19 @@ namespace API.Controllers
                     Success = false,
                     Message = "User not authorized."
                 });
-            }*/
+            }
 
 
-            // REMOVE AFTER TESTING!!!
-            var userId = "bcd5bec3-1905-4d26-a974-08de5dc98a66";
-
-
+            // If the model.FirstName is null, they are not changing it, skip validation; however,
+            // if it is not null or empty, we need to validate it, and make sure it has a min length of 2.
+            if (!string.IsNullOrEmpty(model.FirstName) && model.FirstName.Length < 2)
+            {
+                return BadRequest(new BaseAPIResponseDTO
+                {
+                    Success = false,
+                    Message = "First name must be at least 2 characters long."
+                });
+            }
 
             // we shouul only validate if FirstName is being changed, if not ignore validation,
             if (!string.IsNullOrEmpty(model.FirstName))

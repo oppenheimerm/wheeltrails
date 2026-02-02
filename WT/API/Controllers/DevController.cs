@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Hosting;
 using System.Text.Json;
 using WT.Application.APIServiceLogs;
 using WT.Application.DTO.Request.Dev;
 using WT.Application.DTO.Request.Trail;
+using WT.Application.Services;
+using Microsoft.AspNetCore.Hosting;
+using WT.Application.Common.Paging;
 
 namespace API.Controllers
 {
@@ -13,44 +15,41 @@ namespace API.Controllers
     [Authorize] // Require authentication for access to these dev endpoints
     public class DevController : ControllerBase
     {
+        private readonly IDevLogRepository _devLogRepository;
         private readonly IWebHostEnvironment _env;
         private readonly JsonSerializerOptions _jsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
-        public DevController(IWebHostEnvironment env)
+        public DevController(IDevLogRepository devLogRepository, IWebHostEnvironment env)
         {
+            _devLogRepository = devLogRepository;
             _env = env;
         }
 
         // WARNING: Intended for testing by authenticated developers. Keep protected.
         [HttpPost("log-trail")]
-        [AllowAnonymous]
-        public async Task<IActionResult> LogTrail([FromBody] DevCreateTrailDTO? model)
+        [Authorize]
+        public async Task<IActionResult> LogTrail([FromBody] DevLogEntryDTO? model, CancellationToken cancellationToken)
         {
-            if (model == null)  
+            if (model == null)
                 return BadRequest(new { success = false, message = "No payload supplied" });
 
             try
-            {
-                var folder = Path.Combine(_env.ContentRootPath, "DevSubmissions");
-                Directory.CreateDirectory(folder);
+            {                            
+                // Persist using repository and observe the cancellation token
+                var repoResult = await _devLogRepository.CreateDevLogAsync(model, cancellationToken);
 
-                var fileName = $"trail_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid():N}.json";
-                var filePath = Path.Combine(folder, fileName);
-
-                var json = JsonSerializer.Serialize(model, _jsonOptions);
-                await System.IO.File.WriteAllTextAsync(filePath, json);
-
-                LogException.LogToFile($"Dev submission saved: {filePath}");
-
-                // For developer debugging, when running in Development include the full path in the response so
-                // the developer can easily locate the file written by this endpoint. Do NOT expose file system
-                // paths in Production.
-                if (_env.IsDevelopment())
+                if (repoResult == null || !repoResult.Success)
                 {
-                    return Ok(new { success = true, file = fileName, savedPath = filePath });
+                    LogException.LogToFile($"Failed to create dev log entry via repository: {repoResult?.Message}");
+                    return StatusCode(500, new { success = false, message = "Failed to save submission" });
                 }
 
-                return Ok(new { success = true, file = fileName });
+                return Ok(new { success = true });
+            }
+            catch (OperationCanceledException)
+            {
+                LogException.LogToFile($"Dev submission cancelled at {DateTime.UtcNow}");
+                return StatusCode(499, new { success = false, message = "Request cancelled" });
             }
             catch (Exception ex)
             {
@@ -59,22 +58,21 @@ namespace API.Controllers
             }
         }
 
-        // List saved submissions
+        // List saved submissions (now reads from DB via repository with paging)
         [HttpGet("list")]
         [AllowAnonymous]
-        public IActionResult ListSubmissions()
+        public async Task<IActionResult> ListSubmissions([FromQuery] PagingParameters? pagingParameters, CancellationToken cancellationToken)
         {
             try
             {
-                var folder = Path.Combine(_env.ContentRootPath, "DevSubmissions");
-                if (!Directory.Exists(folder)) return Ok(Array.Empty<string>());
-
-                var files = Directory.GetFiles(folder, "*.json")
-                .Select(Path.GetFileName)
-                .OrderByDescending(n => n)
-                .ToArray();
-
-                return Ok(files);
+                var paging = pagingParameters ?? new PagingParameters();
+                var result = await _devLogRepository.GetAllDevLogsAsync(paging, cancellationToken);
+                return Ok(result);
+            }
+            catch (OperationCanceledException)
+            {
+                LogException.LogToFile($"ListSubmissions cancelled at {DateTime.UtcNow}");
+                return StatusCode(499, new { success = false, message = "Request cancelled" });
             }
             catch (Exception ex)
             {

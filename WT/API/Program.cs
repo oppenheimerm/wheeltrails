@@ -146,6 +146,7 @@ app.UseHttpsRedirection();
 
 // ✅ USE CORS - Must be BEFORE UseAuthentication/UseAuthorization
 app.UseCors("DefaultCorsPolicy");
+app.UseCors("MobilePolicy");
 
 app.UseRateLimiter();
 

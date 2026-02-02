@@ -6,7 +6,7 @@ namespace WT.Application.DTO.Request.Account
 {
     public class UpdateSettingsRequest
     {
-        [MaxLength(50, ErrorMessage = "First name has a maximum size 50 characters and a minumum length of 2.."), MinLength(2)]
+        [MaxLength(50, ErrorMessage = "First name has a maximum size 50 characters.")]
         public string? FirstName { get; set; }        
 
         [MaxLength(500, ErrorMessage = "Bio has a maximum size 500 characters.")]
