@@ -351,6 +351,27 @@ namespace WT.Infrastructure.Migrations
                     b.ToTable("DeletionQueue");
                 });
 
+            modelBuilder.Entity("WT.Domain.Entity.DevLogEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DevLogEntries");
+                });
+
             modelBuilder.Entity("WT.Domain.Entity.RefreshToken", b =>
                 {
                     b.Property<int>("Id")
