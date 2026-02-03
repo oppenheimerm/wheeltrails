@@ -60,7 +60,7 @@ namespace API.Controllers
 
         // List saved submissions (now reads from DB via repository with paging)
         [HttpGet("list")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> ListSubmissions([FromQuery] PagingParameters? pagingParameters, CancellationToken cancellationToken)
         {
             try
@@ -83,6 +83,7 @@ namespace API.Controllers
 
         // Download a saved submission by filename
         [HttpGet("file/{fileName}")]
+        [Authorize]
         public async Task<IActionResult> GetSubmissionFile(string fileName)
         {
             try
