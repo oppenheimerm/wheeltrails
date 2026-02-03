@@ -462,8 +462,7 @@ namespace API.Controllers
         // and requires authorization, acquire the user ID from the JWT token. additionally use
         //  IsUsernameValidAsync to validate the UpdateSettingsRequest.Firstname to check for profanity.
         [HttpPut("identity/update-settings")]
-        //[Authorize]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> UpdateAccountSettings([FromBody] UpdateSettingsRequest model)
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
