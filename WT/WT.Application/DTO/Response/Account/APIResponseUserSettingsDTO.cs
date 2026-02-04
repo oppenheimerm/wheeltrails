@@ -1,5 +1,4 @@
 ﻿
-using WT.Domain.Enums;
 
 namespace WT.Application.DTO.Response.Account
 {

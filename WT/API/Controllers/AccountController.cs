@@ -709,14 +709,6 @@ namespace API.Controllers
             }
         }
 
-        [HttpGet("metadata/countries")]
-        [AllowAnonymous] // Usually public so registration can see it
-        public IActionResult GetCountries()
-        {
-            var countries = StringHelpers.GetCountryCodes();
-            return Ok(countries);
-        }
-
         #region Helpers
         /// <summary>
         /// Get the IP address of the user. 

@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 
 namespace WT.Application.Extensions
 {
@@ -206,75 +207,125 @@ namespace WT.Application.Extensions
                 new PointOfInterestType("OTHR", "Other"),
             }.OrderBy(poi => poi.POIName).ToList();
         }
-        
 
-    }
 
-    /// <summary>
-    /// Simple serializable latitude/longitude type to avoid tuple serialization issues.
-    /// </summary>
-    public record LatLng(double Latitude, double Longitude);
-
-    /// <summary>
-    /// Represents a country with its ISO 3166-1 alpha-2 code and full name.
-    /// </summary>
-    /// <remarks>
-    /// This class is used to provide structured country data for dropdown lists
-    /// and other UI elements that require country selection.
-    /// </remarks>
-    public class CountryCode
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CountryCode"/> class.
-        /// </summary>
-        /// <param name="code">Two-letter ISO 3166-1 alpha-2 country code (e.g., "US", "GB").</param>
-        /// <param name="name">Full name of the country (e.g., "United States", "United Kingdom").</param>
-        /// <param name="capital">Geographical coordinates of the country's capital city.</param>
-        public CountryCode(string code, string name, LatLng capital)
+        public static List<TrailDifficulty> GetTrailDifficulties()
         {
-            Code = code;
-            Name = name;
-            Capital = capital;
-        }
-
-        /// <summary>
-        /// Gets or sets the two-letter ISO 3166-1 alpha-2 country code.
-        /// </summary>
-        /// <value>A two-character uppercase country code (e.g., "US", "GB", "FR").</value>
-        public string Code { get; set; }
-
-        /// <summary>
-        /// Gets or sets the full name of the country.
-        /// </summary>
-        /// <value>The complete country name in English (e.g., "United States", "United Kingdom").</value>
-        public string Name { get; set; }
-
-        /// <summary>
-        /// This property represents the geographical coordinates of the country's capital city.
-        /// It is used as fallback coordinates on the client side <see cref="WT.Domain.Entity.WTTrail"/>
-        /// When you initialize the google map for a trail creation, if no start or end coordinates are provided
-        /// </summary>
-        public LatLng Capital { get; set; }
-    }
-
-
-    /// <summary>
-    /// Helper class representing a Point of Interest (POI) <see cref="WTPo"/>
-    /// </summary>
-    public class PointOfInterestType
-    {
-        public PointOfInterestType(string poiCode, string poiName)
-        {
+            return new List<TrailDifficulty>
             {
-                POICode = poiCode;
-                POIName = poiName;
-            }
+                new TrailDifficulty { Code = "EASY", Title = "Easy", Description = "Smooth, flat surface suitable for all wheelchair users" },
+                new TrailDifficulty { Code = "MODR", Title = "Moderate", Description = "Gentle slopes, may require some assistance" },
+                new TrailDifficulty { Code = "CHAL", Title = "Challenging", Description = "Steeper grades, may require assistance or powered chair" },
+                new TrailDifficulty { Code = "VERY", Title = "Very Challenging", Description = "Significant inclines, rough terrain and uneven surfaces" }
+            };
         }
 
-        [MaxLength(4, ErrorMessage = "POICode code must be 4 characters long and unique"), MinLength(4)]
-        public string? POICode { get; set; }
 
-        public string? POIName { get; set; }
+        public static List<TrailSurfaceType> GetTrailSurfaceType()
+        {
+            return new List<TrailSurfaceType>
+            {
+                new TrailSurfaceType { Code = "UNKW", Title = "Unknown", Description = "Surface type not specified" },
+                new TrailSurfaceType { Code = "PVED", Title = "Paved", Description = "Asphalt or concrete surface" },
+                new TrailSurfaceType { Code = "GRAS", Title = "Grass", Description = "Natural grass surface" },
+                new TrailSurfaceType { Code = "GRVL", Title = "Gravel", Description = "Gravel or crushed stone" },
+                new TrailSurfaceType { Code = "MIXD", Title = "Mixed", Description = "Mixed surface types" },
+                new TrailSurfaceType { Code = "WDDK", Title = "Boardwalk /Deck", Description = "Wooden boardwalk or deck" }
+            };
+        }
+
+        /// <summary>
+        /// Simple serializable latitude/longitude type to avoid tuple serialization issues.
+        /// </summary>
+        public record LatLng(double Latitude, double Longitude);
+
+        /// <summary>
+        /// Represents a country with its ISO 3166-1 alpha-2 code and full name.
+        /// </summary>
+        /// <remarks>
+        /// This class is used to provide structured country data for dropdown lists
+        /// and other UI elements that require country selection.
+        /// </remarks>
+        public class CountryCode
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="CountryCode"/> class.
+            /// </summary>
+            /// <param name="code">Two-letter ISO 3166-1 alpha-2 country code (e.g., "US", "GB").</param>
+            /// <param name="name">Full name of the country (e.g., "United States", "United Kingdom").</param>
+            /// <param name="capital">Geographical coordinates of the country's capital city.</param>
+            public CountryCode(string code, string name, LatLng capital)
+            {
+                Code = code;
+                Name = name;
+                Capital = capital;
+            }
+
+            /// <summary>
+            /// Gets or sets the two-letter ISO 3166-1 alpha-2 country code.
+            /// </summary>
+            /// <value>A two-character uppercase country code (e.g., "US", "GB", "FR").</value>
+            public string Code { get; set; }
+
+            /// <summary>
+            /// Gets or sets the full name of the country.
+            /// </summary>
+            /// <value>The complete country name in English (e.g., "United States", "United Kingdom").</value>
+            public string Name { get; set; }
+
+            /// <summary>
+            /// This property represents the geographical coordinates of the country's capital city.
+            /// It is used as fallback coordinates on the client side <see cref="WT.Domain.Entity.WTTrail"/>
+            /// When you initialize the google map for a trail creation, if no start or end coordinates are provided
+            /// </summary>
+            public LatLng Capital { get; set; }
+        }
+
+
+        public class TrailDifficulty
+        {
+            [Required]
+            [MaxLength(4, ErrorMessage = "Code must be 4 characters long."), MinLength(4)]
+            public string? Code { get; set; }
+            [Required]
+            [MaxLength(20, ErrorMessage = "Title has a maximum length of 20 characters.")]
+            public string? Title { get; set; }
+            [Required]
+            [MaxLength(70, ErrorMessage = "Description has a maximum length of 70 characters.")]
+            public string? Description { get; set; }
+        }
+
+        public class TrailSurfaceType
+        {
+            [Required]
+            [MaxLength(4, ErrorMessage = "Code must be 4 characters long."), MinLength(4)]
+            public string? Code { get; set; }
+            [Required]
+            [MaxLength(20, ErrorMessage = "Title has a maximum length of 20 characters.")]
+            public string? Title { get; set; }
+            [Required]
+            [MaxLength(40, ErrorMessage = "Description has a maximum length of 40 characters.")]
+            public string? Description { get; set; }
+        }
+
+        /// <summary>
+        /// Helper class representing a Point of Interest (POI) <see cref="WTPo"/>
+        /// </summary>
+        public class PointOfInterestType
+        {
+            public PointOfInterestType(string poiCode, string poiName)
+            {
+                {
+                    POICode = poiCode;
+                    POIName = poiName;
+                }
+            }
+
+            [MaxLength(4, ErrorMessage = "POICode code must be 4 characters long and unique"), MinLength(4)]
+            public string? POICode { get; set; }
+
+            public string? POIName { get; set; }
+        }
+
     }
-
 }

@@ -88,7 +88,7 @@ namespace WT.Infrastructure.Repositories
                     Start = model.Start,
                     End = model.End,
                     Difficulty = model.Difficulty,
-                    SurfaceTypes = model.SurfaceTypes,
+                    SurfaceTypes = model.SurfaceType,
                     UserId = userId, // Assign the trusted userId from the method parameter
                     Waypoints = model.Waypoints,
                     LengthMeters = model.LengthMeters,

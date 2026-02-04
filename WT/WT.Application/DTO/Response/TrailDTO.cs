@@ -1,10 +1,6 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using WT.Application.DTO.Request.Account;
 using WT.Application.DTO.Response.Account;
-using WT.Domain.Entity;
-using WT.Domain.Enums;
 using WT.Domain.Geo;
 
 namespace WT.Application.DTO.Response
@@ -54,9 +50,13 @@ namespace WT.Application.DTO.Response
         /// </summary>
         public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
 
-        public TrailDifficulty Difficulty { get; set; } = TrailDifficulty.Easy;
+        /// <summary>
+        /// Setting the difficulty level of the trail.
+        /// </summary>
+        [Required]
+        public string? Difficulty { get; set; }
 
-        public SurfaceType SurfaceTypes { get; set; } = SurfaceType.Paved;
+        public string? SurfaceTypes { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

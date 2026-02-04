@@ -167,14 +167,27 @@
             : $"{baseClass} text-[var(--md-sys-color-on-surface)] hover:bg-[var(--md-sys-color-surface-container-highest)]";
     }
 
-    private string GetDifficultyClass(int difficulty)
+    private string GetDifficultyClass(string difficultyCode)
     {
-        return difficulty switch
+        // Ensure we handle null/empty
+        if (string.IsNullOrWhiteSpace(difficultyCode))
+            return "bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]";
+
+        // Normalize and try to resolve using configured difficulty codes
+        var code = difficultyCode.Trim().ToUpperInvariant();
+
+        var configured = StringHelpers.GetTrailDifficulties()
+            .FirstOrDefault(d => string.Equals(d.Code, code, StringComparison.OrdinalIgnoreCase));
+
+        var resolvedCode = configured?.Code?.ToUpperInvariant() ?? code;
+
+        return resolvedCode switch
         {
-            1 => "bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)]",
-            2 => "bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)]",
-            3 => "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)]",
-            _ => "bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]"
+            "EASY" => "bg-[var(--md-sys-color-tertiary-container)] text-[var(--md-sys-color-on-tertiary-container)]",
+            "MODR" => "bg-[var(--md-sys-color-primary-container)] text-[var(--md-sys-color-on-primary-container)]",
+            "CHAL" => "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)]",
+            "VERY" => "bg-[var(--md-sys-color-secondary-container)] text-[var(--md-sys-color-on-secondary-container)]",
+            _ => "bg-[var(--md-sys-color-error-container)] text-[var(--md-sys-color-on-error-container)]",
         };
     }
 
@@ -324,7 +337,7 @@
                         <tr>
                             <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)]">Date</th>
                             <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)]">Trail</th>
-                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var(--md-sys-color-on-surface)] hidden lg:table-cell">Creator</th>
+                            <th class="px-6 py-4 text-left text-label-large font-semibold text-[var,--md-sys-color-on-surface)] hidden lg:table-cell">Creator</th>
                             <th class="px-6 py-4 text-left text-label-large font-semibold text-[var,--md-sys-color-on-surface)] hidden md:table-cell">Difficulty</th>
                             <th class="px-6 py-4 text-left text-label-large font-semibold text-[var,--md-sys-color-on-surface)]">Status</th>
                             <th class="px-6 py-4 text-center text-label-large font-semibold text-[var,--md-sys-color-on-surface)]">Actions</th>
@@ -387,7 +400,7 @@
 
                                 <!-- Difficulty (Hidden on small screens) -->
                                 <td class="px-6 py-4 hidden md:table-cell">
-                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-label-medium font-medium @GetDifficultyClass((int)trail.Difficulty)">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-label-medium font-medium @GetDifficultyClass(trail.Difficulty)">
                                         @trail.Difficulty.ToString()
                                     </span>
                                 </td>

@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using WT.Domain.Enums;
 using WT.Domain.Geo;
 
 namespace WT.Application.DTO.Request.Trail
@@ -34,13 +33,15 @@ namespace WT.Application.DTO.Request.Trail
         [Required]
         public List<WTLatLng> Waypoints { get; set; } = new();
 
-        // ✅ NEW: Trail difficulty
+        // ✅ NEW: Trail difficulty - 
         [Required]
-        public TrailDifficulty Difficulty { get; set; } = TrailDifficulty.Easy;
+        [MaxLength(4, ErrorMessage = "Code must be 4 characters long."), MinLength(4)]
+        public String? Difficulty { get; set; }
 
         // ✅ NEW: Surface types (can be multiple via flags)
         [Required]
-        public SurfaceType SurfaceTypes { get; set; } = SurfaceType.Paved;
+        [MaxLength(4, ErrorMessage = "Code must be 4 characters long."), MinLength(4)]
+        public string? SurfaceType { get; set; }
 
         public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
 
