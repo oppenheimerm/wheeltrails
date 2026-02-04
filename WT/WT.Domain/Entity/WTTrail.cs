@@ -1,6 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using WT.Domain.Enums;
 using WT.Domain.Geo;
 
 namespace WT.Domain.Entity
@@ -59,13 +58,14 @@ namespace WT.Domain.Entity
         /// </summary>
         public List<WTPointOfInterest> PointsOfInterest { get; set; } = new();
 
-
-
+        // ✅ NEW: 4 letter code TrailDifficulty.Code
         [Required]
-        public TrailDifficulty Difficulty { get; set; } = TrailDifficulty.Easy;
+        [MaxLength(4, ErrorMessage = "Code must be 4 characters long."), MinLength(4)]
+        public string? Difficulty { get; set; } = "EASY";
 
+        // ✅ NEW: 4 letter code TrailSurfaceType.Code 
         [Required]
-        public SurfaceType SurfaceTypes { get; set; } = SurfaceType.Paved;
+        public string? SurfaceTypes { get; set; } = "UNKW";
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

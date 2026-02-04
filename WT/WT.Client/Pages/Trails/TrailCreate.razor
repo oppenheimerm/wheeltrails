@@ -5,7 +5,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using WT.Application.DTO.Request.Trail
 @using WT.Domain.Geo
-@using WT.Domain.Enums
+@using WT.Application.Extensions
 @using WT.Client.Services
 
 @inject IJSRuntime JS
@@ -234,8 +234,7 @@
                 PointsOfInterest = PointsOfInterest.ToList(),
                 Description = NewTrail?.Description ?? "Recorded trail",
                 Title = NewTrail?.Title ?? "Recorded Trail",
-                Difficulty = NewTrail?.Difficulty ?? TrailDifficulty.Easy,
-                SurfaceTypes = NewTrail?.SurfaceTypes ?? SurfaceType.Paved
+                Difficulty = NewTrail?.Difficulty ?? "EASY",
             };
 
             editContext = new EditContext(NewTrail);
@@ -334,8 +333,7 @@
                     PointsOfInterest = PointsOfInterest.ToList(),
                     Title = "Recorded Trail",
                     Description = "Recorded trail",
-                    Difficulty = TrailDifficulty.Easy,
-                    SurfaceTypes = SurfaceType.Paved
+                    Difficulty = "EASY",
                 };
                 editContext = new EditContext(NewTrail);
             }
@@ -469,7 +467,7 @@
         return R * c;
     }
 
-    private void ToggleSurface(SurfaceType surface, object? value)
+    /*private void ToggleSurface(SurfaceType surface, object? value)
     {
         if (NewTrail == null) return;
 
@@ -490,7 +488,7 @@
 
         // Notify EditContext of the change
         editContext?.NotifyFieldChanged(new FieldIdentifier(NewTrail, nameof(NewTrail.SurfaceTypes)));
-    }
+    }*/
 
     public class Geoposition 
     { 
@@ -525,8 +523,8 @@
                     PointsOfInterest = PointsOfInterest.ToList(),
                     Title = "Dev Recorded Trail",
                     Description = "Dev submission of recorded trail",
-                    Difficulty = TrailDifficulty.Easy,
-                    SurfaceTypes = SurfaceType.Paved
+                    /*Difficulty = TrailDifficulty.Easy,*/
+                    /*SurfaceTypes = SurfaceType.Paved*/
                 };
             }
 
@@ -679,32 +677,18 @@
                                             <ValidationMessage For="() => NewTrail.Description" />
                                         </div>
 
+
+
+
                                         <div>
                                             <label class="wt-form-lbl">Difficulty</label>
                                             <InputSelect @bind-Value="NewTrail.Difficulty" class="wt-form-input-dd">
-                                                @foreach (var d in Enum.GetValues<TrailDifficulty>())
+                                                @foreach (var d in StringHelpers.GetTrailDifficulties())
                                                 {
-                                                    <option value="@d">@d</option>
+                                                    <option value="@d.Code">@d.Title</option>
                                                 }
                                             </InputSelect>
                                             <ValidationMessage For="() => NewTrail.Difficulty" />
-                                        </div>
-
-                                        <div>
-                                            <label class="wt-form-lbl">Surface Types</label>
-                                            <div class="flex flex-wrap gap-2">
-                                                @foreach (var s in Enum.GetValues<SurfaceType>())
-                                                {
-                                                    if (s == SurfaceType.None) continue;
-                                                    <label class="inline-flex items-center mr-3">
-                                                        <input type="checkbox"
-                                                               checked="@(((NewTrail?.SurfaceTypes ?? SurfaceType.None) & s) == s)"
-                                                               @onchange="(ChangeEventArgs e) => ToggleSurface(s, e.Value)" />
-                                                        <span class="ml-2 text-sm">@s</span>
-                                                    </label>
-                                                }
-                                            </div>
-                                            <ValidationMessage For="() => NewTrail.SurfaceTypes" />
                                         </div>
                                     </div>
 

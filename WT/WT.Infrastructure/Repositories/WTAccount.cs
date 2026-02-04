@@ -15,7 +15,6 @@ using WT.Application.DTO.Response;
 using WT.Application.DTO.Response.Account;
 using WT.Application.Extensions;
 using WT.Domain.Entity;
-using WT.Domain.Enums;
 using WT.Infrastructure.Data;
 
 namespace WT.Infrastructure.Repositories
@@ -613,6 +612,7 @@ namespace WT.Infrastructure.Repositories
 
             account.Verified = DateTime.UtcNow;
             account.VerificationToken = null;
+            account.EmailConfirmed = true;
 
             dbContext.Users.Update(account);
             await dbContext.SaveChangesAsync();

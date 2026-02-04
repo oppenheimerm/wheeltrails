@@ -1,6 +1,5 @@
 ﻿
 using System.ComponentModel.DataAnnotations;
-using WT.Domain.Enums;
 
 namespace WT.Application.DTO.Request.Account
 {

@@ -27,8 +27,6 @@ namespace WT.Maui.ViewModels
         [ObservableProperty]
         private string description = string.Empty;
 
-        [ObservableProperty]
-        private TrailDifficulty selectedDifficulty = TrailDifficulty.Easy;
 
         // Surface type flags
         [ObservableProperty]
@@ -150,15 +148,6 @@ namespace WT.Maui.ViewModels
         public bool HasError => !string.IsNullOrEmpty(ErrorMessage);
         public bool HasSuccess => !string.IsNullOrEmpty(SuccessMessage);
 
-        // Difficulty options for picker
-        public List<TrailDifficulty> DifficultyOptions { get; } =
-        new()
-        {
-            TrailDifficulty.Easy,
-            TrailDifficulty.Moderate,
-            TrailDifficulty.Challenging,
-            TrailDifficulty.VeryDifficult
-        };
 
         // Inject TrailService so ViewModel can submit to API (no extra UI needed)
         public CreateTrailViewModel(TrailService trailService)
@@ -446,7 +435,7 @@ namespace WT.Maui.ViewModels
                     End = Waypoints.Last(),
                     Waypoints = new List<WTLatLng>(Waypoints),
                     PointsOfInterest = new List<WTPointOfInterest>(PointsOfInterest),
-                    Difficulty = SelectedDifficulty,
+                    /*Difficulty = SelectedDifficulty,*/
                     SurfaceTypes = GetSelectedSurfaceTypes(),
                     LengthMeters = CalculateTotalDistance(),
                     ElevationProfile = new List<double>() // TODO: Collect elevation data
@@ -525,7 +514,7 @@ namespace WT.Maui.ViewModels
                     End = Waypoints.Last(),
                     Waypoints = new List<WTLatLng>(Waypoints),
                     PointsOfInterest = new List<WTPointOfInterest>(PointsOfInterest),
-                    Difficulty = SelectedDifficulty,
+                    /*Difficulty = SelectedDifficulty,*/
                     SurfaceTypes = GetSelectedSurfaceTypes(),
                     LengthMeters = CalculateTotalDistance(),
                     ElevationProfile = new List<double>()
@@ -617,7 +606,6 @@ namespace WT.Maui.ViewModels
         {
             Title = string.Empty;
             Description = string.Empty;
-            SelectedDifficulty = TrailDifficulty.Easy;
             IsPavedSelected = true;
             IsGrassSelected = false;
             IsGravelSelected = false;

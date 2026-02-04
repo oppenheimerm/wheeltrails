@@ -462,6 +462,7 @@ namespace WT.Infrastructure.Migrations
                         .HasColumnType("nvarchar(600)");
 
                     b.Property<int>("Difficulty")
+                        .HasMaxLength(4)
                         .HasColumnType("int");
 
                     b.PrimitiveCollection<string>("ElevationProfile")
