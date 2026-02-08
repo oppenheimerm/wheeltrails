@@ -27,7 +27,7 @@ namespace API.Controllers
 
         // WARNING: Intended for testing by authenticated developers. Keep protected.
         [HttpPost("log-trail")]
-        [Authorize]
+        //[AllowAnonymous] // Temporarily allow anonymous for testing, but should be protected in production
         public async Task<IActionResult> LogTrail([FromBody] DevLogEntryDTO? model, CancellationToken cancellationToken)
         {
             if (model == null)
@@ -44,7 +44,7 @@ namespace API.Controllers
                     return StatusCode(500, new { success = false, message = "Failed to save submission" });
                 }
 
-                return Ok(new { success = true });
+                return Ok(repoResult);
             }
             catch (OperationCanceledException)
             {

@@ -56,7 +56,7 @@ namespace WT.Infrastructure.Repositories
 
                 LogException.LogToFile($"Creating dev log entry: {message} at time: {DateTime.UtcNow}");
 
-                return new BaseAPIResponseDTO(true, "Dev log entry created successfully");
+                return new BaseAPIResponseDTO(true, $"Dev log entry created successfully. {DateTime.UtcNow}");
             }
             catch (OperationCanceledException)
             {
